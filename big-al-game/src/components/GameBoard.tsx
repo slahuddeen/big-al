@@ -97,7 +97,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     return (
         <div
             className="relative w-full overflow-auto p-4 bg-gray-800 rounded-lg shadow-lg"
-            style={{ height: '500px' }}
+            style={{ height: '300px' }}
             role="application"
             aria-label="Game map"
         >

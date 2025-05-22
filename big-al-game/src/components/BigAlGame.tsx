@@ -1,4 +1,4 @@
-// components/BigAlGame.tsx
+// components/BigAlGame.tsx - Compact Layout with Better Space Usage
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useGame } from '../hooks/useGame';
 import GameBoard from './GameBoard';
@@ -7,6 +7,7 @@ import CreatureDetails from './CreatureDetails';
 import Tutorial from './UI/Tutorial';
 import FactDisplay from './UI/FactDisplay';
 import EventLog from './UI/EventLog';
+import LandscapeView from './LandscapeView';
 
 const BigAlGame: React.FC = () => {
     const game = useGame();
@@ -58,6 +59,25 @@ const BigAlGame: React.FC = () => {
         age: game.age
     };
 
+    // Get current tile information for landscape view with error handling
+    const getCurrentTileInfo = useCallback(() => {
+        try {
+            const currentTileKey = `${game.playerPosition.q},${game.playerPosition.r}`;
+            const currentTile = game.map[currentTileKey];
+
+            return {
+                terrain: currentTile?.type || 'plains',
+                creatures: Array.isArray(currentTile?.creatures) ? currentTile.creatures : []
+            };
+        } catch (error) {
+            console.error('Error getting current tile info:', error);
+            return {
+                terrain: 'plains',
+                creatures: []
+            };
+        }
+    }, [game.map, game.playerPosition]);
+
     // Memoize handlers
     const handleTileSelection = useCallback((tile: any) => {
         // Handle selecting a tile if needed
@@ -73,6 +93,48 @@ const BigAlGame: React.FC = () => {
         }
     }, [game.endTurn, gameState.gameOver]);
 
+    // Handle creature actions from landscape view with better error handling
+    const handleCreatureAction = useCallback((creature: any, action: string) => {
+        try {
+            console.log('Handling creature action:', action, 'for creature:', creature);
+
+            switch (action) {
+                case 'hunt':
+                    // Safely set the selected creature
+                    if (creature && creature.type) {
+                        game.setSelectedCreature?.(creature);
+                        game.setShowCreatureDetails?.(true);
+                    }
+                    break;
+                case 'observe':
+                    // Show creature information without hunting
+                    if (creature && creature.type) {
+                        game.setSelectedCreature?.(creature);
+                        game.setShowCreatureDetails?.(true);
+                    }
+                    break;
+                case 'approach':
+                    // Handle approaching mother or other friendly creatures
+                    if (creature?.type === 'mothersaur') {
+                        // Trigger mother interaction safely
+                        try {
+                            if (game.handleCreatureEncounter) {
+                                const currentTileKey = `${game.playerPosition.q},${game.playerPosition.r}`;
+                                game.handleCreatureEncounter(game.map, currentTileKey, game.playerPosition);
+                            }
+                        } catch (error) {
+                            console.error('Error handling mother encounter:', error);
+                        }
+                    }
+                    break;
+                default:
+                    console.log(`Unknown action: ${action} for creature:`, creature);
+            }
+        } catch (error) {
+            console.error('Error in handleCreatureAction:', error);
+        }
+    }, [game]);
+
     // Initialize game only once
     useEffect(() => {
         if (!initialized.current) {
@@ -82,8 +144,11 @@ const BigAlGame: React.FC = () => {
         }
     }, []);
 
+    // Get current tile info
+    const currentTileInfo = getCurrentTileInfo();
+
     return (
-        <div className={`${gameState.darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'} min-h-screen relative`}>
+        <div className={`${gameState.darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'} min-h-screen`}>
             {/* Game Header */}
             <header className="p-4 bg-amber-900 text-white">
                 <div className="container mx-auto flex justify-between items-center">
@@ -98,52 +163,76 @@ const BigAlGame: React.FC = () => {
                 </div>
             </header>
 
-            {/* Main Game Container */}
-            <div className="container mx-auto p-4 flex flex-col md:flex-row gap-4">
-                {/* Game Board Section */}
-                <main className="flex-1 flex flex-col items-center">
-                    {/* Game Message */}
-                    <div className="bg-gray-800 p-3 rounded-lg w-full mb-4">
-                        <p className="text-center">{gameState.currentMessage}</p>
+            {/* Main Game Layout - Now using grid for better space usage */}
+            <div className="container mx-auto p-4">
+                {/* Game Message */}
+                <div className="bg-gray-800 p-3 rounded-lg w-full mb-4">
+                    <p className="text-center text-white">{gameState.currentMessage}</p>
+                </div>
+
+                {/* Main Game Grid - Full width usage with custom row heights */}
+                <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 h-[calc(100vh-180px)] w-full">
+
+                    {/* Left Section - Map and Landscape with custom heights */}
+                    <div className="lg:col-span-5 grid gap-2" style={{ gridTemplateRows: '2fr 3fr' }}>
+
+                        {/* Top Left - Shorter Map */}
+                        <div className="flex flex-col bg-gray-800 rounded-lg overflow-hidden">
+                            <div className="flex-1 overflow-auto">
+                                <GameBoard
+                                    {...mapData}
+                                    moveTo={game.moveTo}
+                                    setSelectedTile={handleTileSelection}
+                                    darkMode={gameState.darkMode}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Bottom Left - Taller Landscape */}
+                        <div className="flex flex-col">
+                            <LandscapeView
+                                currentTerrain={currentTileInfo.terrain}
+                                creatures={currentTileInfo.creatures}
+                                playerPosition={game.playerPosition}
+                                growthStage={game.growthStage}
+                                onCreatureAction={handleCreatureAction}
+                                canHuntCreature={game.canHuntCreature || (() => ({ canHunt: false, reason: "System not ready" }))}
+                                darkMode={gameState.darkMode}
+                            />
+                        </div>
                     </div>
 
-                    {/* Game Map */}
-                    <GameBoard
-                        {...mapData}
-                        moveTo={game.moveTo}
-                        setSelectedTile={handleTileSelection}
-                        darkMode={gameState.darkMode}
-                    />
+                    {/* Right Section - Stats taking full remaining width */}
+                    <div className="lg:col-span-1 flex flex-col w-full">
+                        <div className="flex-1 w-full">
+                            <StatsPanel
+                                {...statsData}
+                                growthStages={game.growthStages}
+                                seasonEffects={game.seasonEffects}
+                                weatherEffects={game.weatherEffects}
+                                setShowStatsDetails={() => {/* Show stats details */ }}
+                                setShowInjuryDetails={() => {/* Show injury details */ }}
+                                setShowEventLog={() => game.setShowEventLog(true)}
+                                setShowPerkSelection={() => {/* Show perk selection */ }}
+                            />
+                        </div>
 
-                    {/* Game Controls */}
-                    <div className="w-full flex justify-between items-center mt-2">
-                        <button
-                            className={`px-4 py-2 rounded-lg transition-colors ${gameState.gameOver
+                        {/* End Turn Button */}
+                        <div className="mt-2 w-full">
+                            <button
+                                className={`w-full px-3 py-2 rounded-lg transition-colors font-medium ${gameState.gameOver
                                     ? 'bg-gray-600 cursor-not-allowed'
                                     : 'bg-amber-700 hover:bg-amber-800'
-                                } text-white`}
-                            onClick={handleEndTurn}
-                            disabled={gameState.gameOver}
-                            aria-label={`End turn, ${gameState.movesLeft} moves remaining`}
-                        >
-                            End Turn ({gameState.movesLeft} moves left)
-                        </button>
+                                    } text-white shadow-md`}
+                                onClick={handleEndTurn}
+                                disabled={gameState.gameOver}
+                                aria-label={`End turn, ${gameState.movesLeft} moves remaining`}
+                            >
+                                End Turn ({gameState.movesLeft} moves left)
+                            </button>
+                        </div>
                     </div>
-                </main>
-
-                {/* Stats Panel */}
-                <aside className="w-full md:w-64">
-                    <StatsPanel
-                        {...statsData}
-                        growthStages={game.growthStages}
-                        seasonEffects={game.seasonEffects}
-                        weatherEffects={game.weatherEffects}
-                        setShowStatsDetails={() => {/* Show stats details */ }}
-                        setShowInjuryDetails={() => {/* Show injury details */ }}
-                        setShowEventLog={() => game.setShowEventLog(true)}
-                        setShowPerkSelection={() => {/* Show perk selection */ }}
-                    />
-                </aside>
+                </div>
             </div>
 
             {/* Modal Components */}
@@ -171,14 +260,11 @@ const BigAlGame: React.FC = () => {
                     onHunt={handleHunting}
                     onClose={() => game.setShowCreatureDetails(false)}
                     calculateHuntingSuccess={game.calculateHuntingSuccess}
-
                     huntingSystem={game.huntingSystem}
                     growthSystem={game.growthSystem}
                     gameState={game}
-
                 />
             )}
-
         </div>
     );
 };
