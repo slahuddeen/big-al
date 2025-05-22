@@ -1,20 +1,21 @@
-﻿// hooks/useGame.ts - Working version with only the systems we've created
-import { useState, useCallback } from 'react';
+﻿// STEP 4: Update useGame.ts to ensure proper initialization order
+// hooks/useGame.ts
+
+import { useState, useCallback, useEffect } from 'react';
 import { GameState, HexCoord } from '../types';
 
-// Import only the systems we've actually created
+// Import systems
 import { useMapSystem } from './systems/useMapSystem';
 import { useGrowthSystem } from './systems/useGrowthSystem';
 import { useHuntingSystem } from './systems/useHuntingSystem';
 
-// Import your existing utilities (keep these)
+// Import utilities
 import { getAdjacentHexes, hexDistance } from '../utils/hexGrid';
 import { creatureTypes, dinosaurSpecies } from '../utils/creatures';
 import { habitats } from '../utils/terrain';
 import { weatherEffects, seasonEffects } from '../utils/weather';
 import { injuryTypes, perkDefinitions, growthStages } from '../utils/gameData';
 
-// Game constants
 export const GAME_CONSTANTS = {
     MAP_RADIUS: 10,
     INITIAL_MOVES: 20,
@@ -52,7 +53,7 @@ export const useGame = () => {
         availablePerks: 0,
         healthEvents: [],
         selectedCreature: null,
-        stealthLevel: 0, // Add this for hunting system
+        stealthLevel: 0,
 
         // UI state
         showTutorial: false,
@@ -64,46 +65,114 @@ export const useGame = () => {
         darkMode: true
     });
 
-    // Initialize only the systems we have
+    // Initialize systems
     const mapSystem = useMapSystem(gameState, setGameState);
     const growthSystem = useGrowthSystem(gameState, setGameState);
     const huntingSystem = useHuntingSystem(gameState, setGameState, growthSystem);
 
-    // Game initialization - simplified to work with current systems
-    const initializeGame = useCallback(() => {
-        console.log("Initializing Big Al game");
+    // Game initialization with proper async handling
+    const initializeGame = useCallback(async () => {
+        console.log("🚀 Initializing Big Al game...");
 
-        // Use map system
-        const newMap = mapSystem.createCompleteMap();
-        if (!newMap || Object.keys(newMap).length === 0) {
-            console.error("❌ Map creation failed!");
-            return;
+        try {
+            // Wait for map system to create the map (this loads terrains internally)
+            console.log("🗺️ Creating map...");
+            const newMap = await mapSystem.createCompleteMap();
+
+            if (!newMap || Object.keys(newMap).length === 0) {
+                console.error("❌ Map creation failed!");
+                setGameState(prev => ({
+                    ...prev,
+                    currentMessage: "Failed to create game map. Please refresh and try again."
+                }));
+                return;
+            }
+
+            console.log("✅ Map created successfully with", Object.keys(newMap).length, "hexes");
+
+            // Place creatures
+            console.log("🦕 Placing creatures...");
+            placeCreatures(newMap);
+
+            // Calculate initial valid moves
+            console.log("🎯 Calculating valid moves...");
+            const initialValidMoves = calculateValidMovesSync({ q: 0, r: 0 }, newMap);
+
+            // Update visibility
+            console.log("👁️ Updating visibility...");
+            const initialRevealedTiles = updateVisibilitySync(newMap, { q: 0, r: 0 });
+
+            // Update game state with everything at once
+            setGameState(prev => ({
+                ...prev,
+                gameStarted: true,
+                gameOver: false,
+                map: newMap,
+                validMoves: initialValidMoves,
+                revealedTiles: initialRevealedTiles,
+                ...GAME_CONSTANTS.INITIAL_STATS,
+                currentMessage: `You've hatched from your egg as an Allosaurus. Stay close to your mother for protection as you learn to hunt.`,
+                currentFact: "Allosaurus was one of the top predators of the Late Jurassic period, living about 155 to 145 million years ago.",
+                showFact: true
+            }));
+
+            console.log("✅ Game initialized successfully!");
+
+        } catch (error) {
+            console.error("❌ Game initialization failed:", error);
+            setGameState(prev => ({
+                ...prev,
+                currentMessage: "Game initialization failed. Please refresh and try again."
+            }));
         }
-        console.log("✅ Map created successfully with", Object.keys(newMap).length, "hexes");
+    }, [mapSystem]);
 
-        // Place creatures manually for now (until we have creature system)
-        placeCreatures(newMap);
+    // Synchronous helper functions (no state updates, just return values)
+    const calculateValidMovesSync = (position: HexCoord, currentMap: any): HexCoord[] => {
+        const adjacentHexes = getAdjacentHexes(position.q, position.r);
+        const validMovesList: HexCoord[] = [];
 
-        // Calculate initial valid moves
-        calculateValidMoves({ q: 0, r: 0 }, newMap);
+        adjacentHexes.forEach(hex => {
+            const key = `${hex.q},${hex.r}`;
+            const tile = currentMap[key];
 
-        // Update visibility manually for now
-        updateVisibility(newMap, { q: 0, r: 0 });
+            if (tile) {
+                const tileType = tile.type;
+                let canPass = true;
 
-        setGameState(prev => ({
-            ...prev,
-            gameStarted: true,
-            gameOver: false,
-            map: newMap,
-            ...GAME_CONSTANTS.INITIAL_STATS,
-            currentMessage: `You've hatched from your egg as an Allosaurus. Stay close to your mother for protection as you learn to hunt.`,
-            currentFact: "Allosaurus was one of the top predators of the Late Jurassic period, living about 155 to 145 million years ago.",
-            showFact: true
-        }));
+                // Hatchlings can't cross deep water
+                if (gameState.growthStage === 1 && tileType === 'lake') {
+                    canPass = false;
+                }
 
-    }, [mapSystem, setGameState]);
+                if (canPass) {
+                    validMovesList.push(hex);
+                }
+            }
+        });
 
-    // Temporary creature placement (until we have creature system)
+        return validMovesList;
+    };
+
+    const updateVisibilitySync = (currentMap: any, position: HexCoord): Record<string, boolean> => {
+        const visibilityRadius = 2;
+        const newRevealedTiles: Record<string, boolean> = {};
+
+        Object.keys(currentMap).forEach(key => {
+            const [q, r] = key.split(',').map(Number);
+            const distance = hexDistance(position.q, position.r, q, r);
+
+            if (distance <= visibilityRadius) {
+                currentMap[key].visible = true;
+                currentMap[key].visited = true;
+                newRevealedTiles[key] = true;
+            }
+        });
+
+        return newRevealedTiles;
+    };
+
+    // Creature placement (same as before)
     const placeCreatures = useCallback((map: any) => {
         // Place mother at nest
         const nestKey = `0,0`;
@@ -112,7 +181,7 @@ export const useGame = () => {
             type: 'mothersaur'
         });
 
-        // Place some basic creatures
+        // Place creatures
         const creatureSpawns = [
             { type: 'centipede', count: 5 },
             { type: 'lizard', count: 6 },
@@ -144,53 +213,7 @@ export const useGame = () => {
         });
     }, []);
 
-    // Temporary visibility update (until we have visibility system)
-    const updateVisibility = useCallback((currentMap: any, position: HexCoord) => {
-        const visibilityRadius = 2;
-        const newRevealedTiles = { ...gameState.revealedTiles };
-
-        Object.keys(currentMap).forEach(key => {
-            const [q, r] = key.split(',').map(Number);
-            const distance = hexDistance(position.q, position.r, q, r);
-
-            if (distance <= visibilityRadius) {
-                currentMap[key].visible = true;
-                currentMap[key].visited = true;
-                newRevealedTiles[key] = true;
-            }
-        });
-
-        setGameState(prev => ({ ...prev, revealedTiles: newRevealedTiles }));
-    }, [gameState.revealedTiles]);
-
-    // Temporary movement validation (until we have movement system)
-    const calculateValidMoves = useCallback((position: HexCoord, currentMap: any) => {
-        const adjacentHexes = getAdjacentHexes(position.q, position.r);
-        const validMovesList: HexCoord[] = [];
-
-        adjacentHexes.forEach(hex => {
-            const key = `${hex.q},${hex.r}`;
-            const tile = currentMap[key];
-
-            if (tile) {
-                const tileType = tile.type;
-                let canPass = true;
-
-                // Hatchlings can't cross deep water
-                if (gameState.growthStage === 1 && tileType === 'lake') {
-                    canPass = false;
-                }
-
-                if (canPass) {
-                    validMovesList.push(hex);
-                }
-            }
-        });
-
-        setGameState(prev => ({ ...prev, validMoves: validMovesList }));
-    }, [gameState.growthStage]);
-
-    // Main movement function
+    // Movement and other game functions (same as before)
     const moveTo = useCallback((q: number, r: number) => {
         if (gameState.gameOver || gameState.movesLeft <= 0) return;
 
@@ -208,25 +231,26 @@ export const useGame = () => {
         handleCreatureEncounter(newMap, key, newPosition);
 
         // Update game state
+        const newValidMoves = calculateValidMovesSync(newPosition, newMap);
+        const newRevealedTiles = { ...gameState.revealedTiles, ...updateVisibilitySync(newMap, newPosition) };
+
         setGameState(prev => ({
             ...prev,
             map: newMap,
             playerPosition: newPosition,
+            validMoves: newValidMoves,
+            revealedTiles: newRevealedTiles,
             movesLeft: prev.movesLeft - 1,
             turnCount: prev.turnCount + 1
         }));
-
-        // Update visibility and valid moves
-        updateVisibility(newMap, newPosition);
-        calculateValidMoves(newPosition, newMap);
 
         // End turn if no moves left
         if (gameState.movesLeft - 1 <= 0) {
             endTurn();
         }
-    }, [gameState, updateVisibility, calculateValidMoves]);
+    }, [gameState]);
 
-    // Handle creature encounters
+    // Other functions remain the same...
     const handleCreatureEncounter = useCallback((newMap: any, hexKey: string, position: HexCoord) => {
         const creaturesInTile = newMap[hexKey].creatures;
 
@@ -259,13 +283,11 @@ export const useGame = () => {
         }
     }, [huntingSystem]);
 
-    // Hunting handler
     const handleHunting = useCallback((attemptHunt: boolean) => {
         huntingSystem.hunt(attemptHunt);
         setGameState(prev => ({ ...prev, showCreatureDetails: false }));
     }, [huntingSystem]);
 
-    // End turn
     const endTurn = useCallback(() => {
         setGameState(prev => ({
             ...prev,
@@ -291,17 +313,16 @@ export const useGame = () => {
         setGameState(prev => ({ ...prev, showEventLog: show }));
     }, []);
 
-    // Return everything
     return {
         // Core state
         ...gameState,
 
-        // Systems we have
+        // Systems
         mapSystem,
         growthSystem,
         huntingSystem,
 
-        // Main game actions
+        // Game actions
         initializeGame,
         moveTo,
         handleHunting,

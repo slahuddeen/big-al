@@ -1,4 +1,6 @@
+// Fixed hexGrid.ts - Better positioning calculation
 // utils/hexGrid.ts
+
 export type HexCoord = {
     q: number;
     r: number;
@@ -9,23 +11,33 @@ export const axialToPixel = (q: number, r: number) => {
     const width = size * 2;
     const height = Math.sqrt(3) * size;
 
-    const verticalSpacing = 1.06;
-    // This is the corrected formula for flat-topped hexagons
-    const x = width * (q + r / 2);
-    const y = height * (r * 0.75) * verticalSpacing;
+    const horizontalSpacing = 1.02;
+    const verticalSpacing = 1.3;
 
-    return { x, y };
+    // Calculate raw position
+    const rawX = width * (q + r / 2) * horizontalSpacing;
+    const rawY = height * (r * 0.75) * verticalSpacing;
+
+    // Add offset to ensure all hexes are in positive coordinates
+    // This prevents clipping at the top/left edges
+    const offsetX = 600; // Large enough offset to center the map
+    const offsetY = 400; // Large enough offset to prevent top clipping
+
+    return {
+        x: rawX + offsetX,
+        y: rawY + offsetY
+    };
 };
 
 // Get all adjacent hex coordinates
 export const getAdjacentHexes = (q: number, r: number): HexCoord[] => {
     return [
         { q: q + 1, r: r - 1 }, // NE
-        { q: q + 1, r: r },   // E
-        { q: q, r: r + 1 },   // SE
+        { q: q + 1, r: r },     // E
+        { q: q, r: r + 1 },     // SE
         { q: q - 1, r: r + 1 }, // SW
-        { q: q - 1, r: r },   // W
-        { q: q, r: r - 1 }    // NW
+        { q: q - 1, r: r },     // W
+        { q: q, r: r - 1 }      // NW
     ];
 };
 
@@ -39,6 +51,35 @@ export const isValidHex = (q: number, r: number, mapRadius: number): boolean => 
     return hexDistance(0, 0, q, r) <= mapRadius;
 };
 
+// Calculate the bounds of the entire hex map for container sizing
+export const calculateMapBounds = (mapRadius: number) => {
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    // Check all hexes in the map to find bounds
+    for (let q = -mapRadius; q <= mapRadius; q++) {
+        const r1 = Math.max(-mapRadius, -q - mapRadius);
+        const r2 = Math.min(mapRadius, -q + mapRadius);
+
+        for (let r = r1; r <= r2; r++) {
+            const { x, y } = axialToPixel(q, r);
+
+            // Account for hex size (64x60)
+            minX = Math.min(minX, x - 32);
+            maxX = Math.max(maxX, x + 32);
+            minY = Math.min(minY, y - 30);
+            maxY = Math.max(maxY, y + 30);
+        }
+    }
+
+    return {
+        width: maxX - minX + 64,  // Add padding
+        height: maxY - minY + 64, // Add padding
+        minX,
+        minY
+    };
+};
+
 // Calculate movement range from a position
 export const calculateMovementRange = (
     position: HexCoord,
@@ -46,7 +87,6 @@ export const calculateMovementRange = (
     map: any,
     growthStage: number
 ): HexCoord[] => {
-    // Start with current position
     const visited: Set<string> = new Set([`${position.q},${position.r}`]);
     const result: HexCoord[] = [];
     const queue: Array<{ pos: HexCoord, movesRemaining: number }> = [
@@ -76,7 +116,7 @@ export const calculateMovementRange = (
             if (!tile) return;
 
             const tileType = tile.type;
-            const habitat = getHabitatByType(tileType); // You'll need to implement this
+            const habitat = getHabitatByType(tileType);
 
             if (habitat) {
                 // Check if this tile type is passable for this growth stage
@@ -108,14 +148,14 @@ export const calculateMovementRange = (
     return result;
 };
 
-// You'll need to implement this function based on your habitats object
+// Placeholder function - you'd implement based on your actual data
 export const getHabitatByType = (type: string) => {
-    // Return the habitat from your habitats object
-    // This is a placeholder - you'd need to implement based on your actual data
     const habitats: any = {
         plains: { movementCost: 1 },
         forest: { movementCost: 1.5 },
-        // etc.
+        lake: { movementCost: 2.5 },
+        mountain: { movementCost: 2.5 },
+        // Add more as needed
     };
-    return habitats[type];
+    return habitats[type] || { movementCost: 1 };
 };

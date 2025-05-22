@@ -1,13 +1,10 @@
-﻿// PROBLEM: Hex tiles aren't using terrain configs for visual styling
-// SOLUTION: Update EnhancedHexTile to use content registry for colors/images
-
-// 1. Update your EnhancedHexTile.tsx to use terrain configs
-// =========================================================
+﻿// Fixed EnhancedHexTile.tsx - Proper hexagon sizing to prevent art clipping
+// components/EnhancedHexTile.tsx
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { axialToPixel } from '../utils/hexGrid';
 import { ThreatLevels } from '../utils/predatorDanger';
-import { contentRegistry } from '../utils/contentRegistry'; // ADD THIS IMPORT
+import { contentRegistry } from '../utils/contentRegistry';
 import { Creature } from '../types';
 
 interface EnhancedHexTileProps {
@@ -46,23 +43,74 @@ const EnhancedHexTile: React.FC<EnhancedHexTileProps> = ({
     const [isHovered, setIsHovered] = useState(false);
     const position = useMemo(() => axialToPixel(q, r), [q, r]);
 
-    // GET TERRAIN CONFIG FROM REGISTRY (this is the key fix!)
+    // GET TERRAIN CONFIG WITH BETTER ERROR HANDLING
     const terrainConfig = useMemo(() => {
-        return contentRegistry.getTerrain(type) || {
-            name: type,
-            color: 'bg-gray-500', // fallback
-            imagePath: undefined,
-            description: 'Unknown terrain'
+        const config = contentRegistry.getTerrain(type);
+
+        if (!config) {
+            console.warn(`🚨 No terrain config found for type: "${type}" at ${q},${r}`);
+
+            return {
+                id: type,
+                name: type.charAt(0).toUpperCase() + type.slice(1),
+                color: getDefaultTerrainColor(type),
+                imagePath: undefined,
+                description: `Unknown terrain: ${type}`
+            };
+        }
+
+        return config;
+    }, [type, q, r]);
+
+    // Fallback colors for known terrain types
+    const getDefaultTerrainColor = (terrainType: string): string => {
+        const colorMap: Record<string, string> = {
+            'plains': 'bg-yellow-200',
+            'forest': 'bg-green-600',
+            'grassland': 'bg-green-300',
+            'rocky': 'bg-gray-500',
+            'riverbank': 'bg-blue-500',
+            'lake': 'bg-blue-400',
+            'marsh': 'bg-green-500',
+            'cliff': 'bg-gray-700',
+            'volcanic': 'bg-red-900',
+            'nest': 'bg-amber-600',
+            'denseforest': 'bg-green-800',
+            'woods': 'bg-green-500',
+            'jungle': 'bg-green-900',
+            'shrubland': 'bg-yellow-600',
+            'beach': 'bg-yellow-400',
+            'mountain': 'bg-gray-700',
+            'mesa': 'bg-orange-400',
+            'savannah': 'bg-yellow-500',
+            'desert': 'bg-yellow-700',
+            'volcanic_fields': 'bg-red-800',
+            'steppes': 'bg-yellow-600',
+            'hills': 'bg-green-600',
+            'sparse_forest': 'bg-green-400'
         };
-    }, [type]);
 
-    // Memoize visual styling using terrain config
+        return colorMap[terrainType] || 'bg-gray-400';
+    };
+
+    // Improved styling calculation
     const styling = useMemo(() => {
-        // Use terrain config for background image and color
-        const backgroundImage = terrainConfig.imagePath ? `url(${terrainConfig.imagePath})` : '';
-        const fallbackColor = terrainConfig.color || 'bg-gray-500';
+        let backgroundImage = '';
+        let backgroundColor = '';
 
-        // Apply environmental effects
+        // Try to use image first
+        if (terrainConfig.imagePath) {
+            backgroundImage = `url(${terrainConfig.imagePath})`;
+        }
+
+        // Always set a background color as fallback
+        if (terrainConfig.color) {
+            backgroundColor = terrainConfig.color;
+        } else {
+            backgroundColor = getDefaultTerrainColor(type);
+        }
+
+        // Environmental effects
         let effectClasses = "";
 
         // Season effects
@@ -90,30 +138,21 @@ const EnhancedHexTile: React.FC<EnhancedHexTileProps> = ({
 
         return {
             backgroundImage,
-            fallbackColor,
+            backgroundColor,
             effectClasses
         };
     }, [terrainConfig, type, season, weather, timeOfDay]);
 
-    // Debug logging (remove this once it's working)
-    if (process.env.NODE_ENV === 'development' && Math.random() < 0.01) {
-        console.log(`🎨 Hex ${type} styling:`, {
-            config: terrainConfig,
-            backgroundImage: styling.backgroundImage,
-            fallbackColor: styling.fallbackColor
-        });
-    }
-
-    // Memoize player appearance
+    // Player appearance
     const playerAppearance = useMemo(() => {
-        const size = Math.min(8, 4 + (growthStage * 2)); // Cap at reasonable size
+        const size = Math.min(8, 4 + (growthStage * 2));
         const colors = ["bg-amber-300", "bg-amber-400", "bg-amber-500", "bg-amber-600"];
         const color = colors[Math.min(growthStage - 1, colors.length - 1)] || colors[0];
 
         return { size, color };
     }, [growthStage]);
 
-    // Memoize creature markers
+    // Creature markers
     const creatureMarkers = useMemo(() => {
         if (!visible || !creatures.length || isPlayer || isMother) return null;
 
@@ -151,7 +190,7 @@ const EnhancedHexTile: React.FC<EnhancedHexTileProps> = ({
         setIsHovered(false);
     }, []);
 
-    // Threat color calculation
+    // Threat color
     const threatColor = useMemo(() => {
         if (predatorThreatLevel && predatorThreatLevel > 0) {
             const threatInfo = ThreatLevels[predatorThreatLevel];
@@ -160,11 +199,11 @@ const EnhancedHexTile: React.FC<EnhancedHexTileProps> = ({
         return null;
     }, [predatorThreatLevel]);
 
-    // Hover tooltip content
+    // Tooltip content
     const tooltipContent = useMemo(() => {
         if (!isHovered || !visible) return null;
 
-        const parts = [type.charAt(0).toUpperCase() + type.slice(1)];
+        const parts = [terrainConfig.name || type];
 
         if (creatures.length > 0) {
             parts.push(`${creatures.length} creature${creatures.length > 1 ? 's' : ''}`);
@@ -176,30 +215,40 @@ const EnhancedHexTile: React.FC<EnhancedHexTileProps> = ({
         }
 
         return parts.join(' • ');
-    }, [isHovered, visible, type, creatures.length, predatorThreatLevel]);
+    }, [isHovered, visible, terrainConfig.name, type, creatures.length, predatorThreatLevel]);
+
+    // FIXED: Proper hexagon dimensions that don't clip the art
+    const hexWidth = 72;  // Increased from 64
+    const hexHeight = 72; // Increased from 60 to match width (square container)
 
     return (
         <div
-            className={`absolute hexagon ${!styling.backgroundImage ? styling.fallbackColor : ''} ${styling.effectClasses} ${visible ? 'opacity-100' : 'opacity-20'
+            className={`absolute hexagon ${styling.backgroundColor} ${styling.effectClasses} ${visible ? 'opacity-100' : 'opacity-20'
                 } ${isValidMove ? 'cursor-pointer ring-2 ring-white ring-opacity-60' : ''
                 } ${isInMovementRange ? 'ring-1 ring-yellow-300 ring-opacity-40' : ''
                 } ${isHovered ? 'ring-2 ring-blue-500' : ''
                 } transition-all duration-200`}
             style={{
-                left: position.x + 'px',
-                top: position.y + 'px',
-                width: '64px',
-                height: '60px',
+                left: (position.x - hexWidth / 2) + 'px',  // Center the hex properly
+                top: (position.y - hexHeight / 2) + 'px',  // Center the hex properly
+                width: `${hexWidth}px`,
+                height: `${hexHeight}px`,
                 backgroundImage: styling.backgroundImage,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
+                // FIXED: Perfect hexagon clip-path that doesn't cut off art
+                clipPath: 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)',
+                // Alternative: you could also use a CSS mask instead of clip-path
+                // maskImage: 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)',
+                // maskSize: '100% 100%',
+                // maskRepeat: 'no-repeat'
             }}
             onClick={onClick}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             role="gridcell"
-            aria-label={`Hex tile at ${q},${r}: ${type}${creatures.length ? ` with ${creatures.length} creatures` : ''}`}
+            aria-label={`Hex tile at ${q},${r}: ${terrainConfig.name || type}${creatures.length ? ` with ${creatures.length} creatures` : ''
+                }`}
         >
             {/* Weather effect overlay */}
             {weather === 'rainy' && visible && (
