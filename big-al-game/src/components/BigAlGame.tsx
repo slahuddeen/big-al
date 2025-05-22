@@ -1,5 +1,5 @@
 // components/BigAlGame.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useGame } from '../hooks/useGame';
 import GameBoard from './GameBoard';
 import StatsPanel from './StatsPanel';
@@ -8,131 +8,177 @@ import Tutorial from './UI/Tutorial';
 import FactDisplay from './UI/FactDisplay';
 import EventLog from './UI/EventLog';
 
-
 const BigAlGame: React.FC = () => {
-    console.log("BigAlGame rendering");
     const game = useGame();
-    
-    // Destructure the game state and functions
-    const {
-        gameStarted, gameOver, showDinosaurSelection,
-        map, playerPosition, motherPosition, validMoves,
-        movesLeft, turnCount, showTutorial, showFact,
-        currentFact, currentMessage, showCreatureDetails,
-        selectedCreature, injuries, perks, availablePerks,
-        score, fitness, hunger, thirst, energy, age, weight,
-        growthStage, revealedTiles, showPerkSelection,
-        darkMode, healthEvents, showEventLog,
-        weather, season, timeOfDay,
-        // Functions
-        initializeGame, moveTo, endTurn, handleHunting,
-        setShowTutorial, setShowFact, setShowEventLog,
-        setShowCreatureDetails, selectPerk
-    } = game;
     const initialized = useRef(false);
+
+    // Memoize frequently used values
+    const gameState = {
+        gameStarted: game.gameStarted,
+        gameOver: game.gameOver,
+        showDinosaurSelection: game.showDinosaurSelection,
+        showTutorial: game.showTutorial,
+        showFact: game.showFact,
+        showCreatureDetails: game.showCreatureDetails,
+        showEventLog: game.showEventLog,
+        darkMode: game.darkMode,
+        currentMessage: game.currentMessage,
+        currentFact: game.currentFact,
+        selectedCreature: game.selectedCreature,
+        movesLeft: game.movesLeft,
+        healthEvents: game.healthEvents
+    };
+
+    const mapData = {
+        map: game.map,
+        playerPosition: game.playerPosition,
+        motherPosition: game.motherPosition,
+        validMoves: game.validMoves,
+        revealedTiles: game.revealedTiles,
+        growthStage: game.growthStage,
+        weather: game.weather,
+        timeOfDay: game.timeOfDay,
+        season: game.season
+    };
+
+    const statsData = {
+        growthStage: game.growthStage,
+        weight: game.weight,
+        fitness: game.fitness,
+        hunger: game.hunger,
+        thirst: game.thirst,
+        energy: game.energy,
+        season: game.season,
+        weather: game.weather,
+        timeOfDay: game.timeOfDay,
+        injuries: game.injuries,
+        perks: game.perks,
+        score: game.score,
+        availablePerks: game.availablePerks,
+        age: game.age
+    };
+
+    // Memoize handlers
+    const handleTileSelection = useCallback((tile: any) => {
+        // Handle selecting a tile if needed
+    }, []);
+
+    const handleHunting = useCallback((success: boolean) => {
+        game.handleHunting(success);
+    }, [game.handleHunting]);
+
+    const handleEndTurn = useCallback(() => {
+        if (!gameState.gameOver) {
+            game.endTurn();
+        }
+    }, [game.endTurn, gameState.gameOver]);
+
+    // Initialize game only once
     useEffect(() => {
         if (!initialized.current) {
-            console.log("First initialization only");
+            console.log("Initializing Big Al game");
             game.initializeGame();
             initialized.current = true;
         }
-    }, []); // Empty dependency array
+    }, []);
+
     return (
-        <div className={`${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'} min-h-screen relative`}>
-            {/* Game title */}
-            <div className="p-4 bg-amber-900 text-white">
+        <div className={`${gameState.darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'} min-h-screen relative`}>
+            {/* Game Header */}
+            <header className="p-4 bg-amber-900 text-white">
                 <div className="container mx-auto flex justify-between items-center">
                     <h1 className="text-2xl font-bold">Big Al: Jurassic Survival</h1>
-                    <div className="space-x-2">
-                        <button
-                            className="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-700"
-                            onClick={() => setShowTutorial(true)}
-                        >
-                            How to Play
-                        </button>
-                    </div>
+                    <button
+                        className="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-700 transition-colors"
+                        onClick={() => game.setShowTutorial(true)}
+                        aria-label="Show game tutorial"
+                    >
+                        How to Play
+                    </button>
                 </div>
-            </div>
+            </header>
 
-            {/* Game container */}
+            {/* Main Game Container */}
             <div className="container mx-auto p-4 flex flex-col md:flex-row gap-4">
-                {/* Game board area */}
-                <div className="flex-1 flex flex-col items-center">
-                    {/* Game message */}
+                {/* Game Board Section */}
+                <main className="flex-1 flex flex-col items-center">
+                    {/* Game Message */}
                     <div className="bg-gray-800 p-3 rounded-lg w-full mb-4">
-                        <p>{currentMessage}</p>
+                        <p className="text-center">{gameState.currentMessage}</p>
                     </div>
 
-                    {/* Game map */}
+                    {/* Game Map */}
                     <GameBoard
-                        map={map}
-                        playerPosition={playerPosition}
-                        motherPosition={motherPosition}
-                        validMoves={validMoves}
-                        movesLeft={movesLeft}
-                        growthStage={growthStage}
-                        revealedTiles={revealedTiles}
-                        moveTo={moveTo}
-                        setSelectedTile={(tile) => {/* Handle selecting a tile */ }}
-                        darkMode={darkMode}
-                        // Add these new props
-                        weather={weather}
-                        timeOfDay={timeOfDay}
-                        season={season}
+                        {...mapData}
+                        moveTo={game.moveTo}
+                        setSelectedTile={handleTileSelection}
+                        darkMode={gameState.darkMode}
                     />
 
-                    {/* Game controls */}
+                    {/* Game Controls */}
                     <div className="w-full flex justify-between items-center mt-2">
                         <button
-                            className="bg-amber-700 hover:bg-amber-800 text-white px-4 py-2 rounded-lg"
-                            onClick={endTurn}
-                            disabled={gameOver}
+                            className={`px-4 py-2 rounded-lg transition-colors ${gameState.gameOver
+                                    ? 'bg-gray-600 cursor-not-allowed'
+                                    : 'bg-amber-700 hover:bg-amber-800'
+                                } text-white`}
+                            onClick={handleEndTurn}
+                            disabled={gameState.gameOver}
+                            aria-label={`End turn, ${gameState.movesLeft} moves remaining`}
                         >
-                            End Turn ({movesLeft} moves left)
+                            End Turn ({gameState.movesLeft} moves left)
                         </button>
                     </div>
-                </div>
+                </main>
 
-                {/* Game stats panel */}
-                <StatsPanel
-                    growthStage={growthStage}
-                    growthStages={game.growthStages}
-                    weight={weight}
-                    fitness={fitness}
-                    hunger={hunger}
-                    thirst={thirst}
-                    energy={energy}
-                    season={game.season}
-                    weather={game.weather}
-                    timeOfDay={game.timeOfDay}
-                    injuries={injuries}
-                    perks={perks}
-                    score={score}
-                    availablePerks={availablePerks}
-                    setShowStatsDetails={() => {/* Show stats details */ }}
-                    setShowInjuryDetails={() => {/* Show injury details */ }}
-                    setShowEventLog={() => setShowEventLog(true)}
-                    setShowPerkSelection={() => {/* Show perk selection */ }}
-                    seasonEffects={game.seasonEffects}
-                    weatherEffects={game.weatherEffects}
-                    age={age}
-                />
+                {/* Stats Panel */}
+                <aside className="w-full md:w-64">
+                    <StatsPanel
+                        {...statsData}
+                        growthStages={game.growthStages}
+                        seasonEffects={game.seasonEffects}
+                        weatherEffects={game.weatherEffects}
+                        setShowStatsDetails={() => {/* Show stats details */ }}
+                        setShowInjuryDetails={() => {/* Show injury details */ }}
+                        setShowEventLog={() => game.setShowEventLog(true)}
+                        setShowPerkSelection={() => {/* Show perk selection */ }}
+                    />
+                </aside>
             </div>
 
-            {/* Conditional UI components */}
-            {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
-            {showFact && <FactDisplay fact={currentFact} onClose={() => setShowFact(false)} />}
-            {showEventLog && <EventLog events={healthEvents} onClose={() => setShowEventLog(false)} />}
-            {showCreatureDetails && selectedCreature && (
-                <CreatureDetails
-                    creature={selectedCreature}
-                    onHunt={handleHunting}
-                    onClose={() => setShowCreatureDetails(false)}
-                    calculateHuntingSuccess={game.calculateHuntingSuccess}
+            {/* Modal Components */}
+            {gameState.showTutorial && (
+                <Tutorial onClose={() => game.setShowTutorial(false)} />
+            )}
+
+            {gameState.showFact && (
+                <FactDisplay
+                    fact={gameState.currentFact}
+                    onClose={() => game.setShowFact(false)}
                 />
             )}
 
-            {/* More conditional components like perk selection, etc. */}
+            {gameState.showEventLog && (
+                <EventLog
+                    events={gameState.healthEvents}
+                    onClose={() => game.setShowEventLog(false)}
+                />
+            )}
+
+            {gameState.showCreatureDetails && gameState.selectedCreature && (
+                <CreatureDetails
+                    creature={gameState.selectedCreature}
+                    onHunt={handleHunting}
+                    onClose={() => game.setShowCreatureDetails(false)}
+                    calculateHuntingSuccess={game.calculateHuntingSuccess}
+
+                    huntingSystem={game.huntingSystem}
+                    growthSystem={game.growthSystem}
+                    gameState={game}
+
+                />
+            )}
+
         </div>
     );
 };

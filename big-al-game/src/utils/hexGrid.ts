@@ -9,9 +9,10 @@ export const axialToPixel = (q: number, r: number) => {
     const width = size * 2;
     const height = Math.sqrt(3) * size;
 
+    const verticalSpacing = 1.06;
     // This is the corrected formula for flat-topped hexagons
     const x = width * (q + r / 2);
-    const y = height * (r * 0.75);
+    const y = height * (r * 0.75) * verticalSpacing;
 
     return { x, y };
 };

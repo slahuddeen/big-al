@@ -3,7 +3,6 @@ export const habitats = {
     plains: {
         name: "Open Plains",
         color: "bg-amber-200",
-        // Image 3 - Grassy plain
         imagePath: "/src/assets/tiles/plains.png",
         description: "Vast open grasslands with little cover, home to many large herbivores.",
         movementCost: 1,
@@ -14,6 +13,19 @@ export const habitats = {
         fact: "The open plains of the Jurassic period were where many of the largest herbivorous dinosaurs gathered in herds for protection."
     },
     forest: {
+        name: "Dense Forest",
+        color: "bg-green-700",
+        // Image 2 - Forest with trees
+        imagePath: "/src/assets/tiles/denseforest.png",
+        description: "Thick vegetation providing cover and smaller prey animals.",
+        movementCost: 1.5,
+        resources: 2,
+        huntingModifier: 1.2,
+        ambushValue: 0.8,
+        waterSource: false,
+        fact: "Jurassic forests were dominated by conifers, ginkgoes, and tree ferns, creating a very different landscape from modern forests."
+    },
+    enseforest: {
         name: "Dense Forest",
         color: "bg-green-700",
         // Image 2 - Forest with trees
@@ -108,7 +120,6 @@ export const habitats = {
     grassland: {
         name: "Grasslands",
         color: "bg-green-300",
-        // Image 6 - Desert-like terrain with small vegetation
         imagePath: "/src/assets/tiles/grassland.png",
         description: "Areas with tall grass providing some cover and moderate hunting.",
         movementCost: 1.1,
