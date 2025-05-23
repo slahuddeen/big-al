@@ -26,4 +26,11 @@
     "globals": "^16.0.0",
     "vite": "^6.3.5"
   }
+  {
+  "homepage": "https://slahuddeen.github.io/big-al",
+  "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
+  }
+}
 }
