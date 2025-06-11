@@ -1,14 +1,13 @@
-import React from 'react'
-import BigAlGame from './components/BigAlGame.tsx'
-// Remove the CSS import entirely
-import './content/terrains/basicTerrains';
+import React from 'react';
+import BigAlHexGame from './BigAlHexGame.jsx';
+import './index.css';
 
 function App() {
     return (
         <div className="App">
-            <BigAlGame />
+            <BigAlHexGame />
         </div>
-    )
+    );
 }
 
-export default App
+export default App;
