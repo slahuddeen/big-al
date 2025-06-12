@@ -3,6 +3,7 @@ const createTerrain = (name, emoji, color, config = {}) => ({
     name,
     emoji,
     color,
+    image: config.image || null,
     visibility: config.visibility || 2,
     blocksLOS: config.blocksLOS || false,
     passable: config.passable !== false,
@@ -19,108 +20,139 @@ const createTerrain = (name, emoji, color, config = {}) => ({
 export const TERRAIN_TYPES = {
     // WATER FEATURES (Linear features)
     river: createTerrain("River", "🌊", "#2563eb", {
+        image: "/assets/tiles/river.png",
         isLinear: true, isWater: true, description: "Flowing river - wade carefully",
         dangerLevel: 2, energyCost: 12, fitnessRisk: 0.3, minWeight: 500
     }),
     dryriverbed: createTerrain("Dry Riverbed", "🪨", "#a8a29e", {
+        image: "/assets/tiles/dryriverbed.png",
         isLinear: true, description: "Ancient riverbed", energyCost: 8
     }),
     riverbank: createTerrain("Riverbank", "🏖️", "#92400e", {
+        image: "/assets/tiles/beach.png",
         description: "Muddy riverbank - crocodiles lurk here",
         dangerLevel: 1, energyCost: 8
     }),
     marsh: createTerrain("Marsh", "🌿", "#365314", {
+        image: "/assets/tiles/marsh.png",
         visibility: 1, description: "Treacherous marshland", energyCost: 10
     }),
     waterhole: createTerrain("Waterhole", "💧", "#0369a1", {
+        image: "/assets/tiles/waterhole.png",
         description: "Life-giving waterhole", dangerLevel: 1, energyCost: 6
     }),
 
     // FOREST TYPES - Much more variety
     forest: createTerrain("Forest", "🌲", "#16a34a", {
+        image: "/assets/tiles/forest.png",
         visibility: 1, category: "forest", description: "Dense forest", energyCost: 8
     }),
     oldgrowthforest: createTerrain("Ancient Forest", "🌳", "#15803d", {
+        image: "/assets/tiles/jungle.png",
         visibility: 1, blocksLOS: true, category: "forest", description: "Ancient old-growth forest", energyCost: 10
     }),
     denseforest: createTerrain("Dense Forest", "🌴", "#166534", {
+        image: "/assets/tiles/denseforest.png",
         visibility: 1, blocksLOS: true, category: "forest", description: "Impenetrable forest", energyCost: 12
     }),
     youngforest: createTerrain("Young Forest", "🌱", "#22c55e", {
+        image: "/assets/tiles/forest.png",
         visibility: 2, category: "forest", description: "New growth forest", energyCost: 7
     }),
     forestedge: createTerrain("Forest Edge", "🌾", "#4d7c0f", {
+        image: "/assets/tiles/forest.png",
         visibility: 2, category: "forest", description: "Edge of the forest", energyCost: 6
     }),
     openwoods: createTerrain("Open Woods", "🌿", "#65a30d", {
+        image: "/assets/tiles/woods.png",
         visibility: 2, category: "forest", description: "Sparse woodland", energyCost: 7
     }),
     galleryforest: createTerrain("Gallery Forest", "🌳", "#166534", {
+        image: "/assets/tiles/forest.png",
         visibility: 1, category: "forest", description: "Forest along waterways", energyCost: 9
     }),
     deadforest: createTerrain("Dead Forest", "🪵", "#78716c", {
+        image: "/assets/tiles/deadforest.png",
         visibility: 2, category: "forest", description: "Burnt or dead forest", energyCost: 8
     }),
 
     // PLAINS TYPES - Much more variety  
     plains: createTerrain("Plains", "🌾", "#ca8a04", {
+        image: "/assets/tiles/grassland.png",
         category: "plains", description: "Open grasslands", energyCost: 6
     }),
     grasslands: createTerrain("Grasslands", "🌱", "#84cc16", {
+        image: "/assets/tiles/grassland.png",
         category: "plains", description: "Rich grasslands", energyCost: 5
     }),
     meadow: createTerrain("Meadow", "🌸", "#a3e635", {
+        image: "/assets/tiles/grassland.png",
         category: "plains", description: "Flower-filled meadow", energyCost: 5
     }),
     scrubland: createTerrain("Scrubland", "🌿", "#65a30d", {
+        image: "/assets/tiles/shrubland.png",
         category: "plains", description: "Low shrub terrain", energyCost: 7
     }),
     savanna: createTerrain("Savanna", "🌾", "#eab308", {
+        image: "/assets/tiles/savannah.png",
         category: "plains", description: "Tree-dotted grassland", energyCost: 6
     }),
     steppe: createTerrain("Steppe", "🏜️", "#f59e0b", {
+        image: "/assets/tiles/steppes.png",
         category: "plains", description: "Dry grassland", energyCost: 8
     }),
     sauropodgrounds: createTerrain("Migration Route", "🦕", "#a16207", {
+        image: "/assets/tiles/sauropodgrounds.png",
         category: "plains", description: "Sauropod migration path", energyCost: 6, dangerLevel: 3
     }),
 
     // MOUNTAIN TYPES 
     mountains: createTerrain("Mountains", "⛰️", "#6b7280", {
+        image: "/assets/tiles/mountain.png",
         passable: false, blocksLOS: true, category: "mountain", description: "Impassable peaks"
     }),
     volcanic: createTerrain("Volcanic Peak", "🌋", "#7c2d12", {
+        image: "/assets/tiles/volcanic.png",
         passable: false, blocksLOS: true, category: "mountain", description: "Active volcano"
     }),
     hills: createTerrain("Hills", "🏔️", "#4ade80", {
+        image: "/assets/tiles/hill.png",
         category: "mountain", description: "Rolling hills", energyCost: 10, visibility: 3
     }),
     rocky: createTerrain("Rocky Terrain", "🪨", "#78716c", {
+        image: "/assets/tiles/rocky.png",
         category: "mountain", description: "Broken rocky ground", energyCost: 9, fitnessRisk: 0.05
     }),
 
     // DESERT TYPES
     desert: createTerrain("Desert", "🏜️", "#d97706", {
+        image: "/assets/tiles/desert.png",
         category: "desert", description: "Arid wasteland", energyCost: 12, dangerLevel: 1
     }),
     badlands: createTerrain("Badlands", "🏔️", "#c2410c", {
+        image: "/assets/tiles/desert.png",
         category: "desert", description: "Eroded wasteland", energyCost: 11
     }),
     mesa: createTerrain("Mesa", "🗻", "#ea580c", {
+        image: "/assets/tiles/mesa.png",
         blocksLOS: true, category: "desert", description: "Flat-topped plateau", energyCost: 12
     }),
     sand: createTerrain("Sand Dunes", "🟡", "#eab308", {
+        image: "/assets/tiles/desert.png",
         category: "desert", description: "Shifting sand dunes", energyCost: 8
     }),
     quicksand: createTerrain("Quicksand", "⚠️", "#f59e0b", {
+        image: "/assets/tiles/quicksand.png",
         category: "desert", description: "Dangerous quicksand", energyCost: 15, fitnessRisk: 1.0, passable: false
     }),
     lavafield: createTerrain("Lava Field", "🔥", "#991b1b", {
+        image: "/assets/tiles/volcanicfeilds.png",
         passable: false, category: "volcanic", description: "Molten lava - impassable"
     }),
 
     // SPECIAL AREAS
     nest: createTerrain("Nesting Site", "🥚", "#a16207", {
+        image: "/assets/tiles/nest.png",
         category: "special", description: "Dinosaur nesting ground", energyCost: 6, dangerLevel: 1
     })
 };

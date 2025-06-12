@@ -21,7 +21,10 @@ const DeathScreen = ({ gameState, dispatch }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center"
+            style={{ zIndex: 70000 }}
+        >
             <div className="bg-red-900 bg-opacity-90 p-8 rounded-xl border-4 border-red-600 max-w-md mx-4 text-center">
                 <div className="text-6xl mb-4">💀</div>
                 <h2 className="text-3xl font-bold text-red-200 mb-4">Death Claims You</h2>

@@ -36,8 +36,9 @@ body {
     align-items: center;
     justify-content: center;
     position: relative;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    overflow: hidden;
 }
 
 .hex-shape {
@@ -45,24 +46,145 @@ body {
 }
 
 .hex-tile:hover {
-    border-color: rgba(251, 191, 36, 0.8);
+    filter: brightness(1.1);
 }
 
 .hex-movable {
-    border-color: #f59e0b;
-    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+    filter: brightness(1.05);
 }
 
 .hex-hovered {
-    border-color: #f59e0b;
-    box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.8);
+    filter: brightness(1.1);
+    transform: scale(1.02) !important;
 }
 
 .hex-selected {
-    border-color: #f59e0b;
-    box-shadow: 0 0 30px rgba(245, 158, 11, 0.8);
+    box-shadow: 0 0 40px rgba(245, 158, 11, 1.0);
+    filter: brightness(1.15);
 }
 
 .hex-impassable {
-    border-color: #dc2626;
+    filter: brightness(0.7) saturate(0.5);
+}
+
+/* Image styling for hex tiles */
+.hex-tile img {
+    transition: all 0.3s ease;
+    image-rendering: pixelated; /* For pixel art */
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+/* Notification animations */
+@keyframes slideInFromTop {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-in {
+    animation-fill-mode: both;
+}
+
+.slide-in-from-top {
+    animation: slideInFromTop 0.3s ease-out;
+}
+
+/* Creature indicator styling */
+.creature-indicator {
+    transition: all 0.3s ease;
+    backdrop-filter: blur(2px);
+}
+
+    .creature-indicator:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+    }
+
+/* Improved hex layering for terrain overlap */
+.hex-tile img {
+    position: relative;
+    z-index: 1;
+}
+
+/* Special styling for terrain that should overlap */
+.terrain-tall {
+    overflow: visible !important;
+}
+
+    .terrain-tall img {
+        height: 120% !important;
+        width: 120% !important;
+        margin-top: -10%;
+    }
+
+/* Player dinosaur bounce effect */
+@keyframes gentleBounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+.animate-gentle-bounce {
+    animation: gentleBounce 3s ease-in-out infinite;
+}
+
+/* Enhanced hex animations */
+@keyframes hexPulse {
+    0%, 100% {
+        box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 40px rgba(245, 158, 11, 0.9);
+    }
+}
+
+.hex-movable {
+    animation: hexPulse 2s ease-in-out infinite;
+}
+
+/* Smooth scale transitions for selected hexes */
+.hex-tile {
+    transform-origin: center center;
+}
+
+/* Loading state for images */
+.image-loading {
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Improved hover effects for creatures panel */
+.creatures-panel button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Better visibility for text over images */
+.text-with-shadow {
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }

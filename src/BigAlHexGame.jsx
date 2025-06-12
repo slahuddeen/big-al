@@ -12,6 +12,7 @@ import CreaturesPanel from './components/CreaturesPanel.jsx';
 import NotificationSystem from './components/NotificationSystem.jsx';
 import DeathScreen from './components/DeathScreen.jsx';
 import HoverTooltip from './components/HoverTooltip.jsx';
+import ImageWithFallback from './components/ImageWithFallback.jsx';
 
 const BigAlHexGame = () => {
     const [gameState, dispatch] = useReducer(gameReducer, initialGameState);
