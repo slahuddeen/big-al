@@ -1,164 +1,97 @@
 ﻿import React from 'react';
-import { hexToPixel } from '../utils/hexMath.js';
-import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA } from '../data/species.js';
+import { calculateFiercenessRatio, calculateAgilityRatio } from '../utils/combatUtils.js';
 import ImageWithFallback from './ImageWithFallback.jsx';
 
-const HexTile = ({
-    hex,
-    isPlayer,
-    isSelected,
-    isMovable,
-    isHovered,
-    onClick,
-    onHover,
-    onLeave,
-    isNight,
-    creatures
-}) => {
-    const { x, y } = hexToPixel(hex.q, hex.r);
-    const terrain = TERRAIN_TYPES[hex.terrain];
+const CreaturesPanel = ({ gameState, dispatch }) => {
+    const playerKey = `${gameState.player.q},${gameState.player.r}`;
+    const creatures = gameState.creatures.get(playerKey) || [];
 
-    const baseSize = 80;
-    const selectedSize = 95;
-    const hoverSize = 90;
-
-    let currentSize = baseSize;
-    if (isSelected) currentSize = selectedSize;
-    else if (isHovered && isMovable) currentSize = hoverSize;
-
-    const terrainColor = isNight ?
-        `color-mix(in srgb, ${terrain.color} 40%, #1a1a2e)` :
-        terrain.color;
-
-    // Calculate z-index based on position - bottom hexes render on top
-    const baseZIndex = 100 + hex.r * 10; // Higher r = lower on screen = higher z-index
-    let zIndex = baseZIndex;
-    if (isSelected) zIndex += 1000;
-    else if (isMovable) zIndex += 50;
-    if (isPlayer) zIndex += 500; // Player always on top
-
-    // Determine if this terrain should have overlapping visuals (only forests)
-    const isTallTerrain = ['forest', 'oldgrowthforest', 'denseforest', 'youngforest',
-        'galleryforest', 'openwoods'].includes(hex.terrain);
+    if (creatures.length === 0 || gameState.gameOver) return null;
 
     return (
         <div
-            className={`absolute cursor-pointer transition-all duration-500 ease-out`}
-            style={{
-                left: x + 400,
-                top: y + 300,
-                transform: 'translate(-50%, -50%)',
-                zIndex: zIndex
-            }}
-            onClick={() => onClick(hex)}
-            onMouseEnter={() => onHover(hex)}
-            onMouseLeave={onLeave}
+            className="absolute top-4 right-4 bottom-4 bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-4 text-white w-80 flex flex-col"
+            style={{ zIndex: 50000 }}
         >
-            <div
-                className={`hex-tile ${isTallTerrain ? 'terrain-tall' : ''} ${isMovable ? 'hex-movable' : ''} ${isSelected ? 'hex-selected' : ''
-                    } ${isHovered && isMovable ? 'hex-hovered' : ''} ${!terrain.passable ? 'hex-impassable' : ''
-                    } ${isNight ? 'brightness-50' : ''}`}
-                style={{
-                    backgroundColor: terrainColor,
-                    width: `${currentSize}px`,
-                    height: `${currentSize}px`,
-                    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
-                }}
-            >
-                {/* Terrain image/emoji */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <ImageWithFallback
-                        src={terrain.image}
-                        fallback={terrain.emoji}
-                        alt={terrain.name}
-                        className={`pointer-events-none transition-all duration-300 text-lg`}
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            // Only clip non-tall terrain to hex shape
-                            clipPath: isTallTerrain ? 'none' : 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)'
-                        }}
-                    />
-                </div>
+            <h3 className="font-bold mb-4 text-center text-lg">🎯 Creatures Here ({creatures.length})</h3>
 
-                {/* Player dinosaur on top */}
-                {isPlayer && (
-                    <div className="absolute inset-0 flex items-center justify-center z-10">
-                        <ImageWithFallback
-                            src="/assets/dinos/bigal.png"
-                            fallback="🦖"
-                            alt="Big Al"
-                            className="animate-gentle-bounce"
-                            style={{
-                                width: '50px',
-                                height: '50px',
-                                objectFit: 'contain',
-                                fontSize: '2.5rem'
-                            }}
-                        />
-                    </div>
-                )}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2 creatures-panel-scroll">
+                {creatures.map((creature) => {
+                    const speciesData = SPECIES_DATA[creature.species];
+                    const fiercenessRatio = calculateFiercenessRatio(gameState.weight, gameState.fitness, speciesData, creature.size);
+                    const agilityRatio = calculateAgilityRatio(gameState.weight, speciesData);
 
-                {/* Show creature indicators */}
-                {creatures && creatures.length > 0 && !isPlayer && (
-                    <div className="absolute -top-3 -right-3 flex flex-wrap gap-1 z-10 max-w-12">
-                        {creatures.slice(0, 6).map((creature, index) => {
-                            const speciesData = SPECIES_DATA[creature.species];
-                            return (
-                                <div
-                                    key={creature.id}
-                                    className="w-6 h-6 rounded-full bg-red-500 bg-opacity-80 border-2 border-white text-xs flex items-center justify-center creature-indicator"
-                                    title={creature.species}
-                                >
-                                    <ImageWithFallback
-                                        src={speciesData.image}
-                                        fallback={speciesData.emoji}
-                                        alt={creature.species}
-                                        style={{
-                                            width: '16px',
-                                            height: '16px',
-                                            objectFit: 'contain',
-                                            fontSize: '0.7rem'
-                                        }}
-                                    />
+                    // Original Big Al success calculation: both fierceness AND agility must be < 1
+                    const successChance = Math.round((fiercenessRatio < 1 && agilityRatio < 1) ?
+                        Math.max(20, 90 - (fiercenessRatio * 30) - (agilityRatio * 30)) :
+                        (fiercenessRatio < 1) ? Math.max(10, 60 - (agilityRatio * 40)) :
+                            Math.max(5, 30 - (fiercenessRatio * 20))
+                    );
+
+                    return (
+                        <div key={creature.id} className="border border-gray-600 rounded-lg p-4 bg-gray-900 bg-opacity-50">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 flex items-center justify-center bg-gray-800 rounded-lg border border-gray-600">
+                                        <ImageWithFallback
+                                            src={speciesData.image}
+                                            fallback={speciesData.emoji}
+                                            alt={creature.species}
+                                            style={{
+                                                width: '48px',
+                                                height: '48px',
+                                                objectFit: 'contain',
+                                                fontSize: '2rem'
+                                            }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-base">{creature.species}</div>
+                                        <div className="text-sm text-gray-400">Size: {(creature.size * 100).toFixed(0)}%</div>
+                                    </div>
                                 </div>
-                            );
-                        })}
-                        {creatures.length > 6 && (
-                            <div className="w-6 h-6 rounded-full bg-gray-500 bg-opacity-80 border-2 border-white text-xs flex items-center justify-center text-white font-bold">
-                                +{creatures.length - 6}
+                                <div className="text-right">
+                                    <div className={`font-bold text-lg ${successChance > 60 ? 'text-green-400' : successChance > 30 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                        {successChance}%
+                                    </div>
+                                    <div className="text-xs text-gray-400">success</div>
+                                </div>
                             </div>
-                        )}
-                    </div>
-                )}
 
-                {isMovable && (
-                    <div className="absolute inset-0 bg-amber-400 bg-opacity-20 hex-shape" />
-                )}
+                            <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                                <div className="bg-green-900 bg-opacity-30 rounded p-2 border border-green-700">
+                                    <div className="text-gray-400 text-xs">Nutrition</div>
+                                    <div className="text-green-400 font-bold">{Math.round(speciesData.nutrition * creature.size)}</div>
+                                </div>
+                                <div className="bg-red-900 bg-opacity-30 rounded p-2 border border-red-700">
+                                    <div className="text-gray-400 text-xs">Danger</div>
+                                    <div className="text-red-400 font-bold">{Math.round(speciesData.danger * creature.size)}</div>
+                                </div>
+                            </div>
 
-                {isHovered && isMovable && (
-                    <div className="absolute inset-0 bg-amber-400 bg-opacity-30 hex-shape" />
-                )}
-
-                {!terrain.passable && (
-                    <div className="absolute inset-0 bg-red-900 bg-opacity-50 hex-shape" />
-                )}
-
-                {terrain.dangerLevel > 0 && (
-                    <div className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                )}
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    dispatch({ type: 'ATTACK_CREATURE', creatureId: creature.id });
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer font-bold"
+                                style={{
+                                    zIndex: 55000,
+                                    pointerEvents: 'all',
+                                    position: 'relative'
+                                }}
+                            >
+                                ⚔️ Attack
+                            </button>
+                        </div>
+                    );
+                })}
             </div>
-
-            {isPlayer && (
-                <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-white text-xs bg-black bg-opacity-70 px-3 py-1 rounded-full">
-                    {hex.q}, {hex.r}
-                </div>
-            )}
         </div>
     );
 };
 
-export default HexTile;
+export default CreaturesPanel;

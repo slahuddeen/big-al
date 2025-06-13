@@ -29,7 +29,7 @@ export const TERRAIN_TYPES = {
         isLinear: true, description: "Ancient riverbed", energyCost: 8
     }),
     riverbank: createTerrain("Riverbank", "🏖️", "#92400e", {
-        image: "/assets/tiles/beach.png",
+        image: "/assets/tiles/riverbank.png",
         description: "Muddy riverbank - crocodiles lurk here",
         dangerLevel: 1, energyCost: 8
     }),
@@ -48,7 +48,7 @@ export const TERRAIN_TYPES = {
         visibility: 1, category: "forest", description: "Dense forest", energyCost: 8
     }),
     oldgrowthforest: createTerrain("Ancient Forest", "🌳", "#15803d", {
-        image: "/assets/tiles/jungle.png",
+        image: "/assets/tiles/old.png",
         visibility: 1, blocksLOS: true, category: "forest", description: "Ancient old-growth forest", energyCost: 10
     }),
     denseforest: createTerrain("Dense Forest", "🌴", "#166534", {
@@ -56,11 +56,11 @@ export const TERRAIN_TYPES = {
         visibility: 1, blocksLOS: true, category: "forest", description: "Impenetrable forest", energyCost: 12
     }),
     youngforest: createTerrain("Young Forest", "🌱", "#22c55e", {
-        image: "/assets/tiles/forest.png",
+        image: "/assets/tiles/young.png",
         visibility: 2, category: "forest", description: "New growth forest", energyCost: 7
     }),
     forestedge: createTerrain("Forest Edge", "🌾", "#4d7c0f", {
-        image: "/assets/tiles/forest.png",
+        image: "/assets/tiles/edge.png",
         visibility: 2, category: "forest", description: "Edge of the forest", energyCost: 6
     }),
     openwoods: createTerrain("Open Woods", "🌿", "#65a30d", {
@@ -68,7 +68,7 @@ export const TERRAIN_TYPES = {
         visibility: 2, category: "forest", description: "Sparse woodland", energyCost: 7
     }),
     galleryforest: createTerrain("Gallery Forest", "🌳", "#166534", {
-        image: "/assets/tiles/forest.png",
+        image: "/assets/tiles/gal.png",
         visibility: 1, category: "forest", description: "Forest along waterways", energyCost: 9
     }),
     deadforest: createTerrain("Dead Forest", "🪵", "#78716c", {
@@ -78,15 +78,15 @@ export const TERRAIN_TYPES = {
 
     // PLAINS TYPES - Much more variety  
     plains: createTerrain("Plains", "🌾", "#ca8a04", {
-        image: "/assets/tiles/grassland.png",
+        image: "/assets/tiles/grass2.png",
         category: "plains", description: "Open grasslands", energyCost: 6
     }),
     grasslands: createTerrain("Grasslands", "🌱", "#84cc16", {
-        image: "/assets/tiles/grassland.png",
+        image: "/assets/tiles/fern.png",
         category: "plains", description: "Rich grasslands", energyCost: 5
     }),
     meadow: createTerrain("Meadow", "🌸", "#a3e635", {
-        image: "/assets/tiles/grassland.png",
+        image: "/assets/tiles/medow.png",
         category: "plains", description: "Flower-filled meadow", energyCost: 5
     }),
     scrubland: createTerrain("Scrubland", "🌿", "#65a30d", {
@@ -120,7 +120,7 @@ export const TERRAIN_TYPES = {
         category: "mountain", description: "Rolling hills", energyCost: 10, visibility: 3
     }),
     rocky: createTerrain("Rocky Terrain", "🪨", "#78716c", {
-        image: "/assets/tiles/rocky.png",
+        image: "/assets/tiles/rocky3.png",
         category: "mountain", description: "Broken rocky ground", energyCost: 9, fitnessRisk: 0.05
     }),
 
@@ -130,11 +130,11 @@ export const TERRAIN_TYPES = {
         category: "desert", description: "Arid wasteland", energyCost: 12, dangerLevel: 1
     }),
     badlands: createTerrain("Badlands", "🏔️", "#c2410c", {
-        image: "/assets/tiles/desert.png",
+        image: "/assets/tiles/badlands.png",
         category: "desert", description: "Eroded wasteland", energyCost: 11
     }),
     mesa: createTerrain("Mesa", "🗻", "#ea580c", {
-        image: "/assets/tiles/mesa.png",
+        image: "/assets/tiles/mesa2.png",
         blocksLOS: true, category: "desert", description: "Flat-topped plateau", energyCost: 12
     }),
     sand: createTerrain("Sand Dunes", "🟡", "#eab308", {
