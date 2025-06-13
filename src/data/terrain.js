@@ -57,7 +57,7 @@ export const TERRAIN_TYPES = {
         description: "Impenetrable dense forest", energyCost: 12, fitnessRisk: 0.08
     }),
     oldgrowthforest: createTerrain("Ancient Forest", "🌳", "#15803d", {
-        image: "/assets/tiles/old.png",
+        image: "/assets/tiles/jungle.png",
         visibility: 1, blocksLOS: true, category: "forest",
         description: "Ancient old-growth forest", energyCost: 10, fitnessRisk: 0.05
     }),
@@ -66,7 +66,7 @@ export const TERRAIN_TYPES = {
         visibility: 1, category: "forest", description: "Dense forest", energyCost: 8
     }),
     youngforest: createTerrain("Young Forest", "🌱", "#4ade80", {
-        image: "/assets/tiles/young.png",
+        image: "/assets/tiles/forest.png",
         visibility: 2, category: "forest", description: "New growth forest", energyCost: 7
     }),
     forestedge: createTerrain("Forest Edge", "🌾", "#4d7c0f", {
@@ -108,7 +108,7 @@ export const TERRAIN_TYPES = {
         category: "plains", description: "Low shrub terrain", energyCost: 7
     }),
     steppe: createTerrain("Steppe", "🏜️", "#f59e0b", {
-        image: "/assets/tiles/steppes.png",
+        image: "/assets/tiles/fern.png",
         category: "plains", description: "Dry grassland", energyCost: 8
     }),
     sauropodgrounds: createTerrain("Migration Route", "🦕", "#a16207", {
@@ -162,7 +162,7 @@ export const TERRAIN_TYPES = {
     // VOLCANIC FEATURES
     lavafield: createTerrain("Lava Field", "🔥", "#991b1b", {
         image: "/assets/tiles/volcanicfeilds.png",
-        passable: false, category: "volcanic", description: "Molten lava - impassable",
+        category: "volcanic", description: "Molten lava - impassable",
         energyCost: 10, fitnessRisk: 0.3, dangerLevel: 2
     }),
 
