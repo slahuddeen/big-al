@@ -10,14 +10,30 @@ const StatusPanel = ({ gameState }) => {
 
     const timeInfo = getTimeOfDay(gameState.moveNumber);
 
+    // Calculate discovery statistics
+    const getDiscoveryStats = () => {
+        const totalHexes = gameState.hexes.size;
+        const discoveredHexes = Array.from(gameState.hexes.values()).filter(hex => hex.discovered).length;
+        const exploredHexes = Array.from(gameState.hexes.values()).filter(hex => hex.visited).length;
+
+        return {
+            total: totalHexes,
+            discovered: discoveredHexes,
+            explored: exploredHexes,
+            discoveryPercentage: totalHexes > 0 ? Math.round((discoveredHexes / totalHexes) * 100) : 0
+        };
+    };
+
+    const discoveryStats = getDiscoveryStats();
+
     return (
-        <div className="absolute top-4 left-4 bg-black bg-opacity-80 backdrop-blur-sm rounded-lg p-4 text-white">
-            <h3 className="font-bold mb-3 text-lg">🦖 Big Al - Level {gameState.level}</h3>
+        <div className="absolute top-4 left-4 bg-black bg-opacity-90 backdrop-blur-sm rounded-xl border-2 border-amber-600 p-4 text-white">
+            <h3 className="font-bold mb-3 text-lg text-amber-400">🦖 Big Al - Level {gameState.level}</h3>
 
             <div className="space-y-2 mb-4">
                 <div className="flex items-center justify-between">
                     <span>Weight:</span>
-                    <span className="font-mono">{gameState.weight.toFixed(1)}kg</span>
+                    <span className="font-mono text-amber-300">{gameState.weight.toFixed(1)}kg</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -47,7 +63,27 @@ const StatusPanel = ({ gameState }) => {
                 </div>
             </div>
 
-            <div className="border-t border-gray-600 pt-2">
+            {/* Discovery Section */}
+            <div className="border-t border-amber-600 pt-2 mb-4">
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-bold text-blue-400">🗺️ Exploration</span>
+                    <span className="text-xs text-blue-300">{discoveryStats.discoveryPercentage}%</span>
+                </div>
+
+                <div className="w-full h-1.5 bg-gray-700 rounded mb-1">
+                    <div
+                        className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded transition-all duration-500"
+                        style={{ width: `${discoveryStats.discoveryPercentage}%` }}
+                    />
+                </div>
+
+                <div className="flex justify-between text-xs text-gray-400">
+                    <span>📍 Visited: {discoveryStats.explored}</span>
+                    <span>👁️ Seen: {discoveryStats.discovered}</span>
+                </div>
+            </div>
+
+            <div className="border-t border-amber-600 pt-2">
                 <div className="flex items-center justify-between">
                     <span>Score:</span>
                     <span className="font-mono font-bold text-yellow-400">{gameState.score}</span>
@@ -63,6 +99,23 @@ const StatusPanel = ({ gameState }) => {
                     </span>
                 </div>
             </div>
+
+            {/* Discovery Achievement Indicators */}
+            {discoveryStats.discoveryPercentage >= 25 && (
+                <div className="mt-2 px-2 py-1 bg-blue-900 bg-opacity-50 rounded text-xs text-blue-300 border border-blue-600">
+                    🏆 Explorer: 25% discovered!
+                </div>
+            )}
+            {discoveryStats.discoveryPercentage >= 50 && (
+                <div className="mt-1 px-2 py-1 bg-purple-900 bg-opacity-50 rounded text-xs text-purple-300 border border-purple-600">
+                    🗺️ Cartographer: 50% mapped!
+                </div>
+            )}
+            {discoveryStats.discoveryPercentage >= 75 && (
+                <div className="mt-1 px-2 py-1 bg-gold-900 bg-opacity-50 rounded text-xs text-yellow-300 border border-yellow-600">
+                    🌟 Master Explorer: 75% complete!
+                </div>
+            )}
         </div>
     );
 };

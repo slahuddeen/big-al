@@ -1,4 +1,4 @@
-﻿// ==================== TERRAIN SYSTEM ====================
+﻿// ==================== ENHANCED TERRAIN SYSTEM WITH ECOLOGICAL TYPES ====================
 const createTerrain = (name, emoji, color, config = {}) => ({
     name,
     emoji,
@@ -41,21 +41,31 @@ export const TERRAIN_TYPES = {
         image: "/assets/tiles/waterhole.png",
         description: "Life-giving waterhole", dangerLevel: 1, energyCost: 6
     }),
+    lake: createTerrain("Lake", "🏞️", "#0ea5e9", {
+        image: "/assets/tiles/lake.png",
+        isWater: true, description: "Natural lake", energyCost: 8
+    }),
+    beach: createTerrain("Beach", "🏖️", "#fbbf24", {
+        image: "/assets/tiles/beach.png",
+        description: "Sandy beach by water", energyCost: 7
+    }),
 
-    // FOREST TYPES - Much more variety
+    // FOREST HIERARCHY - Dense center to sparse edges
+    denseforest: createTerrain("Dense Forest", "🌲", "#166534", {
+        image: "/assets/tiles/denseforest.png",
+        visibility: 0, blocksLOS: true, category: "forest",
+        description: "Impenetrable dense forest", energyCost: 12, fitnessRisk: 0.08
+    }),
+    oldgrowthforest: createTerrain("Ancient Forest", "🌳", "#15803d", {
+        image: "/assets/tiles/old.png",
+        visibility: 0, blocksLOS: true, category: "forest",
+        description: "Ancient old-growth forest", energyCost: 10, fitnessRisk: 0.05
+    }),
     forest: createTerrain("Forest", "🌲", "#16a34a", {
         image: "/assets/tiles/forest.png",
         visibility: 1, category: "forest", description: "Dense forest", energyCost: 8
     }),
-    oldgrowthforest: createTerrain("Ancient Forest", "🌳", "#15803d", {
-        image: "/assets/tiles/old.png",
-        visibility: 1, blocksLOS: true, category: "forest", description: "Ancient old-growth forest", energyCost: 10
-    }),
-    denseforest: createTerrain("Dense Forest", "🌴", "#166534", {
-        image: "/assets/tiles/denseforest.png",
-        visibility: 1, blocksLOS: true, category: "forest", description: "Impenetrable forest", energyCost: 12
-    }),
-    youngforest: createTerrain("Young Forest", "🌱", "#22c55e", {
+    youngforest: createTerrain("Young Forest", "🌱", "#4ade80", {
         image: "/assets/tiles/young.png",
         visibility: 2, category: "forest", description: "New growth forest", energyCost: 7
     }),
@@ -65,7 +75,7 @@ export const TERRAIN_TYPES = {
     }),
     openwoods: createTerrain("Open Woods", "🌿", "#65a30d", {
         image: "/assets/tiles/woods.png",
-        visibility: 2, category: "forest", description: "Sparse woodland", energyCost: 7
+        visibility: 1, category: "forest", description: "Sparse woodland", energyCost: 7
     }),
     galleryforest: createTerrain("Gallery Forest", "🌳", "#166534", {
         image: "/assets/tiles/gal.png",
@@ -73,10 +83,10 @@ export const TERRAIN_TYPES = {
     }),
     deadforest: createTerrain("Dead Forest", "🪵", "#78716c", {
         image: "/assets/tiles/deadforest.png",
-        visibility: 2, category: "forest", description: "Burnt or dead forest", energyCost: 8
+        visibility: 1, category: "forest", description: "Burnt or dead forest", energyCost: 8
     }),
 
-    // PLAINS TYPES - Much more variety  
+    // PLAINS HIERARCHY - Fertile to arid gradient
     plains: createTerrain("Plains", "🌾", "#ca8a04", {
         image: "/assets/tiles/grass2.png",
         category: "plains", description: "Open grasslands", energyCost: 6
@@ -89,13 +99,13 @@ export const TERRAIN_TYPES = {
         image: "/assets/tiles/medow.png",
         category: "plains", description: "Flower-filled meadow", energyCost: 5
     }),
-    scrubland: createTerrain("Scrubland", "🌿", "#65a30d", {
-        image: "/assets/tiles/shrubland.png",
-        category: "plains", description: "Low shrub terrain", energyCost: 7
-    }),
     savanna: createTerrain("Savanna", "🌾", "#eab308", {
         image: "/assets/tiles/savannah.png",
         category: "plains", description: "Tree-dotted grassland", energyCost: 6
+    }),
+    scrubland: createTerrain("Scrubland", "🌿", "#65a30d", {
+        image: "/assets/tiles/shrubland.png",
+        category: "plains", description: "Low shrub terrain", energyCost: 7
     }),
     steppe: createTerrain("Steppe", "🏜️", "#f59e0b", {
         image: "/assets/tiles/steppes.png",
@@ -103,7 +113,8 @@ export const TERRAIN_TYPES = {
     }),
     sauropodgrounds: createTerrain("Migration Route", "🦕", "#a16207", {
         image: "/assets/tiles/sauropodgrounds.png",
-        category: "plains", description: "Sauropod migration path", energyCost: 6, dangerLevel: 3
+        isLinear: true, category: "special", description: "Sauropod migration path",
+        energyCost: 6, dangerLevel: 4
     }),
 
     // MOUNTAIN TYPES 
@@ -113,7 +124,8 @@ export const TERRAIN_TYPES = {
     }),
     volcanic: createTerrain("Volcanic Peak", "🌋", "#7c2d12", {
         image: "/assets/tiles/volcanic.png",
-        passable: false, blocksLOS: true, category: "mountain", description: "Active volcano"
+        passable: false, blocksLOS: true, category: "volcanic",
+        description: "Active volcano", dangerLevel: 3
     }),
     hills: createTerrain("Hills", "🏔️", "#4ade80", {
         image: "/assets/tiles/hill.png",
@@ -121,10 +133,10 @@ export const TERRAIN_TYPES = {
     }),
     rocky: createTerrain("Rocky Terrain", "🪨", "#78716c", {
         image: "/assets/tiles/rocky3.png",
-        category: "mountain", description: "Broken rocky ground", energyCost: 9, fitnessRisk: 0.05
+        category: "mountain", description: "Broken rocky ground", energyCost: 9, fitnessRisk: 0.2
     }),
 
-    // DESERT TYPES
+    // DESERT HIERARCHY - Moderate to extreme aridity
     desert: createTerrain("Desert", "🏜️", "#d97706", {
         image: "/assets/tiles/desert.png",
         category: "desert", description: "Arid wasteland", energyCost: 12, dangerLevel: 1
@@ -135,7 +147,7 @@ export const TERRAIN_TYPES = {
     }),
     mesa: createTerrain("Mesa", "🗻", "#ea580c", {
         image: "/assets/tiles/mesa2.png",
-        blocksLOS: true, category: "desert", description: "Flat-topped plateau", energyCost: 12
+        blocksLOS: true, category: "desert", description: "Flat-topped plateau", energyCost: 12, visibility: 3
     }),
     sand: createTerrain("Sand Dunes", "🟡", "#eab308", {
         image: "/assets/tiles/desert.png",
@@ -143,11 +155,15 @@ export const TERRAIN_TYPES = {
     }),
     quicksand: createTerrain("Quicksand", "⚠️", "#f59e0b", {
         image: "/assets/tiles/quicksand.png",
-        category: "desert", description: "Dangerous quicksand", energyCost: 15, fitnessRisk: 1.0, passable: false
+        category: "desert", description: "Dangerous quicksand - instant death!",
+        energyCost: 15, fitnessRisk: 1.0, passable: true, dangerLevel: 5
     }),
+
+    // VOLCANIC FEATURES
     lavafield: createTerrain("Lava Field", "🔥", "#991b1b", {
         image: "/assets/tiles/volcanicfeilds.png",
-        passable: false, category: "volcanic", description: "Molten lava - impassable"
+        passable: false, category: "volcanic", description: "Molten lava - impassable",
+        energyCost: 10, fitnessRisk: 0.1, dangerLevel: 2
     }),
 
     // SPECIAL AREAS
@@ -159,62 +175,92 @@ export const TERRAIN_TYPES = {
 
 export const getBackgroundGradient = (currentTerrain, timeInfo) => {
     const baseGradients = {
-        'forest': 'from-green-900 via-green-800 to-green-900',
+        // Forest gradients - darker for denser forests
+        'denseforest': 'from-green-900 via-green-800 to-green-900',
         'oldgrowthforest': 'from-green-900 via-green-900 to-gray-900',
-        'denseforest': 'from-green-900 via-gray-800 to-green-900',
+        'forest': 'from-green-900 via-green-800 to-green-900',
         'youngforest': 'from-green-700 via-green-600 to-green-700',
         'forestedge': 'from-green-800 via-yellow-700 to-green-800',
         'openwoods': 'from-green-700 via-lime-700 to-green-700',
         'galleryforest': 'from-green-800 via-blue-700 to-green-800',
         'deadforest': 'from-gray-800 via-brown-700 to-gray-800',
+
+        // Plains gradients - green to yellow spectrum
         'plains': 'from-yellow-800 via-amber-700 to-yellow-800',
         'grasslands': 'from-green-700 via-lime-800 to-green-700',
         'meadow': 'from-green-600 via-pink-700 to-green-600',
-        'scrubland': 'from-yellow-700 via-green-700 to-yellow-700',
         'savanna': 'from-yellow-700 via-orange-700 to-yellow-700',
+        'scrubland': 'from-yellow-700 via-green-700 to-yellow-700',
         'steppe': 'from-orange-800 via-yellow-700 to-orange-800',
         'sauropodgrounds': 'from-orange-800 via-red-700 to-orange-800',
+
+        // Water gradients
         'river': 'from-blue-900 via-blue-800 to-blue-900',
         'dryriverbed': 'from-gray-700 via-brown-600 to-gray-700',
         'riverbank': 'from-blue-800 via-amber-800 to-blue-800',
         'marsh': 'from-green-900 via-blue-800 to-green-900',
         'waterhole': 'from-blue-800 via-cyan-800 to-blue-800',
+        'lake': 'from-blue-800 via-cyan-700 to-blue-800',
+        'beach': 'from-yellow-600 via-blue-700 to-yellow-600',
+
+        // Mountain gradients
         'hills': 'from-green-700 via-lime-600 to-green-700',
         'rocky': 'from-stone-800 via-gray-700 to-stone-800',
+        'mountains': 'from-gray-800 via-slate-700 to-gray-800',
+
+        // Desert gradients - orange to red spectrum
         'desert': 'from-orange-900 via-yellow-800 to-orange-900',
         'badlands': 'from-red-800 via-orange-700 to-red-800',
         'mesa': 'from-orange-800 via-red-700 to-orange-800',
         'sand': 'from-yellow-800 via-orange-700 to-yellow-800',
+
+        // Volcanic gradients - red and black
+        'volcanic': 'from-red-900 via-black to-red-900',
+        'lavafield': 'from-red-900 via-orange-600 to-red-900',
+
+        // Special
         'nest': 'from-amber-900 via-orange-800 to-amber-900'
     };
 
     const nightGradients = {
-        'forest': 'from-gray-900 via-green-900 to-gray-900',
+        // All terrains get darker at night
+        'denseforest': 'from-black via-green-900 to-black',
         'oldgrowthforest': 'from-black via-green-900 to-black',
-        'denseforest': 'from-black via-gray-900 to-black',
+        'forest': 'from-gray-900 via-green-900 to-gray-900',
         'youngforest': 'from-gray-900 via-green-800 to-gray-900',
         'forestedge': 'from-gray-900 via-green-900 to-gray-900',
         'openwoods': 'from-gray-800 via-green-900 to-gray-800',
         'galleryforest': 'from-gray-900 via-blue-900 to-gray-900',
         'deadforest': 'from-black via-gray-900 to-black',
+
         'plains': 'from-gray-900 via-purple-900 to-gray-900',
         'grasslands': 'from-gray-900 via-purple-900 to-gray-900',
         'meadow': 'from-gray-900 via-purple-800 to-gray-900',
-        'scrubland': 'from-gray-900 via-green-900 to-gray-900',
         'savanna': 'from-gray-900 via-orange-900 to-gray-900',
+        'scrubland': 'from-gray-900 via-green-900 to-gray-900',
         'steppe': 'from-gray-900 via-purple-900 to-gray-900',
         'sauropodgrounds': 'from-gray-900 via-red-900 to-gray-900',
+
         'river': 'from-black via-blue-900 to-black',
         'dryriverbed': 'from-black via-gray-800 to-black',
         'riverbank': 'from-black via-blue-900 to-black',
         'marsh': 'from-black via-green-900 to-black',
         'waterhole': 'from-black via-blue-900 to-black',
+        'lake': 'from-black via-blue-900 to-black',
+        'beach': 'from-gray-900 via-blue-900 to-gray-900',
+
         'hills': 'from-black via-green-900 to-black',
         'rocky': 'from-black via-gray-900 to-black',
+        'mountains': 'from-black via-gray-900 to-black',
+
         'desert': 'from-gray-900 via-purple-900 to-gray-900',
         'badlands': 'from-gray-900 via-red-900 to-gray-900',
         'mesa': 'from-gray-900 via-red-900 to-gray-900',
         'sand': 'from-gray-900 via-purple-900 to-gray-900',
+
+        'volcanic': 'from-red-900 via-black to-red-900',
+        'lavafield': 'from-red-900 via-red-800 to-red-900',
+
         'nest': 'from-gray-900 via-purple-900 to-gray-900'
     };
 

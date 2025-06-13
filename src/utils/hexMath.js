@@ -8,7 +8,7 @@ export const HEX_DIRECTIONS = [
     { q: 0, r: 1 }    // SE
 ];
 
-export const hexToPixel = (q, r, size = 46) => {
+export const hexToPixel = (q, r, size = 42) => {
     const x = size * (Math.sqrt(3) * q + Math.sqrt(3) / 2 * r);
     const y = size * (3 / 2 * r);
     return { x, y };

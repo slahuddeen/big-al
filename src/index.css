@@ -188,3 +188,369 @@ body {
 .text-with-shadow {
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
+
+/* Enhanced creature panel scrolling */
+.creatures-panel-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(245, 158, 11, 0.6) rgba(0, 0, 0, 0.3);
+}
+
+    .creatures-panel-scroll::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .creatures-panel-scroll::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+    }
+
+    .creatures-panel-scroll::-webkit-scrollbar-thumb {
+        background: rgba(245, 158, 11, 0.6);
+        border-radius: 4px;
+        transition: background 0.3s ease;
+    }
+
+        .creatures-panel-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(245, 158, 11, 0.8);
+        }
+
+/* Creature card animations */
+.creature-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+    .creature-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    }
+
+/* Attack button enhanced hover effects */
+.attack-button {
+    position: relative;
+    overflow: hidden;
+}
+
+    .attack-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .attack-button:hover::before {
+        left: 100%;
+    }
+
+/* Enhanced image loading states */
+.creature-image-loading {
+    background: linear-gradient(45deg, rgba(245, 158, 11, 0.1) 25%, transparent 25%), linear-gradient(-45deg, rgba(245, 158, 11, 0.1) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(245, 158, 11, 0.1) 75%), linear-gradient(-45deg, transparent 75%, rgba(245, 158, 11, 0.1) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+
+    100% {
+        background-position: 20px 20px, 20px 30px, 30px 10px, 10px 20px;
+    }
+}
+
+/* Success chance pulse animation for dangerous creatures */
+.danger-pulse {
+    animation: dangerPulse 2s ease-in-out infinite;
+}
+
+@keyframes dangerPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+    }
+}
+
+/* Panel entrance animation */
+.panel-enter {
+    animation: slideInFromRight 0.5s ease-out;
+}
+
+@keyframes slideInFromRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Stat bar fill animations */
+.stat-bar-fill {
+    transition: width 0.8s ease-in-out;
+}
+
+/* Creature image hover effects */
+.creature-image-hover {
+    transition: all 0.3s ease;
+}
+
+    .creature-image-hover:hover {
+        transform: scale(1.1) rotate(2deg);
+        filter: drop-shadow(4px 4px 8px rgba(0,0,0,0.8)) brightness(1.1);
+    }
+
+/* Gradient overlays for better text readability */
+.gradient-overlay {
+    background: linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.7) 100%);
+}
+
+/* Enhanced border glow effects */
+.border-glow-green {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+.border-glow-yellow {
+    box-shadow: 0 0 20px rgba(234, 179, 8, 0.3);
+}
+
+.border-glow-red {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+/* Enhanced discovery system styles */
+.hex-discovered {
+    opacity: 0.7;
+    filter: brightness(0.75);
+    position: relative;
+}
+
+    .hex-discovered::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.3);
+        clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
+        pointer-events: none;
+    }
+
+/* Discovery indicator */
+.discovery-indicator {
+    width: 8px;
+    height: 8px;
+    background: linear-gradient(45deg, #3b82f6, #60a5fa);
+    border-radius: 50%;
+    animation: discoveryPulse 2s ease-in-out infinite;
+    box-shadow: 0 0 4px rgba(59, 130, 246, 0.6);
+}
+
+@keyframes discoveryPulse {
+    0%, 100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+}
+
+/* Enhanced Big Al player character */
+.player-character {
+    position: relative;
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+    .player-character:hover {
+        transform: scale(1.1) rotate(5deg);
+        filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.9)) brightness(1.1);
+    }
+
+/* Player position indicator styling */
+.player-position-indicator {
+    background: linear-gradient(45deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.6));
+    backdrop-filter: blur(4px);
+    border: 1px solid #f59e0b;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+}
+
+    .player-position-indicator:hover {
+        border-color: #fbbf24;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+/* Enhanced hex visibility transitions */
+.hex-tile {
+    transition: opacity 0.8s ease-in-out, filter 0.8s ease-in-out, transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+    /* Discovered but not currently visible */
+    .hex-tile.discovered-not-visible {
+        opacity: 0.7;
+        filter: brightness(0.75) contrast(0.9);
+    }
+
+    /* Currently visible tiles */
+    .hex-tile.currently-visible {
+        opacity: 1;
+        filter: brightness(1) contrast(1);
+    }
+
+/* Enhanced movable hex effects */
+.hex-movable {
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+    filter: brightness(1.05);
+    animation: movablePulse 2s ease-in-out infinite;
+}
+
+@keyframes movablePulse {
+    0%, 100% {
+        box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 35px rgba(245, 158, 11, 0.8);
+    }
+}
+
+/* Enhanced hover effects for movable hexes */
+.hex-hovered.hex-movable {
+    box-shadow: 0 0 40px rgba(245, 158, 11, 1.0);
+    filter: brightness(1.15);
+    transform: scale(1.03) !important;
+    animation: none; /* Stop pulse on hover */
+}
+
+/* Fog of war effect for undiscovered areas */
+.hex-fog {
+    background: radial-gradient(circle, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.9) 100%);
+    backdrop-filter: blur(2px);
+}
+
+/* Discovery animation when hex is first revealed */
+@keyframes hexDiscovery {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+        filter: brightness(2);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.1);
+        filter: brightness(1.5);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+.hex-discovering {
+    animation: hexDiscovery 0.8s ease-out;
+}
+
+/* Enhanced creature indicators for discovered tiles */
+.creature-indicator {
+    transition: all 0.3s ease;
+    backdrop-filter: blur(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.hex-discovered .creature-indicator {
+    opacity: 0.6;
+    filter: grayscale(0.3);
+}
+
+/* Exploration progress indicator */
+.exploration-progress {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.8) 0%, rgba(147, 197, 253, 0.6) 50%, rgba(59, 130, 246, 0.8) 100%);
+    border-radius: 12px;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+/* Enhanced danger indicators */
+.danger-indicator {
+    animation: dangerBlink 1.5s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+@keyframes dangerBlink {
+    0%, 50%, 100% {
+        opacity: 1;
+        background-color: #ef4444;
+    }
+
+    25%, 75% {
+        opacity: 0.6;
+        background-color: #dc2626;
+    }
+}
+
+/* Big Al specific enhancements */
+.player-character img {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+/* Enhanced gentle bounce for Big Al */
+@keyframes gentleBounce {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+    }
+
+    25% {
+        transform: translateY(-2px) scale(1.02);
+    }
+
+    50% {
+        transform: translateY(-3px) scale(1.05);
+    }
+
+    75% {
+        transform: translateY(-1px) scale(1.02);
+    }
+}
+
+.animate-gentle-bounce {
+    animation: gentleBounce 3s ease-in-out infinite;
+}
+
+/* Hex selection improvements */
+.hex-selected {
+    box-shadow: 0 0 40px rgba(245, 158, 11, 1.0);
+    filter: brightness(1.15);
+    border: 2px solid rgba(245, 158, 11, 0.8);
+    animation: selectedGlow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes selectedGlow {
+    0% {
+        box-shadow: 0 0 40px rgba(245, 158, 11, 1.0);
+    }
+
+    100% {
+        box-shadow: 0 0 50px rgba(245, 158, 11, 1.2);
+    }
+}

@@ -3,8 +3,8 @@ import { hexDistance, getHexNeighbors } from '../utils/hexMath.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA, HABITAT_SPECIES } from '../data/species.js';
 import { calculateFiercenessRatio, calculateAgilityRatio, calculateInjuries } from '../utils/combatUtils.js';
-import { generateTerrainFeatures, generateTerrain } from '../utils/terrainGeneration.js';
 import { calculateVisibility } from '../utils/visibilitySystem.js';
+import { generateTerrainFeatures, generateTerrain, applyEcologicalPostProcessing } from '../utils/terrainGeneration.js';
 import {
     MAX_WEIGHT,
     HEALING_RATE,
@@ -82,9 +82,24 @@ export const gameReducer = (state, action) => {
 
             const terrain = TERRAIN_TYPES[targetHex.terrain];
 
+            // Check for quicksand - instant death!
+            if (targetHex.terrain === 'quicksand') {
+                return {
+                    ...state,
+                    gameOver: true,
+                    gamePhase: 'dead',
+                    deathReason: 'sank',
+                    currentThought: "You step into the quicksand and sink rapidly...",
+                    notifications: addNotification(state.notifications, {
+                        type: 'death',
+                        message: "You stepped into quicksand and were pulled down into its depths!"
+                    })
+                };
+            }
+
             if (!terrain.passable) return state;
 
-            // Check weight restrictions
+            // Check weight restrictions for rivers
             if (terrain.minWeight > 0 && state.weight < terrain.minWeight) {
                 return {
                     ...state,
@@ -103,7 +118,7 @@ export const gameReducer = (state, action) => {
                 };
             }
 
-            // Calculate movement costs
+            // Rest of the move logic continues unchanged...
             const energyCost = terrain.energyCost;
             let newEnergy = Math.max(0, state.energy - energyCost);
             let newFitness = state.fitness;
@@ -195,13 +210,17 @@ export const gameReducer = (state, action) => {
                 q, r, terrain,
                 visited: false,
                 visible: false,
+                discovered: false, // New persistent discovery state
                 inRange: false
             };
 
             const newHexes = new Map(state.hexes);
             newHexes.set(key, newHex);
 
-            return { ...state, hexes: newHexes };
+            // Apply ecological post-processing after generating sufficient hexes
+            const processedHexes = applyEcologicalPostProcessing(newHexes, state.linearFeatures);
+
+            return { ...state, hexes: processedHexes };
         }
 
         case 'UPDATE_VISIBILITY': {

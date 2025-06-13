@@ -1,4 +1,4 @@
-﻿// ==================== ENHANCED SPECIES SYSTEM ====================
+﻿// ==================== ENHANCED SPECIES SYSTEM WITH NEW TERRAIN TYPES ====================
 export const SPECIES_DATA = {
     "Dragonfly": {
         emoji: "🪰",
@@ -130,33 +130,141 @@ export const SPECIES_DATA = {
     }
 };
 
-// Increased plains/forest frequency in species distributions
+// Enhanced habitat species distributions - REDUCED for challenging gameplay
 export const HABITAT_SPECIES = {
-    'forest': { 'Dragonfly': 0.2, 'Centipede': 0.2, 'Scorpion': 0.15, 'Lizard': 0.2, 'Dryosaurus': 0.1, 'Othnielia': 0.1, 'Sphenodontian': 0.05, 'Ornitholestes': 0.1, 'Juvenile Allosaurus': 0.1 },
-    'oldgrowthforest': { 'Dragonfly': 0.15, 'Centipede': 0.25, 'Dryosaurus': 0.05, 'Ornitholestes': 0.15 },
-    'denseforest': { 'Centipede': 0.3, 'Scorpion': 0.2, 'Ornitholestes': 0.2 },
-    'youngforest': { 'Dragonfly': 0.3, 'Lizard': 0.25, 'Dryosaurus': 0.15, 'Othnielia': 0.15 },
-    'forestedge': { 'Dragonfly': 0.2, 'Scorpion': 0.15, 'Centipede': 0.1, 'Dryosaurus': 0.1, 'Othnielia': 0.15, 'Ornitholestes': 0.1, 'Stegosaurus': 0.05, 'Lizard': 0.1, 'Sphenodontian': 0.1, 'Male Allosaurus': 0.1, 'Female Allosaurus': 0.1, 'Juvenile Allosaurus': 0.1 },
-    'openwoods': { 'Dragonfly': 0.25, 'Lizard': 0.2, 'Dryosaurus': 0.15, 'Othnielia': 0.15, 'Pterosaur': 0.1 },
-    'galleryforest': { 'Dragonfly': 0.3, 'Frog': 0.2, 'Lizard': 0.15, 'Crocodile': 0.1 },
-    'deadforest': { 'Scorpion': 0.2, 'Lizard': 0.15, 'Injured Pterosaur': 0.1 },
-    'plains': { 'Scorpion': 0.05, 'Lizard': 0.1, 'Sphenodontian': 0.1, 'Pterosaur': 0.2, 'Stegosaurus': 0.1, 'Dryosaurus': 0.05, 'Othnielia': 0.05, 'Male Allosaurus': 0.1, 'Female Allosaurus': 0.1 },
-    'grasslands': { 'Stegosaurus': 0.2, 'Dryosaurus': 0.15, 'Othnielia': 0.15, 'Pterosaur': 0.15, 'Male Allosaurus': 0.05, 'Female Allosaurus': 0.1 },
-    'meadow': { 'Dragonfly': 0.3, 'Lizard': 0.15, 'Dryosaurus': 0.2, 'Othnielia': 0.2 },
-    'scrubland': { 'Lizard': 0.2, 'Scorpion': 0.15, 'Sphenodontian': 0.15, 'Ornitholestes': 0.1 },
-    'savanna': { 'Stegosaurus': 0.15, 'Dryosaurus': 0.1, 'Othnielia': 0.1, 'Pterosaur': 0.25 },
-    'steppe': { 'Lizard': 0.15, 'Scorpion': 0.1, 'Sphenodontian': 0.1 },
-    'sauropodgrounds': { 'Pterosaur': 0.2 },
-    'river': { 'Dragonfly': 0.25, 'Frog': 0.25, 'Crocodile': 0.5 },
-    'dryriverbed': { 'Lizard': 0.2, 'Scorpion': 0.15, 'Sphenodontian': 0.1 },
-    'riverbank': { 'Dragonfly': 0.35, 'Frog': 0.35, 'Crocodile': 0.4, 'Stegosaurus': 0.1, 'Dryosaurus': 0.05, 'Othnielia': 0.05, 'Male Allosaurus': 0.1, 'Female Allosaurus': 0.1 },
-    'marsh': { 'Dragonfly': 0.4, 'Frog': 0.4, 'Crocodile': 0.3 },
-    'waterhole': { 'Dragonfly': 0.25, 'Frog': 0.25, 'Scorpion': 0.05, 'Lizard': 0.1, 'Sphenodontian': 0.1, 'Stegosaurus': 0.2, 'Othnielia': 0.1, 'Dryosaurus': 0.1, 'Juvenile Allosaurus': 0.1, 'Male Allosaurus': 0.1, 'Female Allosaurus': 0.8 },
-    'hills': { 'Pterosaur': 0.3, 'Lizard': 0.15, 'Scorpion': 0.1 },
-    'rocky': { 'Lizard': 0.2, 'Scorpion': 0.15, 'Sphenodontian': 0.1 },
-    'desert': { 'Scorpion': 0.1, 'Sphenodontian': 0.05, 'Lizard': 0.05, 'Injured Pterosaur': 0.05, 'Male Allosaurus': 0.05, 'Female Allosaurus': 0.05 },
-    'badlands': { 'Scorpion': 0.15, 'Lizard': 0.1, 'Injured Pterosaur': 0.1 },
-    'mesa': { 'Pterosaur': 0.4, 'Lizard': 0.1 },
-    'sand': { 'Scorpion': 0.15, 'Lizard': 0.1 },
-    'nest': { 'Dragonfly': 0.25, 'Scorpion': 0.1, 'Centipede': 0.25, 'Ornitholestes': 0.7 }
+    // FOREST HIERARCHY - From dense to sparse (REDUCED encounter rates)
+    'denseforest': {
+        'Centipede': 0.15, 'Scorpion': 0.1, 'Lizard': 0.05, 'Ornitholestes': 0.1,
+        'Juvenile Allosaurus': 0.03
+    },
+    'oldgrowthforest': {
+        'Dragonfly': 0.08, 'Centipede': 0.12, 'Sphenodontian': 0.05,
+        'Dryosaurus': 0.03, 'Ornitholestes': 0.08
+    },
+    'forest': {
+        'Dragonfly': 0.1, 'Centipede': 0.1, 'Scorpion': 0.08, 'Lizard': 0.1,
+        'Dryosaurus': 0.05, 'Othnielia': 0.05, 'Sphenodontian': 0.03,
+        'Ornitholestes': 0.05, 'Juvenile Allosaurus': 0.05
+    },
+    'youngforest': {
+        'Dragonfly': 0.15, 'Lizard': 0.12, 'Dryosaurus': 0.08, 'Othnielia': 0.08
+    },
+    'forestedge': {
+        'Dragonfly': 0.1, 'Scorpion': 0.08, 'Centipede': 0.05, 'Dryosaurus': 0.05,
+        'Othnielia': 0.08, 'Ornitholestes': 0.05, 'Stegosaurus': 0.03,
+        'Lizard': 0.05, 'Sphenodontian': 0.05, 'Male Allosaurus': 0.05,
+        'Female Allosaurus': 0.05, 'Juvenile Allosaurus': 0.05
+    },
+    'openwoods': {
+        'Dragonfly': 0.12, 'Lizard': 0.1, 'Dryosaurus': 0.08, 'Othnielia': 0.08,
+        'Pterosaur': 0.05
+    },
+    'galleryforest': {
+        'Dragonfly': 0.15, 'Frog': 0.1, 'Lizard': 0.08, 'Crocodile': 0.05,
+        'Dryosaurus': 0.05
+    },
+    'deadforest': {
+        'Scorpion': 0.1, 'Lizard': 0.08, 'Injured Pterosaur': 0.05,
+        'Sphenodontian': 0.05
+    },
+
+    // PLAINS HIERARCHY - Fertile grasslands to arid steppes (REDUCED)
+    'plains': {
+        'Scorpion': 0.03, 'Lizard': 0.05, 'Sphenodontian': 0.05, 'Pterosaur': 0.1,
+        'Stegosaurus': 0.05, 'Dryosaurus': 0.03, 'Othnielia': 0.03,
+        'Male Allosaurus': 0.05, 'Female Allosaurus': 0.05
+    },
+    'grasslands': {
+        'Stegosaurus': 0.1, 'Dryosaurus': 0.08, 'Othnielia': 0.08,
+        'Pterosaur': 0.08, 'Male Allosaurus': 0.03, 'Female Allosaurus': 0.05
+    },
+    'meadow': {
+        'Dragonfly': 0.15, 'Lizard': 0.08, 'Dryosaurus': 0.1, 'Othnielia': 0.1
+    },
+    'savanna': {
+        'Stegosaurus': 0.08, 'Dryosaurus': 0.05, 'Othnielia': 0.05, 'Pterosaur': 0.12,
+        'Lizard': 0.05, 'Scorpion': 0.03
+    },
+    'scrubland': {
+        'Lizard': 0.1, 'Scorpion': 0.08, 'Sphenodontian': 0.08, 'Ornitholestes': 0.05
+    },
+    'steppe': {
+        'Lizard': 0.08, 'Scorpion': 0.05, 'Sphenodontian': 0.05, 'Pterosaur': 0.05
+    },
+    'sauropodgrounds': {
+        'Pterosaur': 0.1, 'Stegosaurus': 0.05, 'Male Allosaurus': 0.08,
+        'Female Allosaurus': 0.08
+        // Note: This terrain should also spawn sauropods when pack hunting is implemented
+    },
+
+    // WATER FEATURES (REDUCED)
+    'river': {
+        'Dragonfly': 0.12, 'Frog': 0.12, 'Crocodile': 0.25
+    },
+    'dryriverbed': {
+        'Lizard': 0.1, 'Scorpion': 0.08, 'Sphenodontian': 0.05
+    },
+    'riverbank': {
+        'Dragonfly': 0.18, 'Frog': 0.18, 'Crocodile': 0.2, 'Stegosaurus': 0.05,
+        'Dryosaurus': 0.03, 'Othnielia': 0.03, 'Male Allosaurus': 0.05,
+        'Female Allosaurus': 0.05
+    },
+    'marsh': {
+        'Dragonfly': 0.2, 'Frog': 0.2, 'Crocodile': 0.15, 'Lizard': 0.05
+    },
+    'waterhole': {
+        'Dragonfly': 0.12, 'Frog': 0.12, 'Scorpion': 0.03, 'Lizard': 0.05,
+        'Sphenodontian': 0.05, 'Stegosaurus': 0.1, 'Othnielia': 0.05,
+        'Dryosaurus': 0.05, 'Juvenile Allosaurus': 0.05, 'Male Allosaurus': 0.05,
+        'Female Allosaurus': 0.4  // Females still prefer water sources
+    },
+    'lake': {
+        'Dragonfly': 0.15, 'Frog': 0.15, 'Crocodile': 0.1, 'Stegosaurus': 0.05,
+        'Pterosaur': 0.05
+    },
+    'beach': {
+        'Dragonfly': 0.1, 'Frog': 0.1, 'Lizard': 0.08, 'Pterosaur': 0.1
+    },
+
+    // MOUNTAIN FEATURES (REDUCED rocky encounters)
+    'hills': {
+        'Pterosaur': 0.15, 'Lizard': 0.08, 'Scorpion': 0.05, 'Dryosaurus': 0.05,
+        'Othnielia': 0.05
+    },
+    'rocky': {
+        'Lizard': 0.05, 'Scorpion': 0.03, 'Sphenodontian': 0.03, 'Pterosaur': 0.03
+    },
+    'mountains': {
+        'Pterosaur': 0.1, 'Lizard': 0.05
+    },
+
+    // DESERT FEATURES (REDUCED)
+    'desert': {
+        'Scorpion': 0.05, 'Sphenodontian': 0.03, 'Lizard': 0.03,
+        'Injured Pterosaur': 0.03, 'Male Allosaurus': 0.03,
+        'Female Allosaurus': 0.03
+    },
+    'badlands': {
+        'Scorpion': 0.08, 'Lizard': 0.05, 'Injured Pterosaur': 0.05,
+        'Sphenodontian': 0.03
+    },
+    'mesa': {
+        'Pterosaur': 0.2, 'Lizard': 0.05, 'Scorpion': 0.05
+    },
+    'sand': {
+        'Scorpion': 0.08, 'Lizard': 0.05, 'Sphenodontian': 0.03
+    },
+
+    // VOLCANIC FEATURES (VERY REDUCED - harsh environment)
+    'volcanic': {
+        'Pterosaur': 0.1, 'Lizard': 0.05
+    },
+    'lavafield': {
+        // No creatures can survive in active lava
+    },
+
+    // SPECIAL AREAS
+    'nest': {
+        'Dragonfly': 0.12, 'Scorpion': 0.05, 'Centipede': 0.12, 'Ornitholestes': 0.35  // Nest raiders
+    }
 };

@@ -1,8 +1,77 @@
-// ==================== ENHANCED TERRAIN GENERATION ====================
-import { HEX_DIRECTIONS, getHexNeighbors } from './hexMath.js';
+// ==================== ENHANCED ECOLOGICAL TERRAIN GENERATION ====================
+import { HEX_DIRECTIONS, getHexNeighbors, hexDistance } from './hexMath.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 
-// Linear feature generation
+// Enhanced terrain generation with proper ecological rules
+export const generateTerrainFeatures = (centerQ, centerR, radius) => {
+    const features = [];
+
+    // Generate mountain ranges (3-5 ranges for more dramatic landscape)
+    for (let i = 0; i < Math.floor(Math.random() * 3) + 3; i++) {
+        const start = {
+            q: centerQ + Math.floor(Math.random() * radius * 2) - radius,
+            r: centerR + Math.floor(Math.random() * radius * 2) - radius
+        };
+        const direction = Math.floor(Math.random() * 6);
+        const length = Math.floor(Math.random() * 5) + 4; // Slightly longer ranges: 4-8 instead of 3-6
+        features.push(...generateMountainRange(start, direction, length));
+    }
+
+    // Generate rivers (1-3) - these will create gallery forests later
+    for (let i = 0; i < Math.floor(Math.random() * 3) + 1; i++) {
+        const start = {
+            q: centerQ + Math.floor(Math.random() * radius * 2) - radius,
+            r: centerR + Math.floor(Math.random() * radius * 2) - radius
+        };
+        const direction = Math.floor(Math.random() * 6);
+        const length = Math.floor(Math.random() * 12) + 6;
+        features.push(...generateRiver(start, direction, length));
+    }
+
+    // Generate dry riverbeds in desert areas (0-2)
+    for (let i = 0; i < Math.floor(Math.random() * 3); i++) {
+        const start = {
+            q: centerQ + Math.floor(Math.random() * radius * 2) - radius,
+            r: centerR + Math.floor(Math.random() * radius * 2) - radius
+        };
+        const direction = Math.floor(Math.random() * 6);
+        const length = Math.floor(Math.random() * 10) + 4;
+        features.push(...generateDryRiverbed(start, direction, length));
+    }
+
+    // Generate migration routes - less rare and snaking (increased chance)
+    if (Math.random() < 0.7) { // Increased from 40% to 70% chance for migration route
+        const start = {
+            q: centerQ + Math.floor(Math.random() * radius) - radius / 2,
+            r: centerR + Math.floor(Math.random() * radius) - radius / 2
+        };
+        const direction = Math.floor(Math.random() * 6);
+        const length = Math.floor(Math.random() * 8) + 6; // Shorter than rivers
+        features.push(...generateMigrationRoute(start, direction, length));
+    }
+
+    // Generate scattered nests (2-4 nests)
+    const nestCount = Math.floor(Math.random() * 3) + 2; // 2-4 nests
+    for (let i = 0; i < nestCount; i++) {
+        const nestPos = {
+            q: centerQ + Math.floor(Math.random() * radius * 1.5) - radius * 0.75,
+            r: centerR + Math.floor(Math.random() * radius * 1.5) - radius * 0.75
+        };
+        features.push({ ...nestPos, terrain: 'nest' });
+    }
+
+    // Generate volcanic features (0-1)
+    if (Math.random() < 0.7) {
+        const start = {
+            q: centerQ + Math.floor(Math.random() * radius) - radius / 2,
+            r: centerR + Math.floor(Math.random() * radius) - radius / 2
+        };
+        features.push(...generateVolcanicArea(start));
+    }
+
+    return features;
+};
+
 export const generateRiver = (start, targetDirection, length) => {
     const river = [];
     let current = { ...start };
@@ -52,7 +121,8 @@ export const generateMountainRange = (start, direction, length) => {
         const terrainType = Math.random() < 0.8 ? 'mountains' : 'volcanic';
         mountains.push({ ...current, terrain: terrainType });
 
-        if (Math.random() < 0.2) {
+        // Much more snaking - increase direction change probability
+        if (Math.random() < 0.4) { // Increased from 0.2 to 0.4 for more snaking
             const perpendicular = [(direction + 1) % 6, (direction + 5) % 6];
             direction = perpendicular[Math.floor(Math.random() * 2)];
         }
@@ -65,43 +135,46 @@ export const generateMountainRange = (start, direction, length) => {
     return mountains;
 };
 
-export const generateTerrainFeatures = (centerQ, centerR, radius) => {
-    const features = [];
+export const generateMigrationRoute = (start, targetDirection, length) => {
+    const route = [];
+    let current = { ...start };
+    let direction = targetDirection;
 
-    // Generate mountain ranges (1-2)
-    for (let i = 0; i < Math.floor(Math.random() * 2) + 1; i++) {
-        const start = {
-            q: centerQ + Math.floor(Math.random() * radius * 2) - radius,
-            r: centerR + Math.floor(Math.random() * radius * 2) - radius
-        };
-        const direction = Math.floor(Math.random() * 6);
-        const length = Math.floor(Math.random() * 8) + 4;
-        features.push(...generateMountainRange(start, direction, length));
+    for (let i = 0; i < length; i++) {
+        route.push({ ...current, terrain: 'sauropodgrounds' });
+
+        // Migration routes meander more than rivers
+        if (Math.random() < 0.4) {
+            direction = (direction + (Math.random() < 0.5 ? 1 : -1) + 6) % 6;
+        }
+
+        const nextStep = HEX_DIRECTIONS[direction];
+        current.q += nextStep.q;
+        current.r += nextStep.r;
     }
 
-    // Generate rivers (1-3)
-    for (let i = 0; i < Math.floor(Math.random() * 3) + 1; i++) {
-        const start = {
-            q: centerQ + Math.floor(Math.random() * radius * 2) - radius,
-            r: centerR + Math.floor(Math.random() * radius * 2) - radius
-        };
-        const direction = Math.floor(Math.random() * 6);
-        const length = Math.floor(Math.random() * 12) + 6;
-        features.push(...generateRiver(start, direction, length));
+    return route;
+};
+
+export const generateVolcanicArea = (center) => {
+    const volcanicFeatures = [];
+
+    // Central volcano
+    volcanicFeatures.push({ ...center, terrain: 'volcanic' });
+
+    // Surrounding lava fields (1-2 radius)
+    for (let radius = 1; radius <= 2; radius++) {
+        for (let i = 0; i < 6 * radius; i++) {
+            if (Math.random() < 0.6) { // 60% chance for lava field
+                const angle = (i / (6 * radius)) * 2 * Math.PI;
+                const q = center.q + Math.round(radius * Math.cos(angle));
+                const r = center.r + Math.round(radius * Math.sin(angle));
+                volcanicFeatures.push({ q, r, terrain: 'lavafield' });
+            }
+        }
     }
 
-    // Generate dry riverbeds (0-2)
-    for (let i = 0; i < Math.floor(Math.random() * 3); i++) {
-        const start = {
-            q: centerQ + Math.floor(Math.random() * radius * 2) - radius,
-            r: centerR + Math.floor(Math.random() * radius * 2) - radius
-        };
-        const direction = Math.floor(Math.random() * 6);
-        const length = Math.floor(Math.random() * 10) + 4;
-        features.push(...generateDryRiverbed(start, direction, length));
-    }
-
-    return features;
+    return volcanicFeatures;
 };
 
 export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
@@ -116,16 +189,16 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
         .map(n => existingHexes.get(`${n.q},${n.r}`))
         .filter(Boolean);
 
-    // Starting terrain if no neighbors - INCREASED PLAINS/FOREST FREQUENCY
+    // Starting terrain if no neighbors - focus on plains and forests
     if (existingNeighbors.length === 0) {
         const rand = Math.random();
-        if (rand < 0.4) return 'plains';
-        if (rand < 0.7) return 'grasslands';
-        if (rand < 0.85) return 'forest';
+        if (rand < 0.35) return 'plains';
+        if (rand < 0.6) return 'grasslands';
+        if (rand < 0.8) return 'forest';
         return 'openwoods';
     }
 
-    // Analyze neighbors
+    // Analyze neighbors for ecological rules
     const neighborTypes = existingNeighbors.map(h => h.terrain);
     const terrainCounts = {};
     neighborTypes.forEach(t => terrainCounts[t] = (terrainCounts[t] || 0) + 1);
@@ -134,43 +207,112 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
         terrainCounts[a] > terrainCounts[b] ? a : b
     );
 
-    // Advanced formation rules
-    const forestCount = neighborTypes.filter(t => TERRAIN_TYPES[t].category === 'forest').length;
-    if (forestCount >= 4) {
-        const rand = Math.random();
-        if (rand < 0.3) return 'denseforest';
-        if (rand < 0.5) return 'oldgrowthforest';
-    }
+    // ECOLOGICAL RULES
 
-    // Forest edges where forest meets plains
-    const hasForest = neighborTypes.some(t => TERRAIN_TYPES[t].category === 'forest');
-    const hasPlains = neighborTypes.some(t => TERRAIN_TYPES[t].category === 'plains');
-    if (hasForest && hasPlains && Math.random() < 0.4) {
-        return 'forestedge';
-    }
-
-    // Rocky/hilly terrain near mountains
-    const hasMountains = neighborTypes.some(t => TERRAIN_TYPES[t].category === 'mountain');
-    if (hasMountains && Math.random() < 0.4) {
-        return Math.random() < 0.6 ? 'rocky' : 'hills';
-    }
-
-    // Gallery forest near water
+    // 1. River through forest becomes gallery forest
     const hasRiver = neighborTypes.includes('river');
-    if (hasRiver && hasForest && Math.random() < 0.6) {
+    const hasForest = neighborTypes.some(t => ['forest', 'denseforest', 'oldgrowthforest'].includes(t));
+    if (hasRiver && hasForest && Math.random() < 0.8) {
         return 'galleryforest';
     }
 
-    // Riverbank near rivers
-    if (neighborTypes.includes('river') && Math.random() < 0.25) {
-        return 'riverbank';
+    // 2. Riverbanks and marshes next to rivers
+    if (hasRiver && Math.random() < 0.6) {
+        return Math.random() < 0.7 ? 'riverbank' : 'marsh';
     }
 
-    // Terrain category continuation with variation
-    const currentCategory = TERRAIN_TYPES[mostCommon].category;
+    // 3. Rocky terrain near mountains (MINIMAL - very rare)
+    const hasMountains = neighborTypes.includes('mountains');
+    if (hasMountains && Math.random() < 0.05) {  // Reduced from 0.15 to 0.05 (only 5% chance)
+        return 'rocky';
+    }
+
+    // 4. Lava fields around volcanoes
+    const hasVolcanic = neighborTypes.includes('volcanic');
+    if (hasVolcanic && Math.random() < 0.6) {
+        return 'lavafield';
+    }
+
+    // 5. Dead forest near volcanoes or lava fields
+    const hasVolcanicFeatures = neighborTypes.some(t => ['volcanic', 'lavafield'].includes(t));
+    if (hasVolcanicFeatures && hasForest && Math.random() < 0.8) {
+        return 'deadforest';
+    }
+
+    // 6. Hills scattered nicely - appear near various terrains but not too dense
+    const hasHills = neighborTypes.includes('hills');
+    if (!hasHills && !hasVolcanicFeatures && Math.random() < 0.2) { // Increased from 0.15 to 0.2
+        return 'hills';
+    }
+
+    // 7. Dense forest at center of forest clusters
+    const forestCount = neighborTypes.filter(t =>
+        ['forest', 'denseforest', 'oldgrowthforest', 'openwoods'].includes(t)
+    ).length;
+
+    if (forestCount >= 4) {
+        const rand = Math.random();
+        if (rand < 0.4) return 'denseforest';
+        if (rand < 0.6) return 'oldgrowthforest';
+        return 'forest';
+    }
+
+    // 8. Forest ecosystem hierarchy
+    if (forestCount >= 2) {
+        const rand = Math.random();
+        if (rand < 0.3) return 'forest';
+        if (rand < 0.5) return 'openwoods';
+        if (rand < 0.7) return 'youngforest';
+        return 'forestedge';
+    }
+
+    // 9. Plains types clump together
+    const plainsCount = neighborTypes.filter(t =>
+        ['plains', 'grasslands', 'meadow', 'scrubland', 'savanna', 'steppe'].includes(t)
+    ).length;
+
+    if (plainsCount >= 3) {
+        const rand = Math.random();
+        if (rand < 0.3) return mostCommon; // Continue same plains type
+        if (rand < 0.5) return 'grasslands';
+        if (rand < 0.7) return 'meadow';
+        return 'plains';
+    }
+
+    // 10. Desert ecosystem with dry riverbeds
+    const desertCount = neighborTypes.filter(t =>
+        ['desert', 'badlands', 'sand', 'steppe'].includes(t)
+    ).length;
+
+    if (desertCount >= 2) {
+        const rand = Math.random();
+        if (rand < 0.2 && !neighborTypes.includes('dryriverbed')) return 'dryriverbed';
+        if (rand < 0.4) return 'desert';
+        if (rand < 0.6) return 'badlands';
+        if (rand < 0.8) return 'steppe';
+        return 'sand';
+    }
+
+    // 11. Forest edge where forest meets plains
+    const hasPlains = neighborTypes.some(t =>
+        ['plains', 'grasslands', 'meadow'].includes(t)
+    );
+    if (hasForest && hasPlains && Math.random() < 0.5) {
+        return 'forestedge';
+    }
+
+    // 12. Scrubland as transition terrain
+    const hasScrubland = neighborTypes.includes('scrubland');
+    if ((hasForest || hasPlains || desertCount > 0) && !hasScrubland && Math.random() < 0.2) {
+        return 'scrubland';
+    }
+
+    // Terrain category continuation with enhanced variation
+    const currentCategory = TERRAIN_TYPES[mostCommon]?.category || 'terrain';
     let continuityChance = 0.6;
 
-    if (currentCategory === 'plains' || currentCategory === 'forest') {
+    // Increase continuity for major biomes
+    if (['plains', 'forest', 'desert'].includes(currentCategory)) {
         continuityChance = 0.75;
     }
 
@@ -185,12 +327,12 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
         return mostCommon;
     }
 
-    // Transition to different categories
+    // Enhanced transition weights
     const transitionWeights = {
-        forest: { forest: 0.5, plains: 0.3, mountain: 0.15, desert: 0.05 },
-        plains: { plains: 0.5, forest: 0.3, desert: 0.15, mountain: 0.05 },
-        mountain: { mountain: 0.4, forest: 0.3, plains: 0.25, desert: 0.05 },
-        desert: { desert: 0.4, plains: 0.35, mountain: 0.2, forest: 0.05 }
+        forest: { forest: 0.5, plains: 0.25, mountain: 0.15, desert: 0.1 },
+        plains: { plains: 0.4, forest: 0.35, desert: 0.15, mountain: 0.1 },
+        mountain: { mountain: 0.3, forest: 0.3, plains: 0.25, desert: 0.15 },
+        desert: { desert: 0.4, plains: 0.3, mountain: 0.2, forest: 0.1 }
     };
 
     const weights = transitionWeights[currentCategory] || transitionWeights.plains;
@@ -203,9 +345,51 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
             const categoryTerrains = Object.keys(TERRAIN_TYPES).filter(t =>
                 TERRAIN_TYPES[t].category === category && !TERRAIN_TYPES[t].isLinear
             );
-            return categoryTerrains[Math.floor(Math.random() * categoryTerrains.length)];
+
+            if (categoryTerrains.length > 0) {
+                return categoryTerrains[Math.floor(Math.random() * categoryTerrains.length)];
+            }
         }
     }
 
-    return 'plains';
+    return 'plains'; // Fallback
+};
+
+// Helper function to get hexes in radius
+export const getHexesInRadius = (center, radius) => {
+    const hexes = [];
+    for (let dq = -radius; dq <= radius; dq++) {
+        for (let dr = -radius; dr <= radius; dr++) {
+            if (Math.abs(dq + dr) <= radius) {
+                hexes.push({ q: center.q + dq, r: center.r + dr });
+            }
+        }
+    }
+    return hexes;
+};
+
+// Post-processing function to apply final ecological rules
+export const applyEcologicalPostProcessing = (hexes, linearFeatures) => {
+    const newHexes = new Map(hexes);
+
+    // Apply gallery forest rule to rivers in forests
+    linearFeatures.forEach(feature => {
+        if (feature.terrain === 'river') {
+            const key = `${feature.q},${feature.r}`;
+            const hex = newHexes.get(key);
+            if (hex) {
+                const neighbors = getHexNeighbors(feature);
+                const hasForestNeighbor = neighbors.some(n => {
+                    const neighborHex = newHexes.get(`${n.q},${n.r}`);
+                    return neighborHex && ['forest', 'denseforest', 'oldgrowthforest'].includes(neighborHex.terrain);
+                });
+
+                if (hasForestNeighbor) {
+                    hex.terrain = 'galleryforest';
+                }
+            }
+        }
+    });
+
+    return newHexes;
 };
