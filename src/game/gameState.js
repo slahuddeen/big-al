@@ -1,4 +1,4 @@
-// ==================== GAME STATE ====================
+﻿// ==================== UPDATED GAME STATE WITH SIMPLIFIED HATCHLING PROGRESSION ====================
 import { hexDistance, getHexNeighbors } from '../utils/hexMath.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA, HABITAT_SPECIES } from '../data/species.js';
@@ -15,19 +15,27 @@ import {
     THOUGHTS
 } from './gameConstants.js';
 
+// Original Big Al level system
+export const LEVEL_NAMES = ['', 'hatchling', 'juvenile', 'sub-adult', 'adult'];
+export const LEVEL_WEIGHTS = [0, 10, 500, 2000, 2500]; // kg thresholds for each level
+
 export const initialGameState = {
     player: { q: 0, r: 0 },
     hexes: new Map(),
     selectedHex: null,
     hoveredHex: null,
 
-    // Player stats
-    level: 3,
-    weight: 45.2,
-    energy: 75,
-    fitness: 85,
-    score: 1250,
+    // Hatchling starting stats - much more challenging!
+    level: 1, // Start as hatchling
+    weight: 0.2, // 200 grams - tiny baby dinosaur!
+    energy: 100, // Full energy to start
+    fitness: 100, // Perfect health as newborn
+    score: 0, // No score yet
     moveNumber: 0,
+
+    // Decision system from original (for level progression)
+    decision: '', // Player decisions for different levels
+    levelData: '', // Additional data for current level
 
     // Creatures system
     creatures: new Map(),
@@ -38,7 +46,7 @@ export const initialGameState = {
 
     // Notifications and events
     notifications: [],
-    currentThought: "You smell carrion nearby...",
+    currentThought: "You are just a tiny hatchling... everything seems so big!",
 
     // Game state
     gamePhase: 'exploring',
@@ -62,6 +70,14 @@ const addNotification = (notifications, newNotification) => {
     }
 
     return updatedNotifications;
+};
+
+// Check if player should level up
+const checkLevelUp = (weight, currentLevel) => {
+    if (currentLevel < LEVEL_WEIGHTS.length - 1 && weight > LEVEL_WEIGHTS[currentLevel]) {
+        return currentLevel + 1;
+    }
+    return currentLevel;
 };
 
 export const gameReducer = (state, action) => {
@@ -99,7 +115,7 @@ export const gameReducer = (state, action) => {
 
             if (!terrain.passable) return state;
 
-            // Check weight restrictions for rivers
+            // Check weight restrictions for rivers - hatchlings are too small!
             if (terrain.minWeight > 0 && state.weight < terrain.minWeight) {
                 return {
                     ...state,
@@ -107,27 +123,33 @@ export const gameReducer = (state, action) => {
                     gamePhase: 'dead',
                     deathReason: terrain.name === 'River' ? 'drowned' : 'sank',
                     currentThought: terrain.name === 'River' ?
-                        "The current sweeps you away..." :
+                        "The current sweeps your tiny body away..." :
                         "You sink into the quicksand...",
                     notifications: addNotification(state.notifications, {
                         type: 'death',
                         message: terrain.name === 'River' ?
-                            "You tried to cross the river but the current was too strong!" :
+                            "You tried to cross the river but you're too small! The current swept you away!" :
                             "The quicksand pulled you down into its depths!"
                     })
                 };
             }
 
-            // Rest of the move logic continues unchanged...
-            const energyCost = terrain.energyCost;
+            // Movement costs scale with size - smaller dinosaurs lose less energy per move but also less weight
+            const baseEnergyCost = terrain.energyCost;
+            const sizeMultiplier = Math.max(0.3, state.weight / 100); // Smaller dinos use less energy
+            const energyCost = Math.round(baseEnergyCost * sizeMultiplier);
+
             let newEnergy = Math.max(0, state.energy - energyCost);
             let newFitness = state.fitness;
-            let newWeight = Math.max(0.1, state.weight - 0.05);
+
+            // Weight loss scales with size - smaller dinos lose weight faster relatively
+            const weightLossRate = 0.001 + (0.1 / Math.max(1, state.weight)); // Higher rate for smaller dinos
+            let newWeight = Math.max(0.1, state.weight - weightLossRate);
             let newNotifications = [...state.notifications];
 
             // Terrain-based fitness loss
             if (terrain.fitnessRisk > 0 && Math.random() < terrain.fitnessRisk) {
-                const damage = 15;
+                const damage = Math.round(15 * (state.weight / 50)); // Scale damage with size
                 newFitness = Math.max(0, state.fitness - damage);
                 newNotifications = addNotification(newNotifications, {
                     type: 'injury',
@@ -138,6 +160,36 @@ export const gameReducer = (state, action) => {
             // Natural healing
             newFitness = Math.min(100, newFitness + HEALING_RATE);
 
+            // Check for level progression
+            const newLevel = checkLevelUp(newWeight, state.level);
+            let levelUpNotification = null;
+
+            if (newLevel > state.level) {
+                levelUpNotification = {
+                    type: 'success',
+                    message: `🎉 Congratulations! You've grown into a ${LEVEL_NAMES[newLevel]}! 🎉`
+                };
+                newNotifications = addNotification(newNotifications, levelUpNotification);
+
+                // Special level-up bonuses
+                if (newLevel === 2) {
+                    newNotifications = addNotification(newNotifications, {
+                        type: 'success',
+                        message: "🎖️ You're now independent! You can hunt bigger prey safely."
+                    });
+                } else if (newLevel === 3) {
+                    newNotifications = addNotification(newNotifications, {
+                        type: 'success',
+                        message: "💪 Sub-adult power! Most smaller creatures flee from you now."
+                    });
+                } else if (newLevel === 4) {
+                    newNotifications = addNotification(newNotifications, {
+                        type: 'success',
+                        message: "👑 Apex predator achieved! You rule the Jurassic world!"
+                    });
+                }
+            }
+
             // Check for death conditions
             if (newEnergy <= 0) {
                 return {
@@ -145,7 +197,7 @@ export const gameReducer = (state, action) => {
                     gameOver: true,
                     gamePhase: 'dead',
                     deathReason: 'starved',
-                    currentThought: "Your body finally gives in to exhaustion...",
+                    currentThought: "Your tiny body finally gives in to hunger...",
                     notifications: addNotification(newNotifications, {
                         type: 'death',
                         message: "You collapse from exhaustion and starvation!"
@@ -159,10 +211,10 @@ export const gameReducer = (state, action) => {
                     gameOver: true,
                     gamePhase: 'dead',
                     deathReason: 'injuries',
-                    currentThought: "Your wounds prove too severe...",
+                    currentThought: "Your wounds prove too severe for such a small body...",
                     notifications: addNotification(newNotifications, {
                         type: 'death',
-                        message: "Your accumulated injuries prove fatal!"
+                        message: "Your injuries prove fatal!"
                     })
                 };
             }
@@ -183,9 +235,31 @@ export const gameReducer = (state, action) => {
                 }
             }
 
+            // Generate appropriate thought for new level
+            let newThought = THOUGHTS[Math.floor(Math.random() * THOUGHTS.length)];
+            if (newLevel === 1) {
+                const hatchlingThoughts = [
+                    "Everything looks so big and scary...",
+                    "Maybe that tiny bug looks tasty?",
+                    "You need to find small prey to survive...",
+                    "Your stomach rumbles - you need food!",
+                    "Those bigger dinosaurs look terrifying..."
+                ];
+                newThought = hatchlingThoughts[Math.floor(Math.random() * hatchlingThoughts.length)];
+            } else if (newLevel === 2) {
+                const juvenileThoughts = [
+                    "You're getting stronger, but still need to be careful...",
+                    "Medium-sized prey might be within reach now...",
+                    "You feel more confident, but not invincible...",
+                    "The world seems a bit less threatening now..."
+                ];
+                newThought = juvenileThoughts[Math.floor(Math.random() * juvenileThoughts.length)];
+            }
+
             return {
                 ...state,
                 player: { q: target.q, r: target.r },
+                level: newLevel,
                 energy: newEnergy,
                 fitness: newFitness,
                 weight: newWeight,
@@ -194,7 +268,7 @@ export const gameReducer = (state, action) => {
                 hoveredHex: null,
                 creatures: newCreatures,
                 notifications: newNotifications,
-                currentThought: THOUGHTS[Math.floor(Math.random() * THOUGHTS.length)]
+                currentThought: newThought
             };
         }
 
@@ -210,14 +284,13 @@ export const gameReducer = (state, action) => {
                 q, r, terrain,
                 visited: false,
                 visible: false,
-                discovered: false, // New persistent discovery state
+                discovered: false,
                 inRange: false
             };
 
             const newHexes = new Map(state.hexes);
             newHexes.set(key, newHex);
 
-            // Apply ecological post-processing after generating sufficient hexes
             const processedHexes = applyEcologicalPostProcessing(newHexes, state.linearFeatures);
 
             return { ...state, hexes: processedHexes };
@@ -236,6 +309,15 @@ export const gameReducer = (state, action) => {
 
             if (!playerHex) return state;
 
+            // Increase creature spawn rates for hatchlings to give more hunting opportunities
+            // But scale based on level - hatchlings get more small creatures
+            let spawnRateMultiplier = 1.0;
+            if (state.level === 1) {
+                spawnRateMultiplier = 2.0; // Double spawn rate for hatchlings
+            } else if (state.level === 2) {
+                spawnRateMultiplier = 1.5; // More creatures for juveniles too
+            }
+
             const speciesDistribution = HABITAT_SPECIES[playerHex.terrain] || {};
             const speciesNames = Object.keys(speciesDistribution);
             const currentCreatures = state.creatures.get(playerKey) || [];
@@ -244,7 +326,18 @@ export const gameReducer = (state, action) => {
                 const newCreatures = [...currentCreatures];
 
                 for (const species of speciesNames) {
-                    const encounterChance = speciesDistribution[species];
+                    let encounterChance = speciesDistribution[species] * spawnRateMultiplier;
+
+                    // Extra boost for tiny creatures when you're a hatchling
+                    if (state.level === 1 && ['Dragonfly', 'Centipede', 'Scorpion'].includes(species)) {
+                        encounterChance *= 3.0; // Triple chance for smallest prey
+                    }
+
+                    // Reduce chance of very dangerous creatures for small players
+                    if (state.level <= 2 && ['Male Allosaurus', 'Female Allosaurus', 'Stegosaurus'].includes(species)) {
+                        encounterChance *= 0.2; // Much lower chance of apex predators
+                    }
+
                     if (Math.random() < encounterChance) {
                         const speciesData = SPECIES_DATA[species];
                         const minAge = speciesData.minimumAge || 0.1;
@@ -288,18 +381,16 @@ export const gameReducer = (state, action) => {
             let newNotifications = [...state.notifications];
             let combatLog = [];
 
-            // Original Big Al combat logic: Fierceness check THEN agility check
+            // Combat is much more dangerous for hatchlings!
             if (fiercenessRatio < 1) {
-                // Player is stronger than the creature
                 if (agilityRatio < 1) {
                     // Successfully caught and killed
                     combatLog.push(`You attack the ${targetCreature.species}!`);
 
-                    // Check for struggle injuries
                     const injuryAmount = calculateInjuries(fiercenessRatio);
-                    if (injuryAmount > 10) {
+                    if (injuryAmount > 5) { // Lower threshold for hatchlings
                         newState.fitness = Math.max(0, state.fitness - injuryAmount);
-                        combatLog.push(`There is a struggle and you are injured (-${Math.round(injuryAmount)} fitness)`);
+                        combatLog.push(`The struggle injures your small body (-${Math.round(injuryAmount)} fitness)`);
                     }
 
                     // Remove the killed creature
@@ -312,29 +403,31 @@ export const gameReducer = (state, action) => {
                     }
                     newState.creatures = newCreaturesMap;
 
-                    // Original Big Al eating system
+                    // Eating system - small amounts of food are very significant for hatchlings
                     const nutritionValue = speciesData.nutrition * targetCreature.size;
-                    const energyValue = (nutritionValue / state.weight) * 100 * ENERGY_PER_BODYWEIGHT;
+                    const energyValue = (nutritionValue / Math.max(0.1, state.weight)) * 100 * ENERGY_PER_BODYWEIGHT;
 
                     if (energyValue > (100 - state.energy)) {
-                        // Excess energy becomes weight
                         const energySurplus = energyValue - (100 - state.energy);
                         const weightValue = 0.01 * energySurplus / ENERGY_PER_BODYWEIGHT * state.weight;
                         newState.weight = Math.min(MAX_WEIGHT, state.weight + weightValue);
                         newState.energy = 100;
                         newState.score = state.score + Math.round(ENERGY_PER_BODYWEIGHT * weightValue / state.weight * 10);
-                        combatLog.push(`You kill and eat the ${targetCreature.species} (+${Math.round(weightValue * 1000)}g weight)`);
+
+                        if (state.level === 1 && weightValue > 0.001) {
+                            combatLog.push(`You devour the ${targetCreature.species}! (+${Math.round(weightValue * 1000)}g - every gram counts!)`);
+                        } else {
+                            combatLog.push(`You kill and eat the ${targetCreature.species} (+${Math.round(weightValue * 1000)}g weight)`);
+                        }
                     } else {
                         newState.energy = Math.min(100, state.energy + energyValue);
                         combatLog.push(`You kill and eat the ${targetCreature.species} (+${Math.round(energyValue)} energy)`);
                     }
 
                 } else {
-                    // Prey was too fast and escaped
-                    combatLog.push(`The ${targetCreature.species} was too fast for you - it escaped before you could kill it!`);
+                    combatLog.push(`The ${targetCreature.species} was too fast - it escaped!`);
                     newState.energy = Math.max(0, state.energy - 6);
 
-                    // Remove escaped creature
                     const updatedCreatures = creatures.filter(c => c.id !== creatureId);
                     const newCreaturesMap = new Map(state.creatures);
                     if (updatedCreatures.length > 0) {
@@ -345,14 +438,13 @@ export const gameReducer = (state, action) => {
                     newState.creatures = newCreaturesMap;
                 }
             } else {
-                // Creature is stronger - player loses the fight
-                const injuries = calculateInjuries(fiercenessRatio);
+                // Much more dangerous for hatchlings!
+                const injuries = calculateInjuries(fiercenessRatio) * (state.level <= 2 ? 2 : 1); // Double damage for small dinosaurs
                 newState.fitness = Math.max(0, state.fitness - injuries);
-                newState.energy = Math.max(0, state.energy - 10);
+                newState.energy = Math.max(0, state.energy - 15);
                 combatLog.push(`The ${targetCreature.species} ${speciesData.injury}!`);
-                combatLog.push(`You take ${Math.round(injuries)} damage and are driven away!`);
+                combatLog.push(`Your small body takes ${Math.round(injuries)} damage!`);
 
-                // Creature disappears after driving you off
                 const updatedCreatures = creatures.filter(c => c.id !== creatureId);
                 const newCreaturesMap = new Map(state.creatures);
                 if (updatedCreatures.length > 0) {
@@ -366,11 +458,12 @@ export const gameReducer = (state, action) => {
                     newState.gameOver = true;
                     newState.gamePhase = 'dead';
                     newState.deathReason = 'combat';
-                    newState.currentThought = `The ${targetCreature.species} proved too powerful...`;
+                    newState.currentThought = state.level === 1 ?
+                        `The ${targetCreature.species} was too much for a tiny hatchling...` :
+                        `The ${targetCreature.species} proved too powerful...`;
                 }
             }
 
-            // Add combat notification
             newNotifications = addNotification(newNotifications, {
                 type: 'combat',
                 message: combatLog.join(' ')

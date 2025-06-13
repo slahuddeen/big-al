@@ -2,6 +2,7 @@
 import { hexToPixel } from '../utils/hexMath.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA } from '../data/species.js';
+import { LEVEL_NAMES } from '../game/gameState.js';
 import ImageWithFallback from './ImageWithFallback.jsx';
 
 const HexTile = ({
@@ -14,7 +15,8 @@ const HexTile = ({
     onHover,
     onLeave,
     isNight,
-    creatures
+    creatures,
+    gameState // Add gameState to access level information
 }) => {
     const { x, y } = hexToPixel(hex.q, hex.r);
     const terrain = TERRAIN_TYPES[hex.terrain];
@@ -34,9 +36,9 @@ const HexTile = ({
 
     // Visual states based on discovery
     const getVisualState = () => {
-        if (isCurrentlyVisible) return 'current'; // Currently visible
-        if (isDiscovered) return 'discovered';    // Previously discovered
-        return 'hidden';                          // Never seen
+        if (isCurrentlyVisible) return 'current';
+        if (isDiscovered) return 'discovered';
+        return 'hidden';
     };
 
     const visualState = getVisualState();
@@ -51,10 +53,9 @@ const HexTile = ({
                     overlay: ''
                 };
             case 'discovered':
-                // Don't grey out mountains and quicksand - they remain visually prominent
                 if (['mountains', 'volcanic', 'quicksand'].includes(hex.terrain)) {
                     return {
-                        opacity: 0.9, // Slightly dimmed but still prominent
+                        opacity: 0.9,
                         brightness: 'brightness-90',
                         overlay: ''
                     };
@@ -82,12 +83,12 @@ const HexTile = ({
         `color-mix(in srgb, ${terrain.color} 40%, #1a1a2e)` :
         terrain.color;
 
-    // Calculate z-index based on position - bottom hexes render on top
-    const baseZIndex = 100 + hex.r * 10;
+    // Calculate z-index based on position - bottom hexes render on top, but keep all hexes behind UI
+    const baseZIndex = 1 + hex.r; // Start very low, max around 20-30
     let zIndex = baseZIndex;
-    if (isSelected) zIndex += 1000;
+    if (isSelected) zIndex += 100; // Still much lower than UI
     else if (isMovable) zIndex += 50;
-    if (isPlayer) zIndex += 500;
+    if (isPlayer) zIndex += 200; // Player hex highest but still behind UI
 
     // Determine if this terrain should have overlapping visuals
     const isTallTerrain = ['forest', 'oldgrowthforest', 'denseforest', 'youngforest',
@@ -97,9 +98,9 @@ const HexTile = ({
         <div
             className={`absolute cursor-pointer transition-all duration-500 ease-out`}
             style={{
-                left: x + 400,
-                top: y + 300,
-                transform: 'translate(-50%, -50%)',
+                left: '50%',
+                top: '50%',
+                transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
                 zIndex: zIndex,
                 opacity: stateEffects.opacity
             }}
@@ -135,7 +136,7 @@ const HexTile = ({
                     />
                 </div>
 
-                {/* Discovery state overlay - don't grey out important terrain */}
+                {/* Discovery state overlay */}
                 {visualState === 'discovered' && !['mountains', 'volcanic', 'quicksand'].includes(hex.terrain) && (
                     <div className={`absolute inset-0 ${stateEffects.overlay} hex-shape`} />
                 )}
@@ -144,15 +145,21 @@ const HexTile = ({
                 {isPlayer && (
                     <div className="absolute inset-0 flex items-center justify-center z-10">
                         <ImageWithFallback
-                            src="/assets/dinos/bigal.png"
-                            fallback="🦖"
+                            src={gameState?.level === 1 ? "/assets/dinos/hatchling.png" : "/assets/dinos/bigal.png"}
+                            fallback={gameState?.level === 1 ? "🥚" : "🦖"}
                             alt="Big Al"
                             className="animate-gentle-bounce player-character"
                             style={{
-                                width: '50px',
-                                height: '50px',
+                                width: gameState?.level === 1 ? '30px' :
+                                    gameState?.level === 2 ? '40px' :
+                                        gameState?.level === 3 ? '50px' : '60px', // Scale with level
+                                height: gameState?.level === 1 ? '30px' :
+                                    gameState?.level === 2 ? '40px' :
+                                        gameState?.level === 3 ? '50px' : '60px',
                                 objectFit: 'contain',
-                                fontSize: '2.5rem',
+                                fontSize: gameState?.level === 1 ? '1.5rem' :
+                                    gameState?.level === 2 ? '2rem' :
+                                        gameState?.level === 3 ? '2.5rem' : '3rem',
                                 filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.8))'
                             }}
                         />
@@ -202,7 +209,7 @@ const HexTile = ({
                     <div className="absolute inset-0 bg-amber-400 bg-opacity-30 hex-shape animate-pulse" />
                 )}
 
-                {/* Impassable terrain indicator - only for truly impassable terrain */}
+                {/* Impassable terrain indicator */}
                 {!terrain.passable && hex.terrain !== 'quicksand' && (
                     <div className="absolute inset-0 bg-red-900 bg-opacity-50 hex-shape" />
                 )}
@@ -228,6 +235,11 @@ const HexTile = ({
             {isPlayer && (
                 <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-white text-xs bg-black bg-opacity-70 px-3 py-1 rounded-full border border-amber-500">
                     ({hex.q},{hex.r})
+                    {gameState?.level && (
+                        <div className="text-amber-400 text-xs">
+                            Level {gameState.level} {LEVEL_NAMES[gameState.level]}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

@@ -1,4 +1,4 @@
-// ==================== MAIN COMPONENT ====================
+﻿// ==================== MAIN COMPONENT WITH HATCHLING SYSTEM ====================
 import React, { useReducer, useEffect, useCallback, useState } from 'react';
 import { hexDistance, getHexNeighbors } from './utils/hexMath.js';
 import { TERRAIN_TYPES, getBackgroundGradient } from './data/terrain.js';
@@ -135,6 +135,7 @@ const BigAlHexGame = () => {
                                 isHovered={isHovered}
                                 isNight={timeInfo.isNight}
                                 creatures={hexCreatures}
+                                gameState={gameState} // Pass full game state for mother system
                                 onClick={handleHexClick}
                                 onHover={handleHexHover}
                                 onLeave={handleHexLeave}

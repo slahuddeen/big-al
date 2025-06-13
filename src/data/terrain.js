@@ -53,12 +53,12 @@ export const TERRAIN_TYPES = {
     // FOREST HIERARCHY - Dense center to sparse edges
     denseforest: createTerrain("Dense Forest", "🌲", "#166534", {
         image: "/assets/tiles/denseforest.png",
-        visibility: 0, blocksLOS: true, category: "forest",
+        visibility: 1, blocksLOS: true, category: "forest",
         description: "Impenetrable dense forest", energyCost: 12, fitnessRisk: 0.08
     }),
     oldgrowthforest: createTerrain("Ancient Forest", "🌳", "#15803d", {
         image: "/assets/tiles/old.png",
-        visibility: 0, blocksLOS: true, category: "forest",
+        visibility: 1, blocksLOS: true, category: "forest",
         description: "Ancient old-growth forest", energyCost: 10, fitnessRisk: 0.05
     }),
     forest: createTerrain("Forest", "🌲", "#16a34a", {
@@ -113,7 +113,7 @@ export const TERRAIN_TYPES = {
     }),
     sauropodgrounds: createTerrain("Migration Route", "🦕", "#a16207", {
         image: "/assets/tiles/sauropodgrounds.png",
-        isLinear: true, category: "special", description: "Sauropod migration path",
+        isLinear: true, category: "plains", description: "Sauropod migration path",
         energyCost: 6, dangerLevel: 4
     }),
 
@@ -133,7 +133,7 @@ export const TERRAIN_TYPES = {
     }),
     rocky: createTerrain("Rocky Terrain", "🪨", "#78716c", {
         image: "/assets/tiles/rocky3.png",
-        category: "mountain", description: "Broken rocky ground", energyCost: 9, fitnessRisk: 0.2
+        category: "mountain", description: "Broken rocky ground", energyCost: 9, fitnessRisk: 0.1
     }),
 
     // DESERT HIERARCHY - Moderate to extreme aridity
@@ -163,7 +163,7 @@ export const TERRAIN_TYPES = {
     lavafield: createTerrain("Lava Field", "🔥", "#991b1b", {
         image: "/assets/tiles/volcanicfeilds.png",
         passable: false, category: "volcanic", description: "Molten lava - impassable",
-        energyCost: 10, fitnessRisk: 0.1, dangerLevel: 2
+        energyCost: 10, fitnessRisk: 0.3, dangerLevel: 2
     }),
 
     // SPECIAL AREAS
