@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { hexToPixel } from '../utils/hexMath.js';
+import { hexToPixel } from '../utils/hexMath.js';  // ← ADD THIS IMPORT
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA } from '../data/species.js';
 import { LEVEL_NAMES } from '../game/gameState.js';
@@ -14,6 +14,7 @@ const HexTile = ({
     onClick,
     onHover,
     onLeave,
+    onMouseDown, // ← Add this prop
     isNight,
     creatures,
     gameState // Add gameState to access level information
@@ -91,8 +92,7 @@ const HexTile = ({
     if (isPlayer) zIndex += 200; // Player hex highest but still behind UI
 
     // Determine if this terrain should have overlapping visuals
-    const isTallTerrain = ['forest', 'oldgrowthforest', 'denseforest', 'youngforest',
-        'galleryforest', 'openwoods'].includes(hex.terrain);
+    const isTallTerrain = ['forest', 'denseforest', 'openwoods', 'deadforest'].includes(hex.terrain);
 
     return (
         <div
@@ -107,6 +107,7 @@ const HexTile = ({
             onClick={() => onClick(hex)}
             onMouseEnter={() => onHover(hex)}
             onMouseLeave={onLeave}
+            onMouseDown={onMouseDown} // ← Add this line
         >
             <div
                 className={`hex-tile ${isTallTerrain ? 'terrain-tall' : ''} ${isMovable ? 'hex-movable' : ''} ${isSelected ? 'hex-selected' : ''

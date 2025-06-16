@@ -164,23 +164,11 @@ export const HABITAT_SPECIES = {
         // Larger threats
         'Ornitholestes': 0.15, 'Juvenile Allosaurus': 0.08
     },
-    'oldgrowthforest': {
-        // Ancient forests with decent small life
-        'Centipede': 0.6, 'Beetle': 0.65, 'Cricket': 0.4, 'Worm': 0.5,
-        'Sphenodontian': 0.2, 'Dryosaurus': 0.15, 'Ornitholestes': 0.12
-    },
     'forest': {
         // Main forest - balanced hunting
         'Dragonfly': 0.45, 'Centipede': 0.5, 'Beetle': 0.55, 'Cricket': 0.35, 'Worm': 0.45,
         'Scorpion': 0.25, 'Lizard': 0.2, 'Dryosaurus': 0.2, 'Othnielia': 0.2,
         'Sphenodontian': 0.15, 'Ornitholestes': 0.15, 'Juvenile Allosaurus': 0.1
-    },
-    'forestedge': {
-        // Forest meeting plains - diverse but balanced
-        'Centipede': 0.3, 'Beetle': 0.2, 'Cricket': 0.35, 'Worm': 0.3,
-        'Scorpion': 0.2, 'Dryosaurus': 0.25, 'Othnielia': 0.3, 'Ornitholestes': 0.2,
-        'Stegosaurus': 0.15, 'Lizard': 0.25, 'Sphenodontian': 0.2,
-        'Male Allosaurus': 0.1, 'Female Allosaurus': 0.1, 'Juvenile Allosaurus': 0.15
     },
     'openwoods': {
         // Open woodland - moderate small creatures
@@ -204,15 +192,6 @@ export const HABITAT_SPECIES = {
         'Sphenodontian': 0.15, 'Pterosaur': 0.25, 'Stegosaurus': 0.2,
         'Dryosaurus': 0.15, 'Othnielia': 0.15, 'Male Allosaurus': 0.12, 'Female Allosaurus': 0.12
     },
-    'grasslands': {
-        'Cricket': 0.2, 'Beetle': 0.3, 'Dragonfly': 0.25, 'Centipede': 0.25,
-        'Stegosaurus': 0.25, 'Dryosaurus': 0.3, 'Othnielia': 0.3, 'Pterosaur': 0.25,
-        'Male Allosaurus': 0.15, 'Female Allosaurus': 0.18
-    },
-    'meadow': {
-        'Dragonfly': 0.3, 'Cricket': 0.45, 'Beetle': 0.35, 'Lizard': 0.2, 'Centipede': 0.25,
-        'Dryosaurus': 0.35, 'Othnielia': 0.35
-    },
     'savanna': {
         'Cricket': 0.3, 'Beetle': 0.25, 'Stegosaurus': 0.25, 'Dryosaurus': 0.25,
         'Othnielia': 0.25, 'Pterosaur': 0.3, 'Lizard': 0.2, 'Scorpion': 0.15
@@ -220,10 +199,6 @@ export const HABITAT_SPECIES = {
     'scrubland': {
         'Cricket': 0.1, 'Beetle': 0.2, 'Lizard': 0.25, 'Scorpion': 0.2,
         'Sphenodontian': 0.2, 'Ornitholestes': 0.2
-    },
-    'steppe': {
-        'Lizard': 0.25, 'Scorpion': 0.2, 'Sphenodontian': 0.15,
-        'Pterosaur': 0.2
     },
     'sauropodgrounds': {
         'Pterosaur': 0.3, 'Stegosaurus': 0.2, 'Male Allosaurus': 0.25,
@@ -256,6 +231,10 @@ export const HABITAT_SPECIES = {
         'Dragonfly': 0.4, 'Frog': 0.4, 'Beetle': 0.2, 'Crocodile': 0.3,
         'Stegosaurus': 0.2, 'Pterosaur': 0.2
     },
+    'beach': {
+        'Dragonfly': 0.3, 'Frog': 0.2, 'Beetle': 0.2, 'Cricket': 0.15,
+        'Lizard': 0.2, 'Crocodile': 0.3, 'Pterosaur': 0.2
+    },
 
     // MOUNTAIN FEATURES
     'hills': {
@@ -281,6 +260,10 @@ export const HABITAT_SPECIES = {
     },
     'mesa': {
         'Pterosaur': 0.5, 'Lizard': 0.12, 'Scorpion': 0.12, 'Beetle': 0.12, 'Cricket': 0.08
+    },
+    'quicksand': {
+        // Almost no life - it's dangerous!
+        'Beetle': 0.02, 'Scorpion': 0.01
     },
 
     // VOLCANIC FEATURES

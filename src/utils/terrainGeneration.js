@@ -1,4 +1,4 @@
-﻿// ==================== ENHANCED ECOLOGICAL TERRAIN GENERATION ====================
+﻿// ==================== SIMPLIFIED TERRAIN GENERATION ====================
 import { HEX_DIRECTIONS, getHexNeighbors, hexDistance } from './hexMath.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 
@@ -13,7 +13,7 @@ export const generateTerrainFeatures = (centerQ, centerR, radius) => {
             r: centerR + Math.floor(Math.random() * radius * 2) - radius
         };
         const direction = Math.floor(Math.random() * 6);
-        const length = Math.floor(Math.random() * 4) + 3; // Shorter ranges: 3-6 instead of 4-11
+        const length = Math.floor(Math.random() * 4) + 3; // Shorter ranges: 3-6
         features.push(...generateMountainRange(start, direction, length));
     }
 
@@ -42,8 +42,8 @@ export const generateTerrainFeatures = (centerQ, centerR, radius) => {
     // Generate migration routes - rare and snaking (0-1, low chance)
     if (Math.random() < 0.4) { // 40% chance for migration route
         const start = {
-            q: centerQ + Math.floor(Math.random() * radius) - radius/2,
-            r: centerR + Math.floor(Math.random() * radius) - radius/2
+            q: centerQ + Math.floor(Math.random() * radius) - radius / 2,
+            r: centerR + Math.floor(Math.random() * radius) - radius / 2
         };
         const direction = Math.floor(Math.random() * 6);
         const length = Math.floor(Math.random() * 8) + 6; // Shorter than rivers
@@ -53,8 +53,8 @@ export const generateTerrainFeatures = (centerQ, centerR, radius) => {
     // Generate volcanic features (0-1)
     if (Math.random() < 0.7) {
         const start = {
-            q: centerQ + Math.floor(Math.random() * radius) - radius/2,
-            r: centerR + Math.floor(Math.random() * radius) - radius/2
+            q: centerQ + Math.floor(Math.random() * radius) - radius / 2,
+            r: centerR + Math.floor(Math.random() * radius) - radius / 2
         };
         features.push(...generateVolcanicArea(start));
     }
@@ -147,10 +147,10 @@ export const generateMigrationRoute = (start, targetDirection, length) => {
 
 export const generateVolcanicArea = (center) => {
     const volcanicFeatures = [];
-    
+
     // Central volcano
     volcanicFeatures.push({ ...center, terrain: 'volcanic' });
-    
+
     // Surrounding lava fields (1-2 radius)
     for (let radius = 1; radius <= 2; radius++) {
         for (let i = 0; i < 6 * radius; i++) {
@@ -162,10 +162,11 @@ export const generateVolcanicArea = (center) => {
             }
         }
     }
-    
+
     return volcanicFeatures;
 };
 
+// Updated terrain generation logic with simplified terrain types
 export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
     // Check if this hex is part of pre-generated linear features
     const linearFeature = linearFeatures.find(f => f.q === q && f.r === r);
@@ -178,12 +179,11 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
         .map(n => existingHexes.get(`${n.q},${n.r}`))
         .filter(Boolean);
 
-    // Starting terrain if no neighbors - focus on plains and forests
+    // Starting terrain if no neighbors - focus on plains more
     if (existingNeighbors.length === 0) {
         const rand = Math.random();
-        if (rand < 0.35) return 'plains';
-        if (rand < 0.6) return 'grasslands';
-        if (rand < 0.8) return 'forest';
+        if (rand < 0.5) return 'plains';      // Increased from 0.4
+        if (rand < 0.7) return 'forest';
         return 'openwoods';
     }
 
@@ -196,23 +196,23 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
         terrainCounts[a] > terrainCounts[b] ? a : b
     );
 
-    // ECOLOGICAL RULES
+    // ECOLOGICAL RULES - Updated
 
-    // 1. River through forest becomes gallery forest
+    // 1. Rivers attract forests - forests tend to follow rivers
     const hasRiver = neighborTypes.includes('river');
-    const hasForest = neighborTypes.some(t => ['forest', 'denseforest', 'oldgrowthforest'].includes(t));
-    if (hasRiver && hasForest && Math.random() < 0.8) {
-        return 'galleryforest';
+    if (hasRiver && Math.random() < 0.7) {
+        const forestOptions = ['forest', 'openwoods'];
+        return forestOptions[Math.floor(Math.random() * forestOptions.length)];
     }
 
-    // 2. Riverbanks and marshes next to rivers
-    if (hasRiver && Math.random() < 0.6) {
+    // 2. Riverbanks and marshes next to rivers (no more gallery forest)
+    if (hasRiver && Math.random() < 0.5) {
         return Math.random() < 0.7 ? 'riverbank' : 'marsh';
     }
 
     // 3. Rocky terrain near mountains (REDUCED)
     const hasMountains = neighborTypes.includes('mountains');
-    if (hasMountains && Math.random() < 0.3) {  // Reduced from 0.7 to 0.3
+    if (hasMountains && Math.random() < 0.3) {
         return 'rocky';
     }
 
@@ -224,85 +224,98 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
 
     // 5. Dead forest near volcanoes or lava fields
     const hasVolcanicFeatures = neighborTypes.some(t => ['volcanic', 'lavafield'].includes(t));
+    const hasForest = neighborTypes.some(t => ['forest', 'denseforest', 'openwoods'].includes(t));
     if (hasVolcanicFeatures && hasForest && Math.random() < 0.8) {
         return 'deadforest';
     }
 
-    // 6. Hills scattered nicely - appear near various terrains but not too dense
+    // 6. Hills scattered nicely
     const hasHills = neighborTypes.includes('hills');
     if (!hasHills && !hasMountains && !hasVolcanicFeatures && Math.random() < 0.15) {
         return 'hills';
     }
 
-    // 7. Dense forest at center of forest clusters
-    const forestCount = neighborTypes.filter(t => 
-        ['forest', 'denseforest', 'oldgrowthforest', 'openwoods'].includes(t)
+    // 7. Dense forest ONLY if there are 2+ forest neighbors
+    const forestCount = neighborTypes.filter(t =>
+        ['forest', 'denseforest', 'openwoods'].includes(t)
     ).length;
-    
-    if (forestCount >= 4) {
-        const rand = Math.random();
-        if (rand < 0.4) return 'denseforest';
-        if (rand < 0.6) return 'oldgrowthforest';
-        return 'forest';
+
+    if (forestCount >= 2 && Math.random() < 0.3) {
+        return 'denseforest';
     }
 
-    // 8. Forest ecosystem hierarchy
-    if (forestCount >= 2) {
+    // 8. Forest ecosystem - simplified, but add plains transition
+    if (forestCount >= 1) {
         const rand = Math.random();
-        if (rand < 0.3) return 'forest';
-        if (rand < 0.5) return 'openwoods';
-        if (rand < 0.7) return 'youngforest';
-        return 'forestedge';
+        if (rand < 0.4) return 'forest';
+        if (rand < 0.7) return 'openwoods';
+        return 'plains';  // Add plains as forest edge option
     }
 
-    // 9. Plains types clump together
-    const plainsCount = neighborTypes.filter(t => 
-        ['plains', 'grasslands', 'meadow', 'scrubland', 'savanna', 'steppe'].includes(t)
-    ).length;
-    
-    if (plainsCount >= 3) {
-        const rand = Math.random();
-        if (rand < 0.3) return mostCommon; // Continue same plains type
-        if (rand < 0.5) return 'grasslands';
-        if (rand < 0.7) return 'meadow';
-        return 'plains';
+    // 8.5. If surrounded by mixed terrain types, lean toward plains
+    const terrainVariety = new Set(neighborTypes).size;
+    if (terrainVariety >= 3 && Math.random() < 0.4) {
+        return 'plains';  // Plains as "neutral" terrain
     }
 
-    // 10. Desert ecosystem with dry riverbeds
-    const desertCount = neighborTypes.filter(t => 
-        ['desert', 'badlands', 'sand', 'steppe'].includes(t)
+    // 9. Desert placement rules - can't be near forests, but can be near plains
+    const hasForestNeighbors = neighborTypes.some(t =>
+        ['forest', 'denseforest', 'openwoods', 'deadforest'].includes(t)
+    );
+    const hasPlains = neighborTypes.some(t =>
+        ['plains', 'savanna', 'scrubland'].includes(t)
+    );
+
+    // Only allow desert if no forest neighbors
+    const desertCount = neighborTypes.filter(t =>
+        ['desert', 'badlands'].includes(t)
     ).length;
-    
-    if (desertCount >= 2) {
+
+    if (desertCount >= 2 && !hasForestNeighbors) {
         const rand = Math.random();
         if (rand < 0.2 && !neighborTypes.includes('dryriverbed')) return 'dryriverbed';
-        if (rand < 0.4) return 'desert';
-        if (rand < 0.6) return 'badlands';
-        if (rand < 0.8) return 'steppe';
-        return 'sand';
+        if (rand < 0.6) return 'desert';
+        return 'badlands';
     }
 
-    // 11. Forest edge where forest meets plains
-    const hasPlains = neighborTypes.some(t => 
-        ['plains', 'grasslands', 'meadow'].includes(t)
-    );
-    if (hasForest && hasPlains && Math.random() < 0.5) {
-        return 'forestedge';
+    // 10. Plains types clump together - make more likely to form
+    const plainsCount = neighborTypes.filter(t =>
+        ['plains', 'savanna', 'scrubland'].includes(t)
+    ).length;
+
+    if (plainsCount >= 1) {  // Reduced from 2 - easier to form plains
+        const rand = Math.random();
+        if (rand < 0.5) return 'plains';        // Increased plains chance
+        if (rand < 0.7) return mostCommon;      // Continue same plains type
+        return 'savanna';
     }
 
-    // 12. Scrubland as transition terrain
+    // 11. Scrubland as transition terrain - but not between forest and desert
     const hasScrubland = neighborTypes.includes('scrubland');
-    if ((hasForest || hasPlains || desertCount > 0) && !hasScrubland && Math.random() < 0.2) {
+    if ((hasPlains || plainsCount > 0) && !hasScrubland && !hasForestNeighbors && Math.random() < 0.15) {  // Reduced chance
         return 'scrubland';
+    }
+
+    // 12. Prevent desert formation near forests entirely - prefer plains as buffer
+    if (hasForestNeighbors && desertCount > 0) {
+        // Force plains as primary buffer - more plains!
+        const bufferOptions = ['plains', 'plains', 'plains', 'savanna', 'scrubland'];  // 3x plains weight
+        return bufferOptions[Math.floor(Math.random() * bufferOptions.length)];
     }
 
     // Terrain category continuation with enhanced variation
     const currentCategory = TERRAIN_TYPES[mostCommon]?.category || 'terrain';
-    let continuityChance = 0.6;
+    let continuityChance = 0.45;
 
-    // Increase continuity for major biomes
-    if (['plains', 'forest', 'desert'].includes(currentCategory)) {
-        continuityChance = 0.75;
+    // Increase continuity for plains especially, and other major biomes
+    if (currentCategory === 'plains') {
+        continuityChance = 0.65; // Higher continuity for plains
+    } else if (['forest'].includes(currentCategory)) {
+        continuityChance = 0.55;
+    }
+    // Lower continuity for desert to make it more clustered and less sprawling
+    if (currentCategory === 'desert') {
+        continuityChance = 0.4;
     }
 
     if (Math.random() < continuityChance) {
@@ -311,17 +324,24 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
         );
 
         if (categoryTerrains.length > 1) {
-            return categoryTerrains[Math.floor(Math.random() * categoryTerrains.length)];
+            const selectedTerrain = categoryTerrains[Math.floor(Math.random() * categoryTerrains.length)];
+
+            // Additional check: don't place desert near forests even in category continuation
+            if (selectedTerrain === 'desert' && hasForestNeighbors) {
+                return 'plains'; // Fallback to plains
+            }
+
+            return selectedTerrain;
         }
         return mostCommon;
     }
 
-    // Enhanced transition weights
+    // Enhanced transition weights - more plains emphasis
     const transitionWeights = {
-        forest: { forest: 0.5, plains: 0.25, mountain: 0.15, desert: 0.1 },
-        plains: { plains: 0.4, forest: 0.35, desert: 0.15, mountain: 0.1 },
-        mountain: { mountain: 0.3, forest: 0.3, plains: 0.25, desert: 0.15 },
-        desert: { desert: 0.4, plains: 0.3, mountain: 0.2, forest: 0.1 }
+        forest: { forest: 0.4, plains: 0.5, mountain: 0.1, desert: 0.0 }, // Increased plains
+        plains: { plains: 0.5, forest: 0.3, desert: 0.15, mountain: 0.05 }, // Increased plains self-weight
+        mountain: { mountain: 0.25, forest: 0.2, plains: 0.4, desert: 0.15 }, // Increased plains
+        desert: { desert: 0.4, plains: 0.5, mountain: 0.1, forest: 0.0 } // Increased plains
     };
 
     const weights = transitionWeights[currentCategory] || transitionWeights.plains;
@@ -334,14 +354,27 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
             const categoryTerrains = Object.keys(TERRAIN_TYPES).filter(t =>
                 TERRAIN_TYPES[t].category === category && !TERRAIN_TYPES[t].isLinear
             );
-            
+
             if (categoryTerrains.length > 0) {
-                return categoryTerrains[Math.floor(Math.random() * categoryTerrains.length)];
+                const selectedTerrain = categoryTerrains[Math.floor(Math.random() * categoryTerrains.length)];
+
+                // Final safety check for desert placement
+                if (selectedTerrain === 'desert' && hasForestNeighbors) {
+                    return 'plains';
+                }
+
+                return selectedTerrain;
             }
         }
     }
 
     return 'plains'; // Fallback
+};
+
+// Updated starting terrain selection for initial spawn
+export const getStartingTerrain = () => {
+    const startingOptions = ['plains', 'forest', 'openwoods', 'savanna'];
+    return startingOptions[Math.floor(Math.random() * startingOptions.length)];
 };
 
 // Helper function to get hexes in radius
@@ -360,25 +393,9 @@ export const getHexesInRadius = (center, radius) => {
 // Post-processing function to apply final ecological rules
 export const applyEcologicalPostProcessing = (hexes, linearFeatures) => {
     const newHexes = new Map(hexes);
-    
-    // Apply gallery forest rule to rivers in forests
-    linearFeatures.forEach(feature => {
-        if (feature.terrain === 'river') {
-            const key = `${feature.q},${feature.r}`;
-            const hex = newHexes.get(key);
-            if (hex) {
-                const neighbors = getHexNeighbors(feature);
-                const hasForestNeighbor = neighbors.some(n => {
-                    const neighborHex = newHexes.get(`${n.q},${n.r}`);
-                    return neighborHex && ['forest', 'denseforest', 'oldgrowthforest'].includes(neighborHex.terrain);
-                });
-                
-                if (hasForestNeighbor) {
-                    hex.terrain = 'galleryforest';
-                }
-            }
-        }
-    });
-    
+
+    // No more gallery forest rules - rivers stay as rivers
+    // Post-processing can be used for other ecological rules in the future
+
     return newHexes;
 };

@@ -83,7 +83,7 @@ const checkLevelUp = (weight, currentLevel) => {
 export const gameReducer = (state, action) => {
     switch (action.type) {
         case 'GENERATE_TERRAIN_FEATURES': {
-            const features = generateTerrainFeatures(state.player.q, state.player.r, 15);
+            const features = generateTerrainFeatures(state.player.q, state.player.r, 6);
             return { ...state, linearFeatures: features, mapGenerated: true };
         }
 
