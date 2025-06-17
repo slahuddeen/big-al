@@ -1,4 +1,4 @@
-﻿// ==================== ENHANCED GAME STATE WITH SIZE-BASED PREY SCALING ====================
+﻿// ==================== ENHANCED GAME STATE WITH IMPROVED HATCHLING MECHANICS ====================
 import { hexDistance, getHexNeighbors } from '../utils/hexMath.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA, HABITAT_SPECIES } from '../data/species.js';
@@ -15,20 +15,20 @@ import {
     THOUGHTS
 } from './gameConstants.js';
 
-// Original Big Al level system
+// Enhanced Big Al level system with adjusted thresholds for 300g start
 export const LEVEL_NAMES = ['', 'hatchling', 'juvenile', 'sub-adult', 'adult'];
-export const LEVEL_WEIGHTS = [0, 10, 500, 2000, 2500]; // kg thresholds for each level
+export const LEVEL_WEIGHTS = [0, 15, 600, 2200, 2700]; // Adjusted thresholds for 300g start
 
-// NEW: Prey size categories for scaling
+// Enhanced prey size categories for better scaling
 export const PREY_SIZE_CATEGORIES = {
     'tiny': ['Dragonfly', 'Centipede', 'Beetle', 'Cricket', 'Worm'],
-    'small': ['Scorpion', 'Frog', 'Lizard'],
+    'small': ['Scorpion', 'Frog', 'Lizard', 'Mammal'],
     'medium': ['Sphenodontian', 'Dryosaurus', 'Othnielia', 'Pterosaur', 'Injured Pterosaur'],
     'large': ['Ornitholestes', 'Juvenile Allosaurus', 'Crocodile'],
     'huge': ['Stegosaurus', 'Male Allosaurus', 'Female Allosaurus']
 };
 
-// NEW: Calculate size-based spawn multipliers
+// Enhanced size-based spawn multipliers with better hatchling focus
 const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
     let category = 'medium';
     for (const [cat, species] of Object.entries(PREY_SIZE_CATEGORIES)) {
@@ -38,27 +38,25 @@ const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
         }
     }
 
-    // Base multipliers based on player size
+    // Enhanced multipliers - tiny prey is MUCH more common for hatchlings
     const multipliers = {
-        1: { tiny: 4.0, small: 1.5, medium: 0.3, large: 0.1, huge: 0.02 }, // Hatchling
-        2: { tiny: 2.0, small: 2.0, medium: 1.0, large: 0.4, huge: 0.1 },  // Juvenile  
-        3: { tiny: 0.5, small: 1.5, medium: 2.0, large: 1.5, huge: 0.5 },  // Sub-adult
-        4: { tiny: 0.1, small: 0.5, medium: 1.5, large: 2.0, huge: 1.5 }   // Adult
+        1: { tiny: 6.0, small: 2.0, medium: 0.2, large: 0.05, huge: 0.01 }, // Hatchling - loves tiny prey
+        2: { tiny: 3.0, small: 3.0, medium: 1.2, large: 0.3, huge: 0.08 },  // Juvenile  
+        3: { tiny: 0.4, small: 1.8, medium: 2.5, large: 1.8, huge: 0.4 },   // Sub-adult
+        4: { tiny: 0.08, small: 0.3, medium: 1.2, large: 2.5, huge: 2.0 }   // Adult
     };
 
-    // Further reduce tiny prey for heavier dinosaurs
     let multiplier = multipliers[playerLevel][category];
 
-    if (category === 'tiny' && playerWeight > 50) {
-        multiplier *= Math.max(0.05, 1 / (playerWeight / 10)); // Dramatic reduction
-    } else if (category === 'small' && playerWeight > 200) {
-        multiplier *= Math.max(0.2, 1 / (playerWeight / 50));
+    // Less harsh reduction for tiny prey at 300g - they should still be viable
+    if (category === 'tiny' && playerWeight > 1.0) { // Only start reducing above 1kg
+        multiplier *= Math.max(0.1, 1 / (playerWeight / 20)); // Gentler reduction
+    } else if (category === 'small' && playerWeight > 5.0) {
+        multiplier *= Math.max(0.15, 1 / (playerWeight / 100));
     }
 
     return multiplier;
 };
-
-// NOTE: calculateEnergyGain is imported from combatUtils.js - using the safe version with NaN protection
 
 export const initialGameState = {
     player: { q: 0, r: 0 },
@@ -66,17 +64,16 @@ export const initialGameState = {
     selectedHex: null,
     hoveredHex: null,
 
-    // Hatchling starting stats - much more challenging!
-    level: 1, // Start as hatchling
-    weight: 0.2, // 200 grams - tiny baby dinosaur!
-    energy: 100, // Full energy to start
-    fitness: 100, // Perfect health as newborn
-    score: 0, // No score yet
+    // Enhanced hatchling starting stats - 300g baby!
+    level: 1,
+    weight: 0.3, // 300 grams - proper hatchling size!
+    energy: 100,
+    fitness: 100,
+    score: 0,
     moveNumber: 0,
 
-    // Decision system from original (for level progression)
-    decision: '', // Player decisions for different levels
-    levelData: '', // Additional data for current level
+    decision: '',
+    levelData: '',
 
     // Creatures system
     creatures: new Map(),
@@ -87,12 +84,47 @@ export const initialGameState = {
 
     // Notifications and events
     notifications: [],
-    currentThought: "You are just a tiny hatchling... everything seems so big!",
+    currentThought: "You are a tiny hatchling... but those bugs look delicious!",
 
     // Game state
     gamePhase: 'exploring',
     gameOver: false,
     deathReason: null,
+};
+
+// Helper function to check if a creature should attempt escape
+const attemptCreatureEscape = (speciesData, creatureSize, playerWeight, playerLevel) => {
+    // Escape chances based on creature agility and size difference
+    const escapeBaseChance = {
+        'Dragonfly': 0.4,    // Very hard to catch
+        'Cricket': 0.25,     // Quick hoppers
+        'Centipede': 0.1,    // Slower ground dwellers
+        'Mammal': 0.3,       // Quick and nervous
+        'Scorpion': 0.15,    // Defensive but not super fast
+        'Frog': 0.2,         // Can leap away
+        'Lizard': 0.25,      // Quick but not as agile as bugs
+    };
+
+    const speciesName = Object.keys(SPECIES_DATA).find(name =>
+        SPECIES_DATA[name] === speciesData
+    );
+
+    let baseEscape = escapeBaseChance[speciesName] || 0.1;
+
+    // Higher escape chance for tiny creatures vs bigger predators
+    const sizeRatio = (speciesData.weight * creatureSize) / playerWeight;
+    if (sizeRatio < 0.01) {
+        baseEscape += 0.3; // Much higher escape chance for tiny prey
+    } else if (sizeRatio < 0.1) {
+        baseEscape += 0.15;
+    }
+
+    // Hatchlings are clumsy hunters
+    if (playerLevel === 1) {
+        baseEscape += 0.2; // 20% higher escape chance against hatchlings
+    }
+
+    return Math.random() < Math.min(0.7, baseEscape); // Cap at 70% escape chance
 };
 
 // Helper function to add notifications with limits
@@ -105,7 +137,6 @@ const addNotification = (notifications, newNotification) => {
 
     const updatedNotifications = [...notifications, notification];
 
-    // Keep only the latest MAX_NOTIFICATIONS
     if (updatedNotifications.length > MAX_NOTIFICATIONS) {
         return updatedNotifications.slice(-MAX_NOTIFICATIONS);
     }
@@ -156,7 +187,7 @@ export const gameReducer = (state, action) => {
 
             if (!terrain.passable) return state;
 
-            // Check weight restrictions for rivers - hatchlings are too small!
+            // Check weight restrictions for rivers - 300g hatchlings still too small!
             if (terrain.minWeight > 0 && state.weight < terrain.minWeight) {
                 return {
                     ...state,
@@ -164,35 +195,33 @@ export const gameReducer = (state, action) => {
                     gamePhase: 'dead',
                     deathReason: terrain.name === 'River' ? 'drowned' : 'sank',
                     currentThought: terrain.name === 'River' ?
-                        "The current sweeps your tiny body away..." :
-                        "You sink into the quicksand...",
+                        "The current sweeps your small body away..." :
+                        "You sink into the terrain...",
                     notifications: addNotification(state.notifications, {
                         type: 'death',
                         message: terrain.name === 'River' ?
-                            "You tried to cross the river but you're too small! The current swept you away!" :
-                            "The quicksand pulled you down into its depths!"
+                            "You tried to cross the river but you're still too small! The current swept you away!" :
+                            "The terrain proved too dangerous for your size!"
                     })
                 };
             }
 
-            // ENHANCED: Movement costs scale more dramatically with size
+            // Enhanced movement costs - scale better with 300g baseline
             const baseEnergyCost = terrain.energyCost;
-            // Larger dinosaurs use more energy per move (realistic metabolism)
-            const sizeMultiplier = Math.max(0.3, Math.pow(state.weight / 100, 0.7));
+            const sizeMultiplier = Math.max(0.4, Math.pow(state.weight / 150, 0.6)); // Adjusted for 300g
             const energyCost = Math.round(baseEnergyCost * sizeMultiplier);
 
             let newEnergy = Math.max(0, state.energy - energyCost);
             let newFitness = state.fitness;
 
-            // ENHANCED: Weight loss scales more realistically
-            // Larger dinosaurs lose weight slower per move but need more food
-            const metabolismRate = 0.001 + (0.05 / Math.max(1, Math.pow(state.weight, 0.5)));
-            let newWeight = Math.max(0.1, state.weight - metabolismRate);
+            // Enhanced weight loss - adjusted for 300g start
+            const metabolismRate = 0.0008 + (0.04 / Math.max(1, Math.pow(state.weight, 0.5)));
+            let newWeight = Math.max(0.15, state.weight - metabolismRate); // Minimum 150g
             let newNotifications = [...state.notifications];
 
             // Terrain-based fitness loss
             if (terrain.fitnessRisk > 0 && Math.random() < terrain.fitnessRisk) {
-                const damage = Math.round(15 * (state.weight / 50)); // Scale damage with size
+                const damage = Math.round(12 * Math.max(0.5, state.weight / 100)); // Scale damage appropriately
                 newFitness = Math.max(0, state.fitness - damage);
                 newNotifications = addNotification(newNotifications, {
                     type: 'injury',
@@ -214,21 +243,21 @@ export const gameReducer = (state, action) => {
                 };
                 newNotifications = addNotification(newNotifications, levelUpNotification);
 
-                // Special level-up bonuses with hunting advice
+                // Enhanced level-up advice
                 if (newLevel === 2) {
                     newNotifications = addNotification(newNotifications, {
                         type: 'success',
-                        message: "🎖️ You're now independent! Tiny bugs won't satisfy you much anymore - hunt lizards and frogs!"
+                        message: "🎖️ Independence achieved! Bugs are getting less satisfying - hunt lizards and frogs!"
                     });
                 } else if (newLevel === 3) {
                     newNotifications = addNotification(newNotifications, {
                         type: 'success',
-                        message: "💪 Sub-adult power! Small prey is becoming scarce - target medium creatures!"
+                        message: "💪 Sub-adult power! Small prey won't cut it anymore - target medium creatures!"
                     });
                 } else if (newLevel === 4) {
                     newNotifications = addNotification(newNotifications, {
                         type: 'success',
-                        message: "👑 Apex predator! Only large prey will sustain you now - but you're powerful enough to take it!"
+                        message: "👑 Apex predator! Only large prey will sustain your massive frame now!"
                     });
                 }
             }
@@ -264,15 +293,26 @@ export const gameReducer = (state, action) => {
                 };
             }
 
-            // Move creatures around
+            // Enhanced creature roaming - some creatures flee when they see you coming
             const newCreatures = new Map(state.creatures);
             for (const [hexKey, creatures] of state.creatures.entries()) {
                 const updatedCreatures = creatures.filter(creature => {
+                    const speciesData = SPECIES_DATA[creature.species];
+
+                    // Fast creatures have a chance to flee when predator approaches
+                    if (['Dragonfly', 'Cricket'].includes(creature.species)) {
+                        if (Math.random() < 0.4) { // 40% chance to flee per turn
+                            return false; // Creature flees
+                        }
+                    }
+
+                    // Normal roaming behavior
                     if (Math.random() < ROAMING_RATE) {
                         return false;
                     }
                     return true;
                 });
+
                 if (updatedCreatures.length > 0) {
                     newCreatures.set(hexKey, updatedCreatures);
                 } else {
@@ -280,33 +320,25 @@ export const gameReducer = (state, action) => {
                 }
             }
 
-            // Generate appropriate thought for new level
+            // Generate appropriate thought for new level and size
             let newThought = THOUGHTS[Math.floor(Math.random() * THOUGHTS.length)];
             if (newLevel === 1) {
                 const hatchlingThoughts = [
-                    "Everything looks so big and scary...",
-                    "Maybe that tiny bug looks tasty?",
-                    "You need to find small prey to survive...",
-                    "Your stomach rumbles - you need food!",
-                    "Those bigger dinosaurs look terrifying..."
+                    "Those dragonflies look tasty but so fast!",
+                    "Maybe I can catch that centipede...",
+                    "Everything is so big, but I can hunt bugs!",
+                    "Need to find more insects to grow bigger...",
+                    "Those beetles look perfect for my size!"
                 ];
                 newThought = hatchlingThoughts[Math.floor(Math.random() * hatchlingThoughts.length)];
             } else if (newLevel === 2) {
                 const juvenileThoughts = [
-                    "You're getting stronger, but still need to be careful...",
-                    "Medium-sized prey might be within reach now...",
-                    "Those tiny insects aren't as satisfying anymore...",
-                    "The world seems a bit less threatening now..."
+                    "Bugs aren't as filling as they used to be...",
+                    "Time to hunt some lizards and frogs!",
+                    "I'm getting stronger, but still need to be careful...",
+                    "Those tiny insects barely register anymore..."
                 ];
                 newThought = juvenileThoughts[Math.floor(Math.random() * juvenileThoughts.length)];
-            } else if (newLevel >= 3) {
-                const largeThoughts = [
-                    "Small prey barely registers as a snack...",
-                    "You need substantial meals to survive now...",
-                    "Your size demands bigger, more dangerous prey...",
-                    "The hunt for worthy prey continues..."
-                ];
-                newThought = largeThoughts[Math.floor(Math.random() * largeThoughts.length)];
             }
 
             return {
@@ -372,13 +404,13 @@ export const gameReducer = (state, action) => {
                 for (const species of speciesNames) {
                     let baseEncounterChance = speciesDistribution[species];
 
-                    // ENHANCED: Apply size-based multiplier
+                    // Enhanced size-based multiplier
                     const sizeMultiplier = getPreySizeMultiplier(state.level, state.weight, species);
                     let encounterChance = baseEncounterChance * sizeMultiplier;
 
-                    // Additional danger scaling for very small predators
-                    if (state.level <= 2 && ['Male Allosaurus', 'Female Allosaurus', 'Stegosaurus'].includes(species)) {
-                        encounterChance *= 0.1; // Much lower chance of apex predators
+                    // Enhanced danger scaling for small predators
+                    if (state.level <= 2 && ['Male Allosaurus', 'Female Allosaurus', 'Stegosaurus', 'Torvosaurus'].includes(species)) {
+                        encounterChance *= 0.05; // Much lower chance of apex predators
                     }
 
                     if (Math.random() < encounterChance) {
@@ -417,23 +449,52 @@ export const gameReducer = (state, action) => {
             if (!targetCreature) return state;
 
             const speciesData = SPECIES_DATA[targetCreature.species];
-            const fiercenessRatio = calculateFiercenessRatio(state.weight, state.fitness, speciesData, targetCreature.size);
-            const agilityRatio = calculateAgilityRatio(state.weight, speciesData);
 
             let newState = { ...state };
             let newNotifications = [...state.notifications];
             let combatLog = [];
 
-            // Combat is much more dangerous for hatchlings!
+            // NEW: Check if creature escapes before combat!
+            if (attemptCreatureEscape(speciesData, targetCreature.size, state.weight, state.level)) {
+                combatLog.push(`The ${targetCreature.species} darts away before you can catch it!`);
+
+                // Remove the escaped creature and use some energy
+                const updatedCreatures = creatures.filter(c => c.id !== creatureId);
+                const newCreaturesMap = new Map(state.creatures);
+                if (updatedCreatures.length > 0) {
+                    newCreaturesMap.set(playerKey, updatedCreatures);
+                } else {
+                    newCreaturesMap.delete(playerKey);
+                }
+
+                newState.creatures = newCreaturesMap;
+                newState.energy = Math.max(0, state.energy - 4); // Small energy cost for failed hunt
+
+                newNotifications = addNotification(newNotifications, {
+                    type: 'warning',
+                    message: combatLog[0]
+                });
+
+                newState.notifications = newNotifications;
+                newState.currentThought = "Too slow! Need to be more careful hunting.";
+
+                return newState;
+            }
+
+            // If creature didn't escape, proceed with normal combat
+            const fiercenessRatio = calculateFiercenessRatio(state.weight, state.fitness, speciesData, targetCreature.size);
+            const agilityRatio = calculateAgilityRatio(state.weight, speciesData);
+
+            // Enhanced combat system
             if (fiercenessRatio < 1) {
                 if (agilityRatio < 1) {
                     // Successfully caught and killed
-                    combatLog.push(`You attack the ${targetCreature.species}!`);
+                    combatLog.push(`You successfully hunt the ${targetCreature.species}!`);
 
                     const injuryAmount = calculateInjuries(fiercenessRatio);
-                    if (injuryAmount > 5) { // Lower threshold for hatchlings
+                    if (injuryAmount > 3) { // Lower threshold for smaller dinosaurs
                         newState.fitness = Math.max(0, state.fitness - injuryAmount);
-                        combatLog.push(`The struggle injures you (-${Math.round(injuryAmount)} fitness)`);
+                        combatLog.push(`The struggle causes minor injuries (-${Math.round(injuryAmount)} fitness)`);
                     }
 
                     // Remove the killed creature
@@ -446,35 +507,37 @@ export const gameReducer = (state, action) => {
                     }
                     newState.creatures = newCreaturesMap;
 
-                    // ENHANCED: New energy system - realistic energy gain using safe function
+                    // Enhanced energy system with better scaling for 300g hatchling
                     const energyGain = calculateEnergyGain(speciesData, targetCreature.size, state.weight, state.level);
                     const newEnergy = Math.min(100, state.energy + energyGain);
 
-                    // Weight gain only if energy is nearly full (representing proper nutrition)
-                    if (newEnergy >= 95 && energyGain > 10) {
-                        const weightGain = (energyGain * 0.01) * Math.pow(targetCreature.size, 0.8);
+                    // Weight gain when well-fed - better scaling for hatchling
+                    if (newEnergy >= 90 && energyGain > 8) { // Lower threshold for meaningful meals
+                        const weightGain = (energyGain * 0.015) * Math.pow(targetCreature.size, 0.8); // Better scaling
                         newState.weight = Math.min(MAX_WEIGHT, state.weight + weightGain);
                         newState.energy = 100;
-                        newState.score = state.score + Math.round(weightGain * 100);
+                        newState.score = state.score + Math.round(weightGain * 150);
 
                         combatLog.push(`You devour the ${targetCreature.species}! (+${Math.round(weightGain * 1000)}g weight, full energy)`);
                     } else {
                         newState.energy = newEnergy;
-                        newState.score = state.score + Math.round(energyGain);
+                        newState.score = state.score + Math.round(energyGain * 1.5);
 
-                        // Give feedback about energy gain based on prey size
-                        if (energyGain < 5) {
-                            combatLog.push(`You eat the ${targetCreature.species}, but it barely satisfies you (+${Math.round(energyGain)} energy)`);
-                        } else if (energyGain < 15) {
+                        // Enhanced feedback about energy gain
+                        if (energyGain < 3) {
+                            combatLog.push(`You eat the ${targetCreature.species}, but it's barely a snack (+${Math.round(energyGain)} energy)`);
+                        } else if (energyGain < 10) {
                             combatLog.push(`You eat the ${targetCreature.species} (+${Math.round(energyGain)} energy)`);
+                        } else if (energyGain < 20) {
+                            combatLog.push(`You enjoy the ${targetCreature.species}! (+${Math.round(energyGain)} energy)`);
                         } else {
                             combatLog.push(`You feast on the ${targetCreature.species}! (+${Math.round(energyGain)} energy)`);
                         }
                     }
 
                 } else {
-                    combatLog.push(`The ${targetCreature.species} was too fast - it escaped!`);
-                    newState.energy = Math.max(0, state.energy - 6);
+                    combatLog.push(`The ${targetCreature.species} escapes your clumsy attack!`);
+                    newState.energy = Math.max(0, state.energy - 5);
 
                     const updatedCreatures = creatures.filter(c => c.id !== creatureId);
                     const newCreaturesMap = new Map(state.creatures);
@@ -486,10 +549,10 @@ export const gameReducer = (state, action) => {
                     newState.creatures = newCreaturesMap;
                 }
             } else {
-                // Much more dangerous for small dinosaurs!
-                const injuries = calculateInjuries(fiercenessRatio) * (state.level <= 2 ? 2 : 1); // Double damage for small dinosaurs
+                // Dangerous combat - enhanced penalties for small dinosaurs
+                const injuries = calculateInjuries(fiercenessRatio) * (state.level <= 2 ? 1.8 : 1);
                 newState.fitness = Math.max(0, state.fitness - injuries);
-                newState.energy = Math.max(0, state.energy - 15);
+                newState.energy = Math.max(0, state.energy - 12);
                 combatLog.push(`The ${targetCreature.species} ${speciesData.injury}!`);
                 combatLog.push(`You take ${Math.round(injuries)} damage!`);
 
@@ -507,7 +570,7 @@ export const gameReducer = (state, action) => {
                     newState.gamePhase = 'dead';
                     newState.deathReason = 'combat';
                     newState.currentThought = state.level === 1 ?
-                        `The ${targetCreature.species} was too much for a tiny hatchling...` :
+                        `The ${targetCreature.species} was too dangerous for a small hatchling...` :
                         `The ${targetCreature.species} proved too powerful...`;
                 }
             }
@@ -518,7 +581,7 @@ export const gameReducer = (state, action) => {
             });
 
             newState.notifications = newNotifications;
-            newState.currentThought = combatLog[0] || "The battle rages...";
+            newState.currentThought = combatLog[0] || "The hunt continues...";
 
             return newState;
         }

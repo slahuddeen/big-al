@@ -60,7 +60,7 @@ const StatusPanel = ({ gameState }) => {
         }
     };
 
-    // Format weight display based on size
+    // Enhanced weight display formatting for 300g baseline
     const formatWeight = (weight) => {
         if (weight < 1) {
             return `${Math.round(weight * 1000)}g`;
@@ -78,7 +78,7 @@ const StatusPanel = ({ gameState }) => {
             </h3>
 
             <div className="space-y-2 mb-4">
-                {/* Weight and Level Progress */}
+                {/* Enhanced Weight and Level Progress for 300g baseline */}
                 <div className="space-y-1">
                     <div className="flex items-center justify-between">
                         <span>Weight:</span>
@@ -104,7 +104,7 @@ const StatusPanel = ({ gameState }) => {
                     )}
 
                     {levelProgress.isMaxLevel && (
-                        <div className="text-xs text-gold-400 text-center font-bold">
+                        <div className="text-xs text-yellow-400 text-center font-bold">
                             ⭐ Maximum Size Reached! ⭐
                         </div>
                     )}
@@ -137,29 +137,32 @@ const StatusPanel = ({ gameState }) => {
                 </div>
             </div>
 
-            {/* Hunting Tips for Small Dinosaurs */}
-            {gameState.level <= 2 && (
-                <div className="border-t border-amber-600 pt-2 mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-green-400">🎯 Hunting Tips</span>
-                        <span className="text-xs text-green-300">Level {gameState.level}</span>
-                    </div>
+            {/* Enhanced Hunting Tips for 300g Hatchling */}
+            {/*{gameState.level <= 2 && (*/}
+            {/*    <div className="border-t border-amber-600 pt-2 mb-4">*/}
+            {/*        <div className="flex items-center justify-between mb-2">*/}
+            {/*            <span className="text-sm font-bold text-green-400">🎯 Hunting Tips</span>*/}
+            {/*            <span className="text-xs text-green-300">Level {gameState.level}</span>*/}
+            {/*        </div>*/}
 
-                    {gameState.level === 1 ? (
-                        <div className="text-xs text-green-400 bg-green-900 bg-opacity-30 p-2 rounded border border-green-600">
-                            🥚 Forests are your lifeline!
-                        </div>
-                    ) : (
-                        <div className="text-xs text-yellow-400 bg-yellow-900 bg-opacity-30 p-2 rounded border border-yellow-600">
-                            🦴 Forest edges and plains now offer lizards and frogs, 
-                        </div>
-                    )}
+            {/*        {gameState.level === 1 ? (*/}
+            {/*            <div className="text-xs text-green-400 bg-green-900 bg-opacity-30 p-2 rounded border border-green-600">*/}
+            {/*                🥚 At 300g, bugs are perfect prey! Hunt dragonflies, centipedes, and crickets in forests!*/}
+            {/*            </div>*/}
+            {/*        ) : (*/}
+            {/*            <div className="text-xs text-yellow-400 bg-yellow-900 bg-opacity-30 p-2 rounded border border-yellow-600">*/}
+            {/*                🦴 Growing bigger! Bugs are less filling now - time for lizards, frogs, and small mammals!*/}
+            {/*            </div>*/}
+            {/*        )}*/}
 
-                    <div className="text-xs text-gray-400 mt-1">
-                        Forest areas have 2-3x more small creatures!
-                    </div>
-                </div>
-            )}
+            {/*        <div className="text-xs text-gray-400 mt-1">*/}
+            {/*            {gameState.level === 1 ?*/}
+            {/*                "Dense forests have the most insects - your ideal hunting ground!" :*/}
+            {/*                "Forest edges and plains offer larger prey for your growing appetite!"*/}
+            {/*            }*/}
+            {/*        </div>*/}
+            {/*    </div>*/}
+            {/*)}*/}
 
             {/* Discovery Section */}
             <div className="border-t border-amber-600 pt-2 mb-4">
@@ -198,27 +201,27 @@ const StatusPanel = ({ gameState }) => {
                 </div>
             </div>
 
-            {/* Level-based Growth Tips */}
-            {gameState.level === 1 && (
-                <div className="mt-2 px-2 py-1 bg-purple-900 bg-opacity-50 rounded text-xs text-purple-300 border border-purple-600">
-                    🥚 Hatchling: Live in the forests!
-                </div>
-            )}
-            {gameState.level === 2 && (
-                <div className="mt-2 px-2 py-1 bg-green-900 bg-opacity-50 rounded text-xs text-green-300 border border-green-600">
-                    🦴 Juvenile: You can hunt lizards and frogs now!
-                </div>
-            )}
-            {gameState.level === 3 && (
-                <div className="mt-2 px-2 py-1 bg-orange-900 bg-opacity-50 rounded text-xs text-orange-300 border border-orange-600">
-                    💪 Sub-adult: Medium prey is safe to attack!
-                </div>
-            )}
-            {gameState.level === 4 && (
-                <div className="mt-2 px-2 py-1 bg-red-900 bg-opacity-50 rounded text-xs text-red-300 border border-red-600">
-                    👑 Adult: You are the apex predator!
-                </div>
-            )}
+            {/* Enhanced Level-based Growth Tips for 300g scaling */}
+            {/*{gameState.level === 1 && (*/}
+            {/*    <div className="mt-2 px-2 py-1 bg-purple-900 bg-opacity-50 rounded text-xs text-purple-300 border border-purple-600">*/}
+            {/*        🥚 300g Hatchling: Dragonflies and centipedes are your bread and butter!*/}
+            {/*    </div>*/}
+            {/*)}*/}
+            {/*{gameState.level === 2 && (*/}
+            {/*    <div className="mt-2 px-2 py-1 bg-green-900 bg-opacity-50 rounded text-xs text-green-300 border border-green-600">*/}
+            {/*        🦴 Growing Juvenile: Bugs won't cut it anymore - hunt lizards and mammals!*/}
+            {/*    </div>*/}
+            {/*)}*/}
+            {/*{gameState.level === 3 && (*/}
+            {/*    <div className="mt-2 px-2 py-1 bg-orange-900 bg-opacity-50 rounded text-xs text-orange-300 border border-orange-600">*/}
+            {/*        💪 Sub-adult: Medium prey like small dinosaurs are now viable targets!*/}
+            {/*    </div>*/}
+            {/*)}*/}
+            {/*{gameState.level === 4 && (*/}
+            {/*    <div className="mt-2 px-2 py-1 bg-red-900 bg-opacity-50 rounded text-xs text-red-300 border border-red-600">*/}
+            {/*        👑 Adult: Only large prey will sustain your massive frame!*/}
+            {/*    </div>*/}
+            {/*)}*/}
 
             {/* Discovery Achievement Indicators */}
             {discoveryStats.discoveryPercentage >= 25 && (
@@ -232,7 +235,7 @@ const StatusPanel = ({ gameState }) => {
                 </div>
             )}
             {discoveryStats.discoveryPercentage >= 75 && (
-                <div className="mt-1 px-2 py-1 bg-gold-900 bg-opacity-50 rounded text-xs text-yellow-300 border border-yellow-600">
+                <div className="mt-1 px-2 py-1 bg-yellow-900 bg-opacity-50 rounded text-xs text-yellow-300 border border-yellow-600">
                     🌟 Master Explorer: 75% complete!
                 </div>
             )}
