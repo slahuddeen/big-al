@@ -209,6 +209,68 @@ const BigAlHexGame = () => {
         e.stopPropagation();
     }, []);
 
+    // ENHANCED: Independent creature behavior processing
+    useEffect(() => {
+        if (!gameState.gameOver && gameState.creatures.size > 0) {
+            const creatureTurnTimer = setInterval(() => {
+                // Only process if there are creatures and player isn't moving rapidly
+                const totalCreatures = Array.from(gameState.creatures.values())
+                    .reduce((total, creatures) => total + creatures.length, 0);
+
+                if (totalCreatures > 0) {
+                    // Add some randomness to make creature turns feel more natural
+                    if (Math.random() < 0.8) { // 80% chance to process behaviors each cycle
+                        dispatch({ type: 'PROCESS_CREATURE_BEHAVIORS' });
+                    }
+                }
+            }, 4000); // Creatures act every 4 seconds
+
+            return () => clearInterval(creatureTurnTimer);
+        }
+    }, [gameState.gameOver, gameState.creatures.size]);
+
+    // ENHANCED: Debug functions for development
+    useEffect(() => {
+        if (process.env.NODE_ENV === 'development') {
+            // Add debug functions to window for testing
+            window.testCreatureBehavior = (species) => {
+                console.log(`🧪 Testing ${species} behavior...`);
+                dispatch({ type: 'PROCESS_CREATURE_BEHAVIORS' });
+            };
+
+            window.listCreatures = () => {
+                const allCreatures = [];
+                for (const [hex, creatures] of gameState.creatures.entries()) {
+                    creatures.forEach(c => {
+                        allCreatures.push(`${c.species} at ${hex}`);
+                    });
+                }
+                console.log('🦖 Current creatures:', allCreatures);
+                return allCreatures;
+            };
+
+            window.showBehaviorLog = () => {
+                console.log('🧠 Recent behaviors:', gameState.creatureBehaviorLog);
+                return gameState.creatureBehaviorLog;
+            };
+
+            window.forceBehaviorUpdate = () => {
+                console.log('🔄 Forcing creature behavior update...');
+                dispatch({ type: 'PROCESS_CREATURE_BEHAVIORS' });
+            };
+        }
+
+        // Cleanup debug functions
+        return () => {
+            if (process.env.NODE_ENV === 'development') {
+                delete window.testCreatureBehavior;
+                delete window.listCreatures;
+                delete window.showBehaviorLog;
+                delete window.forceBehaviorUpdate;
+            }
+        };
+    }, [gameState.creatures, gameState.creatureBehaviorLog]);
+
     // Generate terrain features first
     useEffect(() => {
         if (!gameState.mapGenerated) {
@@ -297,6 +359,21 @@ const BigAlHexGame = () => {
 
     const boundsInfo = getBoundsInfo();
 
+    // FIXED: Calculate ecosystem activity level - updates properly when creatures change
+    const ecosystemInfo = useMemo(() => {
+        const totalCreatures = Array.from(gameState.creatures.values())
+            .reduce((total, creatures) => total + creatures.length, 0);
+        const recentBehaviors = gameState.creatureBehaviorLog?.length || 0;
+
+        return {
+            totalCreatures,
+            recentBehaviors,
+            activityLevel: totalCreatures === 0 ? 'silent' :
+                totalCreatures < 5 ? 'quiet' :
+                    totalCreatures < 15 ? 'active' : 'bustling'
+        };
+    }, [gameState.creatures, gameState.creatureBehaviorLog]); // Dependencies ensure updates
+
     return (
         <div
             className={`w-full h-screen bg-gradient-to-b ${getBackgroundGradient(currentTerrain, timeInfo)} relative overflow-hidden transition-all duration-1000 ${isDragging ? 'cursor-grabbing' : 'cursor-default'}`}
@@ -316,7 +393,12 @@ const BigAlHexGame = () => {
                 <CreaturesPanel gameState={gameState} dispatch={dispatch} />
             </div>
 
-            {/* Enhanced Camera Controls Info */}
+            {/* ENHANCED: Creature Activity Panel */}
+            <div data-no-drag>
+                <CreatureActivityPanel gameState={gameState} />
+            </div>
+
+            {/* CLEANED: Camera Controls Info - Removed Debug Mode */}
             <div className="absolute bottom-4 left-4 bg-black bg-opacity-80 text-white text-xs p-3 rounded-lg border border-amber-600" data-no-drag>
                 <div className="font-bold text-amber-400 mb-2">🎮 Camera Controls</div>
                 <div className="space-y-1">
@@ -327,10 +409,16 @@ const BigAlHexGame = () => {
                     <div>🗺️ <strong>F</strong> - Show full map</div>
                 </div>
 
-                {/* Map info */}
+                {/* FIXED: Enhanced map info with properly updating ecosystem data */}
                 <div className="mt-2 pt-2 border-t border-amber-600 text-gray-300">
                     <div>Map: {boundsInfo.totalHexes} hexes explored</div>
                     <div>Size: {Math.round(boundsInfo.mapWidth / 100)}×{Math.round(boundsInfo.mapHeight / 100)} units</div>
+                    <div>Ecosystem: {ecosystemInfo.totalCreatures} creatures ({ecosystemInfo.activityLevel})</div>
+                    {ecosystemInfo.recentBehaviors > 0 && (
+                        <div className="text-green-400">
+                            🧠 {ecosystemInfo.recentBehaviors} recent behaviors
+                        </div>
+                    )}
                     {isDragging && <div className="text-yellow-400 animate-pulse">📷 Exploring...</div>}
                 </div>
             </div>

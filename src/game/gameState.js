@@ -20,7 +20,7 @@ import {
 export const LEVEL_NAMES = ['', 'hatchling', 'juvenile', 'sub-adult', 'adult'];
 export const LEVEL_WEIGHTS = [0, 15, 600, 2200, 2700]; // Adjusted thresholds for 300g start
 
-// Enhanced prey size categories for better scaling
+// Enhanced prey size categories for better scaling (worms and beetles removed)
 export const PREY_SIZE_CATEGORIES = {
     'tiny': ['Dragonfly', 'Centipede', 'Cricket'],
     'small': ['Scorpion', 'Frog', 'Lizard', 'Mammal', 'Fish'],
@@ -28,6 +28,10 @@ export const PREY_SIZE_CATEGORIES = {
     'large': ['Ornitholestes', 'Juvenile Allosaurus', 'Crocodile', 'Hesperornithoides', 'Camptosaurus'],
     'huge': ['Stegosaurus', 'Male Allosaurus', 'Female Allosaurus', 'Ceratosaurus', 'Torvosaurus', 'Diplodocus', 'Brachiosaurus']
 };
+
+// Enhanced behavior log size limit and max creatures per hex
+const MAX_BEHAVIOR_LOG_SIZE = 15;
+const MAX_CREATURES_PER_HEX = 5; // Maximum 5 creatures per hex tile
 
 // Enhanced size-based spawn multipliers with better hatchling focus
 const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
@@ -154,10 +158,12 @@ const checkLevelUp = (weight, currentLevel) => {
     return currentLevel;
 };
 
-// NEW: Process creature behaviors
+// ENHANCED: Process creature behaviors with improved logging and cooldowns
 const processCreatureBehaviors = (gameState, dispatch) => {
     const newCreatures = new Map(gameState.creatures);
     const behaviorLog = [];
+    let behaviorCount = 0;
+    let successfulBehaviors = 0;
 
     // Process all creatures on the map
     for (const [hexKey, creatures] of gameState.creatures.entries()) {
@@ -166,10 +172,18 @@ const processCreatureBehaviors = (gameState, dispatch) => {
         const updatedCreatures = [];
 
         for (const creature of creatures) {
+            behaviorCount++;
             try {
                 const behavior = executeCreatureBehavior(creature, hex, gameState, dispatch);
 
                 if (behavior) {
+                    successfulBehaviors++;
+
+                    // Add debug logging in development
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log(`🦖 ${creature.species} executed: ${behavior.action}`);
+                    }
+
                     switch (behavior.action) {
                         case 'attack_player':
                         case 'ambush_attack':
@@ -202,10 +216,11 @@ const processCreatureBehaviors = (gameState, dispatch) => {
                             if (behavior.target) {
                                 const targetKey = `${behavior.target.q},${behavior.target.r}`;
                                 const targetHex = gameState.hexes.get(targetKey);
+                                const targetCreatures = newCreatures.get(targetKey) || [];
 
-                                if (targetHex && TERRAIN_TYPES[targetHex.terrain].passable) {
+                                // FIXED: Check if target hex has room for more creatures
+                                if (targetHex && TERRAIN_TYPES[targetHex.terrain].passable && targetCreatures.length < MAX_CREATURES_PER_HEX) {
                                     // Remove from current hex (will be added to target hex)
-                                    const targetCreatures = newCreatures.get(targetKey) || [];
                                     targetCreatures.push(creature);
                                     newCreatures.set(targetKey, targetCreatures);
 
@@ -217,7 +232,7 @@ const processCreatureBehaviors = (gameState, dispatch) => {
                                         });
                                     }
                                 } else {
-                                    // Can't move, stay in place
+                                    // Can't move (no room or impassable), stay in place
                                     updatedCreatures.push(creature);
                                 }
                             } else {
@@ -262,10 +277,15 @@ const processCreatureBehaviors = (gameState, dispatch) => {
         }
     }
 
+    // Log behavior statistics in development
+    if (process.env.NODE_ENV === 'development' && behaviorCount > 0) {
+        console.log(`🧠 Creature AI: ${successfulBehaviors}/${behaviorCount} behaviors executed`);
+    }
+
     return { creatures: newCreatures, behaviorLog };
 };
 
-// NEW: Apply creature behavior results to game state
+// ENHANCED: Apply creature behavior results to game state
 const applyCreatureBehaviorResults = (gameState, behaviorLog) => {
     let newState = { ...gameState };
     let newNotifications = [...gameState.notifications];
@@ -457,7 +477,7 @@ export const gameReducer = (state, action) => {
                 };
             }
 
-            // NEW: Process creature behaviors first
+            // ENHANCED: Process creature behaviors first
             const behaviorResult = processCreatureBehaviors({
                 ...state,
                 player: { q: target.q, r: target.r },
@@ -466,6 +486,10 @@ export const gameReducer = (state, action) => {
 
             // Apply behavior results
             let behaviorState = applyCreatureBehaviorResults(state, behaviorResult.behaviorLog);
+
+            // FIXED: Limit behavior log size to prevent memory issues
+            const combinedBehaviorLog = [...(state.creatureBehaviorLog || []), ...behaviorResult.behaviorLog];
+            const limitedBehaviorLog = combinedBehaviorLog.slice(-MAX_BEHAVIOR_LOG_SIZE);
 
             // Generate appropriate thought for new level and size
             let newThought = THOUGHTS[Math.floor(Math.random() * THOUGHTS.length)];
@@ -499,7 +523,7 @@ export const gameReducer = (state, action) => {
                 selectedHex: null,
                 hoveredHex: null,
                 creatures: behaviorResult.creatures,
-                creatureBehaviorLog: behaviorResult.behaviorLog,
+                creatureBehaviorLog: limitedBehaviorLog, // Use limited log
                 notifications: behaviorState.notifications,
                 currentThought: newThought
             };
@@ -531,7 +555,24 @@ export const gameReducer = (state, action) => {
 
         case 'UPDATE_VISIBILITY': {
             const newHexes = calculateVisibility(state.player, state.hexes);
-            return { ...state, hexes: newHexes };
+
+            // ENHANCED: Update lastSeenTurn for creatures in currently visible hexes
+            const newCreatures = new Map(state.creatures);
+            for (const [hexKey, creatures] of newCreatures.entries()) {
+                const [q, r] = hexKey.split(',').map(Number);
+                const hex = newHexes.get(hexKey);
+
+                if (hex && hex.visible && hex.inRange) {
+                    // Update lastSeenTurn for all creatures in visible hexes
+                    const updatedCreatures = creatures.map(creature => ({
+                        ...creature,
+                        lastSeenTurn: state.moveNumber
+                    }));
+                    newCreatures.set(hexKey, updatedCreatures);
+                }
+            }
+
+            return { ...state, hexes: newHexes, creatures: newCreatures };
         }
 
         case 'SPAWN_CREATURES': {
@@ -546,10 +587,28 @@ export const gameReducer = (state, action) => {
             const speciesNames = Object.keys(speciesDistribution);
             const currentCreatures = state.creatures.get(playerKey) || [];
 
+            // FIXED: Check if we've already reached the maximum creatures per hex
+            if (currentCreatures.length >= MAX_CREATURES_PER_HEX) {
+                return state; // No more spawning if at max capacity
+            }
+
             if (speciesNames.length > 0) {
                 const newCreatures = [...currentCreatures];
+                let spawnAttempts = 0;
+                const maxSpawnAttempts = 10; // Prevent infinite loops
 
                 for (const species of speciesNames) {
+                    // FIXED: Stop spawning if we reach the creature limit
+                    if (newCreatures.length >= MAX_CREATURES_PER_HEX) {
+                        break;
+                    }
+
+                    // Prevent too many spawn attempts
+                    if (spawnAttempts >= maxSpawnAttempts) {
+                        break;
+                    }
+                    spawnAttempts++;
+
                     let baseEncounterChance = speciesDistribution[species];
 
                     // Enhanced size-based multiplier
@@ -570,9 +629,19 @@ export const gameReducer = (state, action) => {
                             size: minAge + (1 - minAge) * Math.random(),
                             behavior: 'neutral',
                             spawnTurn: state.moveNumber,
-                            lastBehaviorTurn: state.moveNumber // Track when behavior was last executed
+                            lastBehaviorTurn: state.moveNumber, // Track when behavior was last executed
+                            lastSeenTurn: state.moveNumber, // ADDED: Track when creature was last seen by player
+                            // ENHANCED: Add status tracking
+                            health: 100,
+                            status: 'normal', // normal, injured, fleeing, aggressive
+                            energy: 100
                         };
                         newCreatures.push(creature);
+
+                        // FIXED: Stop if we reach the limit
+                        if (newCreatures.length >= MAX_CREATURES_PER_HEX) {
+                            break;
+                        }
                     }
                 }
 
@@ -735,17 +804,21 @@ export const gameReducer = (state, action) => {
             return newState;
         }
 
-        // NEW: Process creature behaviors without player movement
+        // FIXED: Make PROCESS_CREATURE_BEHAVIORS functional
         case 'PROCESS_CREATURE_BEHAVIORS': {
             if (state.gameOver) return state;
 
             const behaviorResult = processCreatureBehaviors(state);
             const behaviorState = applyCreatureBehaviorResults(state, behaviorResult.behaviorLog);
 
+            // Limit behavior log here too
+            const combinedBehaviorLog = [...(state.creatureBehaviorLog || []), ...behaviorResult.behaviorLog];
+            const limitedBehaviorLog = combinedBehaviorLog.slice(-MAX_BEHAVIOR_LOG_SIZE);
+
             return {
                 ...behaviorState,
                 creatures: behaviorResult.creatures,
-                creatureBehaviorLog: behaviorResult.behaviorLog
+                creatureBehaviorLog: limitedBehaviorLog
             };
         }
 

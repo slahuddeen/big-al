@@ -1,17 +1,30 @@
-// ==================== ENHANCED CREATURE BEHAVIOR SYSTEM ====================
+﻿// ==================== ENHANCED CREATURE BEHAVIOR SYSTEM ====================
 import { getHexNeighbors, hexDistance } from '../utils/hexMath.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
-import { SPECIES_DATA } from '../data/species.js';
+import { SPECIES_DATA } from '../data/species.js'; // FIXED: Moved to top
 
 // Behavior execution frequency
 export const BEHAVIOR_TICK_CHANCE = 0.7; // 70% chance per turn to execute behavior
 
-// Enhanced creature behavioral AI system
+// Cooldown system constants
+const CREATURE_COOLDOWN_TURNS = 2; // Creatures can only act every 2 turns
+
+// Enhanced creature behavioral AI system with cooldowns
 export const executeCreatureBehavior = (creature, currentHex, gameState, dispatch) => {
+    // ENHANCED: Check if creature has acted recently (cooldown system)
+    const turnsSinceLastBehavior = gameState.moveNumber - (creature.lastBehaviorTurn || 0);
+
+    if (turnsSinceLastBehavior < CREATURE_COOLDOWN_TURNS) {
+        return null; // Skip this turn due to cooldown
+    }
+
     if (Math.random() > BEHAVIOR_TICK_CHANCE) return; // Skip this turn
 
     const speciesData = SPECIES_DATA[creature.species];
     if (!speciesData) return;
+
+    // ENHANCED: Update last behavior turn
+    creature.lastBehaviorTurn = gameState.moveNumber;
 
     const playerPos = gameState.player;
     const playerDistance = hexDistance(currentHex, playerPos);
@@ -488,6 +501,32 @@ const cautiousMovement = (creature, currentHex, gameState) => {
     return { action: 'cautious_wait' };
 };
 
+// ENHANCED: Testing function for behavior debugging
+export const testCreatureBehavior = (creatureSpecies, playerDistance = 1) => {
+    const testCreature = {
+        id: 'test-creature',
+        species: creatureSpecies,
+        size: 1.0,
+        lastBehaviorTurn: 0
+    };
+
+    const testGameState = {
+        player: { q: 0, r: 0 },
+        moveNumber: 1,
+        weight: 150,
+        level: 2,
+        creatures: new Map(),
+        hexes: new Map()
+    };
+
+    const testHex = { q: playerDistance, r: 0 };
+
+    const behavior = executeCreatureBehavior(testCreature, testHex, testGameState);
+    console.log(`🧪 ${creatureSpecies} behavior test:`, behavior);
+
+    return behavior;
+};
+
 // Export behavior types for reference
 export const BEHAVIOR_TYPES = {
     PASSIVE: 'passive',
@@ -502,4 +541,10 @@ export const BEHAVIOR_TYPES = {
     APEX_PREDATOR: 'apex_predator',
     DANGEROUS_HERBIVORE: 'dangerous_herbivore',
     GIANT_HERBIVORE: 'giant_herbivore'
+};
+
+// ENHANCED: Export constants for external use
+export const BEHAVIOR_CONSTANTS = {
+    TICK_CHANCE: BEHAVIOR_TICK_CHANCE,
+    COOLDOWN_TURNS: CREATURE_COOLDOWN_TURNS
 };

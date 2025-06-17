@@ -94,6 +94,24 @@ const HexTile = ({
     // Determine if this terrain should have overlapping visuals
     const isTallTerrain = ['forest', 'denseforest', 'openwoods', 'deadforest'].includes(hex.terrain);
 
+    // FIXED: Only show creatures if player is ON this exact tile, not just if tile is visible
+    const getRecentCreatures = () => {
+        if (!creatures || creatures.length === 0) return [];
+
+        const currentTurn = gameState.moveNumber;
+        const isPlayerOnThisTile = gameState.player.q === hex.q && gameState.player.r === hex.r;
+
+        return creatures.filter(creature => {
+            // ONLY show creatures if player is standing on this exact tile
+            if (isPlayerOnThisTile) return true;
+
+            // Otherwise, no creatures shown regardless of visibility
+            return false;
+        });
+    };
+
+    const recentCreatures = getRecentCreatures();
+
     return (
         <div
             className={`absolute cursor-pointer transition-all duration-500 ease-out`}
@@ -167,36 +185,42 @@ const HexTile = ({
                     </div>
                 )}
 
-                {/* Show creature indicators only on currently visible tiles */}
-                {creatures && creatures.length > 0 && !isPlayer && isCurrentlyVisible && (
-                    <div className="absolute -top-3 -right-3 flex flex-wrap gap-1 z-10 max-w-12">
-                        {creatures.slice(0, 6).map((creature, index) => {
-                            const speciesData = SPECIES_DATA[creature.species];
-                            return (
-                                <div
-                                    key={creature.id}
-                                    className="w-6 h-6 rounded-full bg-red-500 bg-opacity-80 border-2 border-white text-xs flex items-center justify-center creature-indicator"
-                                    title={creature.species}
-                                >
-                                    <ImageWithFallback
-                                        src={speciesData.image}
-                                        fallback={speciesData.emoji}
-                                        alt={creature.species}
+                {/* FIXED: Centered emoji creature indicators with fade timer */}
+                {recentCreatures && recentCreatures.length > 0 && !isPlayer && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <div className="flex flex-wrap items-center justify-center gap-0.5 max-w-16">
+                            {recentCreatures.slice(0, 4).map((creature, index) => {
+                                const speciesData = SPECIES_DATA[creature.species];
+
+                                return (
+                                    <div
+                                        key={creature.id}
+                                        className="flex items-center justify-center text-white creature-indicator-emoji"
                                         style={{
-                                            width: '16px',
-                                            height: '16px',
-                                            objectFit: 'contain',
-                                            fontSize: '0.7rem'
+                                            fontSize: '0.9rem',
+                                            textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                                            opacity: 1,
+                                            transition: 'opacity 1s ease-out'
                                         }}
-                                    />
+                                        title={creature.species}
+                                    >
+                                        {speciesData?.emoji || "🦴"}
+                                    </div>
+                                );
+                            })}
+                            {recentCreatures.length > 4 && (
+                                <div
+                                    className="flex items-center justify-center text-white text-xs font-bold"
+                                    style={{
+                                        fontSize: '0.7rem',
+                                        textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                                        opacity: 1
+                                    }}
+                                >
+                                    +{recentCreatures.length - 4}
                                 </div>
-                            );
-                        })}
-                        {creatures.length > 6 && (
-                            <div className="w-6 h-6 rounded-full bg-gray-500 bg-opacity-80 border-2 border-white text-xs flex items-center justify-center text-white font-bold">
-                                +{creatures.length - 6}
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -234,13 +258,8 @@ const HexTile = ({
 
             {/* Enhanced player position indicator */}
             {isPlayer && (
-                <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-white text-xs bg-black bg-opacity-70 px-3 py-1 rounded-full border border-amber-500">
+                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-white text-xs bg-black bg-opacity-70 px-2 py-2 rounded-full border border-amber-500">
                     ({hex.q},{hex.r})
-                    {gameState?.level && (
-                        <div className="text-amber-400 text-xs">
-                            Level {gameState.level} {LEVEL_NAMES[gameState.level]}
-                        </div>
-                    )}
                 </div>
             )}
         </div>

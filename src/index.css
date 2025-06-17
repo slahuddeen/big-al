@@ -554,3 +554,70 @@ body {
         box-shadow: 0 0 50px rgba(245, 158, 11, 1.2);
     }
 }
+
+/* Enhanced creature emoji indicators - Add this to your index.css */
+
+/* Creature emoji indicators styling */
+.creature-indicator-emoji {
+    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.8));
+    transition: opacity 1s ease-out, transform 0.3s ease;
+    user-select: none;
+    pointer-events: none;
+}
+
+    .creature-indicator-emoji:hover {
+        transform: scale(1.2);
+    }
+
+/* Hex creature indicator fade animations */
+@keyframes creatureFadeOut {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: scale(0.95);
+    }
+
+    100% {
+        opacity: 0.3;
+        transform: scale(0.9);
+    }
+}
+
+.creature-indicator-fading {
+    animation: creatureFadeOut 2s ease-in-out infinite alternate;
+}
+
+/* Improved creature indicator containers */
+.hex-tile .creature-indicator-emoji {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Better visibility on different terrain backgrounds */
+.hex-tile .creature-indicator-emoji {
+    background: radial-gradient(circle, rgba(0,0,0,0.3) 0%, transparent 70%);
+    border-radius: 50%;
+    padding: 1px;
+}
+
+/* Hover tooltip improvements for creature indicators */
+.creature-indicator-emoji[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+}

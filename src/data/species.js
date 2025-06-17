@@ -1,4 +1,4 @@
-﻿// ==================== ENHANCED SPECIES SYSTEM WITH MISSING ANIMALS ====================
+﻿// ==================== ENHANCED SPECIES SYSTEM WITH REDUCED SPAWNING ====================
 export const SPECIES_DATA = {
     // TINY PREY (Perfect for 300g hatchlings!)
     "Dragonfly": {
@@ -11,7 +11,7 @@ export const SPECIES_DATA = {
     },
     "Centipede": {
         emoji: "🐛",
-        image: "/assets/dinos/centipede.png",
+        image: "/assets/dinos/centipede1.png",
         nutrition: 0.4, danger: 0, aggression: 0, difficulty: 0.25,
         description: "Ground-dwelling arthropod - meaty and satisfying for young dinosaurs",
         size: 0.12, weight: 0.008, injury: "tickles you harmlessly",
@@ -24,22 +24,6 @@ export const SPECIES_DATA = {
         description: "Chirping insect - crunchy and nutritious for small predators",
         size: 0.08, weight: 0.003, injury: "hops away frantically",
         minimumAge: 0.05, behaviorType: "skittish"
-    },
-    "Beetle": {
-        emoji: "🪲",
-        image: "/assets/dinos/beetle.png",
-        nutrition: 0.2, danger: 0, aggression: 0, difficulty: 0.3,
-        description: "Armored insect - crunchy shell but nutritious meat inside",
-        size: 0.06, weight: 0.004, injury: "scuttles away quickly",
-        minimumAge: 0.05, behaviorType: "defensive"
-    },
-    "Worm": {
-        emoji: "🪱",
-        image: "/assets/dinos/worm.png",
-        nutrition: 0.05, danger: 0, aggression: 0, difficulty: 0.1,
-        description: "Soft-bodied invertebrate - easy to catch but not very filling",
-        size: 0.05, weight: 0.001, injury: "wriggles harmlessly",
-        minimumAge: 0.05, behaviorType: "passive"
     },
     "Mammal": {
         emoji: "🐁",
@@ -109,7 +93,7 @@ export const SPECIES_DATA = {
     },
     "Coelurus": {
         emoji: "🦴",
-        image: "/assets/dinos/coelurus.png",
+        image: "/assets/dinos/compsognathus.png",
         nutrition: 15, danger: 6, aggression: 0.35, difficulty: 0.45,
         description: "Gracile small theropod - agile predator with good meat",
         size: 0.5, weight: 15, injury: "slashes with small claws",
@@ -185,7 +169,7 @@ export const SPECIES_DATA = {
     // LARGE PREY (Good for adults, very dangerous for smaller predators)
     "Ceratosaurus": {
         emoji: "🦖",
-        image: "/assets/dinos/ceratosaurus.png",
+        image: "/assets/dinos/ceratosaurus2.png",
         nutrition: 220, danger: 380, aggression: 0.75, difficulty: 0.35,
         description: "Horned theropod predator - aggressive mid-tier carnivore",
         size: 1.3, weight: 600, injury: "gores you with nasal horn",
@@ -299,147 +283,147 @@ export const SPECIES_DATA = {
     }
 };
 
-// Enhanced habitat species distributions with new animals and better balance
+// REDUCED: Enhanced habitat species distributions with significantly lower spawn rates
 export const HABITAT_SPECIES = {
-    // FOREST HIERARCHY - Enhanced for hatchling survival!
+    // FOREST HIERARCHY - Reduced spawning rates across the board
     'denseforest': {
-        // Much more abundant tiny prey for 300g hatchlings
-        'Dragonfly': 0.7, 'Centipede': 0.8, 'Cricket': 0.6, 'Beetle': 0.5, 'Worm': 0.4, 'Mammal': 0.6,
-        // Small prey
-        'Scorpion': 0.3, 'Lizard': 0.25, 'Frog': 0.25, 'Snake': 0.2, 'Compsognathus': 0.35,
-        // Medium prey  
-        'Hesperornithoides': 0.18, 'Sphenodontian': 0.12,
-        // Larger threats
-        'Ornitholestes': 0.15, 'Juvenile Allosaurus': 0.08
+        // Reduced tiny prey spawning significantly
+        'Dragonfly': 0.35, 'Centipede': 0.4, 'Cricket': 0.3, 'Mammal': 0.3,
+        // Small prey - reduced
+        'Scorpion': 0.15, 'Lizard': 0.12, 'Frog': 0.12, 'Snake': 0.1, 'Compsognathus': 0.18,
+        // Medium prey - reduced
+        'Hesperornithoides': 0.09, 'Sphenodontian': 0.06,
+        // Larger threats - reduced
+        'Ornitholestes': 0.08, 'Juvenile Allosaurus': 0.04
     },
     'forest': {
-        // Enhanced tiny prey availability
-        'Dragonfly': 0.5, 'Centipede': 0.6, 'Cricket': 0.4, 'Beetle': 0.4, 'Mammal': 0.45,
-        'Scorpion': 0.25, 'Lizard': 0.2, 'Snake': 0.15, 'Compsognathus': 0.3, 'Coelurus': 0.18,
-        'Hesperornithoides': 0.15, 'Camptosaurus': 0.18, 'Dryosaurus': 0.18, 'Othnielia': 0.18,
-        'Sphenodontian': 0.12, 'Ornitholestes': 0.12, 'Juvenile Allosaurus': 0.1
+        // Reduced tiny prey
+        'Dragonfly': 0.25, 'Centipede': 0.3, 'Cricket': 0.2, 'Mammal': 0.22,
+        'Scorpion': 0.12, 'Lizard': 0.1, 'Snake': 0.08, 'Compsognathus': 0.15, 'Coelurus': 0.09,
+        'Hesperornithoides': 0.08, 'Camptosaurus': 0.09, 'Dryosaurus': 0.09, 'Othnielia': 0.09,
+        'Sphenodontian': 0.06, 'Ornitholestes': 0.06, 'Juvenile Allosaurus': 0.05
     },
     'openwoods': {
-        // Forest edge species with good tiny prey
-        'Dragonfly': 0.45, 'Cricket': 0.45, 'Beetle': 0.3, 'Mammal': 0.35,
-        'Lizard': 0.25, 'Turtle': 0.15, 'Compsognathus': 0.25, 'Coelurus': 0.18,
-        'Camptosaurus': 0.3, 'Dryosaurus': 0.3, 'Othnielia': 0.3, 'Pterosaur': 0.18
+        // Forest edge species - reduced
+        'Dragonfly': 0.22, 'Cricket': 0.22, 'Mammal': 0.18,
+        'Lizard': 0.12, 'Turtle': 0.08, 'Compsognathus': 0.12, 'Coelurus': 0.09,
+        'Camptosaurus': 0.15, 'Dryosaurus': 0.15, 'Othnielia': 0.15, 'Pterosaur': 0.09
     },
     'galleryforest': {
-        // Waterside forest with enhanced bug life
-        'Dragonfly': 0.8, 'Frog': 0.5, 'Fish': 0.4, 'Centipede': 0.4, 'Cricket': 0.3, 'Turtle': 0.3,
-        'Lizard': 0.2, 'Compsognathus': 0.25, 'Crocodile': 0.18, 'Camptosaurus': 0.18
+        // Waterside forest - reduced
+        'Dragonfly': 0.4, 'Frog': 0.25, 'Fish': 0.2, 'Centipede': 0.2, 'Cricket': 0.15, 'Turtle': 0.15,
+        'Lizard': 0.1, 'Compsognathus': 0.12, 'Crocodile': 0.09, 'Camptosaurus': 0.09
     },
     'deadforest': {
-        // Sparse life in dead trees but some bugs remain
-        'Cricket': 0.3, 'Centipede': 0.4, 'Scorpion': 0.3, 'Beetle': 0.2,
-        'Lizard': 0.18, 'Injured Pterosaur': 0.18, 'Sphenodontian': 0.18
+        // Sparse life - reduced
+        'Cricket': 0.15, 'Centipede': 0.2, 'Scorpion': 0.15,
+        'Lizard': 0.09, 'Injured Pterosaur': 0.09, 'Sphenodontian': 0.09
     },
 
-    // PLAINS HIERARCHY - Enhanced tiny creature spawning
+    // PLAINS HIERARCHY - Reduced spawning
     'plains': {
-        'Cricket': 0.4, 'Mammal': 0.25, 'Beetle': 0.2, 'Scorpion': 0.15, 'Dragonfly': 0.2,
-        'Lizard': 0.2, 'Compsognathus': 0.18, 'Coelurus': 0.12,
-        'Hesperornithoides': 0.12, 'Sphenodontian': 0.12, 'Pterosaur': 0.25,
-        'Camptosaurus': 0.25, 'Dryosaurus': 0.2, 'Stegosaurus': 0.18, 'Kentrosaurus': 0.15,
-        'Ceratosaurus': 0.12, 'Male Allosaurus': 0.12, 'Female Allosaurus': 0.12
+        'Cricket': 0.2, 'Mammal': 0.12, 'Scorpion': 0.08, 'Dragonfly': 0.1,
+        'Lizard': 0.1, 'Compsognathus': 0.09, 'Coelurus': 0.06,
+        'Hesperornithoides': 0.06, 'Sphenodontian': 0.06, 'Pterosaur': 0.12,
+        'Camptosaurus': 0.12, 'Dryosaurus': 0.1, 'Stegosaurus': 0.09, 'Kentrosaurus': 0.08,
+        'Ceratosaurus': 0.06, 'Male Allosaurus': 0.06, 'Female Allosaurus': 0.06
     },
     'savanna': {
-        'Cricket': 0.35, 'Mammal': 0.3, 'Lizard': 0.2, 'Dragonfly': 0.15,
-        'Compsognathus': 0.25, 'Camptosaurus': 0.25, 'Stegosaurus': 0.25, 'Tuojiangosaurus': 0.2,
-        'Dryosaurus': 0.25, 'Othnielia': 0.25, 'Pterosaur': 0.3
+        'Cricket': 0.18, 'Mammal': 0.15, 'Lizard': 0.1, 'Dragonfly': 0.08,
+        'Compsognathus': 0.12, 'Camptosaurus': 0.12, 'Stegosaurus': 0.12, 'Tuojiangosaurus': 0.1,
+        'Dryosaurus': 0.12, 'Othnielia': 0.12, 'Pterosaur': 0.15
     },
     'scrubland': {
-        'Cricket': 0.2, 'Mammal': 0.2, 'Lizard': 0.25, 'Scorpion': 0.2, 'Snake': 0.15,
-        'Compsognathus': 0.18, 'Sphenodontian': 0.18, 'Ornitholestes': 0.18
+        'Cricket': 0.1, 'Mammal': 0.1, 'Lizard': 0.12, 'Scorpion': 0.1, 'Snake': 0.08,
+        'Compsognathus': 0.09, 'Sphenodontian': 0.09, 'Ornitholestes': 0.09
     },
     'sauropodgrounds': {
         // Migration route - large herbivores and predators
-        'Pterosaur': 0.3, 'Camptosaurus': 0.18, 'Stegosaurus': 0.18,
-        'Diplodocus': 0.35, 'Brachiosaurus': 0.25, 'Camarasaurus': 0.3,
-        'Ceratosaurus': 0.18, 'Torvosaurus': 0.12, 'Male Allosaurus': 0.25, 'Female Allosaurus': 0.25, 'Saurophaganax': 0.08
+        'Pterosaur': 0.15, 'Camptosaurus': 0.09, 'Stegosaurus': 0.09,
+        'Diplodocus': 0.18, 'Brachiosaurus': 0.12, 'Camarasaurus': 0.15,
+        'Ceratosaurus': 0.09, 'Torvosaurus': 0.06, 'Male Allosaurus': 0.12, 'Female Allosaurus': 0.12, 'Saurophaganax': 0.04
     },
 
-    // WATER FEATURES - Enhanced for bugs and small prey
+    // WATER FEATURES - Reduced spawning
     'river': {
-        'Dragonfly': 0.5, 'Frog': 0.45, 'Fish': 0.6, 'Turtle': 0.3,
-        'Crocodile': 0.45, 'Compsognathus': 0.12
+        'Dragonfly': 0.25, 'Frog': 0.22, 'Fish': 0.3, 'Turtle': 0.15,
+        'Crocodile': 0.22, 'Compsognathus': 0.06
     },
     'dryriverbed': {
-        'Lizard': 0.2, 'Scorpion': 0.25, 'Cricket': 0.3, 'Mammal': 0.2, 'Snake': 0.15,
-        'Compsognathus': 0.18, 'Sphenodontian': 0.12
+        'Lizard': 0.1, 'Scorpion': 0.12, 'Cricket': 0.15, 'Mammal': 0.1, 'Snake': 0.08,
+        'Compsognathus': 0.09, 'Sphenodontian': 0.06
     },
     'riverbank': {
-        'Dragonfly': 0.5, 'Frog': 0.45, 'Fish': 0.4, 'Cricket': 0.3, 'Turtle': 0.25,
-        'Crocodile': 0.35, 'Camptosaurus': 0.15, 'Stegosaurus': 0.18,
-        'Dryosaurus': 0.15, 'Othnielia': 0.15, 'Male Allosaurus': 0.15, 'Female Allosaurus': 0.15
+        'Dragonfly': 0.25, 'Frog': 0.22, 'Fish': 0.2, 'Cricket': 0.15, 'Turtle': 0.12,
+        'Crocodile': 0.18, 'Camptosaurus': 0.08, 'Stegosaurus': 0.09,
+        'Dryosaurus': 0.08, 'Othnielia': 0.08, 'Male Allosaurus': 0.08, 'Female Allosaurus': 0.08
     },
     'marsh': {
-        'Dragonfly': 0.6, 'Frog': 0.55, 'Fish': 0.3, 'Centipede': 0.2, 'Turtle': 0.4,
-        'Crocodile': 0.4, 'Lizard': 0.12
+        'Dragonfly': 0.3, 'Frog': 0.28, 'Fish': 0.15, 'Centipede': 0.1, 'Turtle': 0.2,
+        'Crocodile': 0.2, 'Lizard': 0.06
     },
     'waterhole': {
-        'Dragonfly': 0.4, 'Frog': 0.4, 'Fish': 0.35, 'Cricket': 0.25, 'Turtle': 0.3,
-        'Lizard': 0.15, 'Sphenodontian': 0.12, 'Stegosaurus': 0.3,
-        'Camptosaurus': 0.2, 'Othnielia': 0.2, 'Dryosaurus': 0.2,
-        'Diplodocus': 0.25, 'Brachiosaurus': 0.2, 'Camarasaurus': 0.25,
-        'Juvenile Allosaurus': 0.18, 'Male Allosaurus': 0.18, 'Female Allosaurus': 0.25
+        'Dragonfly': 0.2, 'Frog': 0.2, 'Fish': 0.18, 'Cricket': 0.12, 'Turtle': 0.15,
+        'Lizard': 0.08, 'Sphenodontian': 0.06, 'Stegosaurus': 0.15,
+        'Camptosaurus': 0.1, 'Othnielia': 0.1, 'Dryosaurus': 0.1,
+        'Diplodocus': 0.12, 'Brachiosaurus': 0.1, 'Camarasaurus': 0.12,
+        'Juvenile Allosaurus': 0.09, 'Male Allosaurus': 0.09, 'Female Allosaurus': 0.12
     },
     'lake': {
-        'Dragonfly': 0.45, 'Frog': 0.45, 'Fish': 0.5, 'Turtle': 0.35,
-        'Crocodile': 0.3, 'Stegosaurus': 0.18, 'Pterosaur': 0.18, 'Rhamphorhynchus': 0.25,
-        'Diplodocus': 0.25, 'Brachiosaurus': 0.18
+        'Dragonfly': 0.22, 'Frog': 0.22, 'Fish': 0.25, 'Turtle': 0.18,
+        'Crocodile': 0.15, 'Stegosaurus': 0.09, 'Pterosaur': 0.09, 'Rhamphorhynchus': 0.12,
+        'Diplodocus': 0.12, 'Brachiosaurus': 0.09
     },
     'beach': {
-        'Dragonfly': 0.35, 'Frog': 0.2, 'Fish': 0.3, 'Cricket': 0.15, 'Turtle': 0.4,
-        'Lizard': 0.2, 'Crocodile': 0.3, 'Pterosaur': 0.18
+        'Dragonfly': 0.18, 'Frog': 0.1, 'Fish': 0.15, 'Cricket': 0.08, 'Turtle': 0.2,
+        'Lizard': 0.1, 'Crocodile': 0.15, 'Pterosaur': 0.09
     },
 
-    // MOUNTAIN FEATURES
+    // MOUNTAIN FEATURES - Reduced spawning
     'hills': {
-        'Pterosaur': 0.4, 'Rhamphorhynchus': 0.3, 'Lizard': 0.25, 'Scorpion': 0.2, 'Cricket': 0.15,
-        'Compsognathus': 0.18, 'Coelurus': 0.12,
-        'Camptosaurus': 0.18, 'Dryosaurus': 0.18, 'Othnielia': 0.18
+        'Pterosaur': 0.2, 'Rhamphorhynchus': 0.15, 'Lizard': 0.12, 'Scorpion': 0.1, 'Cricket': 0.08,
+        'Compsognathus': 0.09, 'Coelurus': 0.06,
+        'Camptosaurus': 0.09, 'Dryosaurus': 0.09, 'Othnielia': 0.09
     },
     'rocky': {
-        'Lizard': 0.2, 'Scorpion': 0.15, 'Snake': 0.12, 'Compsognathus': 0.12, 'Cricket': 0.1,
-        'Pterosaur': 0.15, 'Coelurus': 0.1
+        'Lizard': 0.1, 'Scorpion': 0.08, 'Snake': 0.06, 'Compsognathus': 0.06, 'Cricket': 0.05,
+        'Pterosaur': 0.08, 'Coelurus': 0.05
     },
     'mountains': {
-        'Pterosaur': 0.4, 'Rhamphorhynchus': 0.35, 'Lizard': 0.1, 'Cricket': 0.15, 'Mammal': 0.1
+        'Pterosaur': 0.2, 'Rhamphorhynchus': 0.18, 'Lizard': 0.05, 'Cricket': 0.08, 'Mammal': 0.05
     },
 
-    // DESERT FEATURES
+    // DESERT FEATURES - Reduced spawning  
     'desert': {
-        'Scorpion': 0.2, 'Cricket': 0.12, 'Mammal': 0.08, 'Lizard': 0.12, 'Snake': 0.15,
-        'Compsognathus': 0.08, 'Coelurus': 0.08,
-        'Sphenodontian': 0.1, 'Injured Pterosaur': 0.12,
-        'Ceratosaurus': 0.08, 'Male Allosaurus': 0.1, 'Female Allosaurus': 0.1
+        'Scorpion': 0.1, 'Cricket': 0.06, 'Mammal': 0.04, 'Lizard': 0.06, 'Snake': 0.08,
+        'Compsognathus': 0.04, 'Coelurus': 0.04,
+        'Sphenodontian': 0.05, 'Injured Pterosaur': 0.06,
+        'Ceratosaurus': 0.04, 'Male Allosaurus': 0.05, 'Female Allosaurus': 0.05
     },
     'badlands': {
-        'Scorpion': 0.25, 'Cricket': 0.15, 'Lizard': 0.15, 'Mammal': 0.1, 'Snake': 0.12,
-        'Compsognathus': 0.1, 'Injured Pterosaur': 0.18, 'Sphenodontian': 0.1
+        'Scorpion': 0.12, 'Cricket': 0.08, 'Lizard': 0.08, 'Mammal': 0.05, 'Snake': 0.06,
+        'Compsognathus': 0.05, 'Injured Pterosaur': 0.09, 'Sphenodontian': 0.05
     },
     'mesa': {
-        'Pterosaur': 0.45, 'Rhamphorhynchus': 0.4, 'Lizard': 0.1, 'Scorpion': 0.1, 'Cricket': 0.08
+        'Pterosaur': 0.22, 'Rhamphorhynchus': 0.2, 'Lizard': 0.05, 'Scorpion': 0.05, 'Cricket': 0.04
     },
     'quicksand': {
         // Almost no life - it's a death trap!
-        'Cricket': 0.015, 'Scorpion': 0.01
+        'Cricket': 0.008, 'Scorpion': 0.005
     },
 
-    // VOLCANIC FEATURES
+    // VOLCANIC FEATURES - Reduced spawning
     'volcanic': {
-        'Pterosaur': 0.35, 'Rhamphorhynchus': 0.3, 'Lizard': 0.08, 'Cricket': 0.05, 'Scorpion': 0.05
+        'Pterosaur': 0.18, 'Rhamphorhynchus': 0.15, 'Lizard': 0.04, 'Cricket': 0.025, 'Scorpion': 0.025
     },
     'lavafield': {
         // Almost no life
-        'Cricket': 0.02, 'Scorpion': 0.015
+        'Cricket': 0.01, 'Scorpion': 0.008
     },
 
-    // SPECIAL AREAS
+    // SPECIAL AREAS - Reduced spawning
     'nest': {
-        'Dragonfly': 0.4, 'Cricket': 0.3, 'Centipede': 0.35, 'Scorpion': 0.15, 'Beetle': 0.25,
-        'Compsognathus': 0.4, 'Ornitholestes': 0.7  // Nest raiders
+        'Dragonfly': 0.2, 'Cricket': 0.15, 'Centipede': 0.18, 'Scorpion': 0.08,
+        'Compsognathus': 0.2, 'Ornitholestes': 0.35  // Nest raiders - still higher but reduced
     }
 };
