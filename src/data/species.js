@@ -1,40 +1,52 @@
-﻿// ==================== ENHANCED SPECIES SYSTEM WITH BETTER HATCHLING NUTRITION ====================
+﻿// ==================== ENHANCED SPECIES SYSTEM WITH MISSING ANIMALS ====================
 export const SPECIES_DATA = {
     // TINY PREY (Perfect for 300g hatchlings!)
     "Dragonfly": {
         emoji: "🪰",
         image: "/assets/dinos/dragonfly.png",
-        nutrition: 0.15, // INCREASED - perfect hatchling food!
-        danger: 0, aggression: 0, difficulty: 0.6, // Slightly easier to catch
+        nutrition: 0.15, danger: 0, aggression: 0, difficulty: 0.6,
         description: "Quick flying insect - nutritious and perfect for hatchlings",
-        size: 0.1, weight: 0.002, injury: "buzzes away angrily", // Slightly heavier
+        size: 0.1, weight: 0.002, injury: "buzzes away angrily",
         minimumAge: 0.05, behaviorType: "passive"
     },
     "Centipede": {
         emoji: "🐛",
         image: "/assets/dinos/centipede.png",
-        nutrition: 0.4, // INCREASED - excellent hatchling food!
-        danger: 0, aggression: 0, difficulty: 0.25, // Easier to catch
+        nutrition: 0.4, danger: 0, aggression: 0, difficulty: 0.25,
         description: "Ground-dwelling arthropod - meaty and satisfying for young dinosaurs",
-        size: 0.12, weight: 0.008, injury: "tickles you harmlessly", // Better size/weight
+        size: 0.12, weight: 0.008, injury: "tickles you harmlessly",
         minimumAge: 0.05, behaviorType: "passive"
     },
     "Cricket": {
         emoji: "🦗",
         image: "/assets/dinos/cricket.png",
-        nutrition: 0.1, // INCREASED - good hatchling snack
-        danger: 0, aggression: 0, difficulty: 0.4, // Slightly easier
+        nutrition: 0.1, danger: 0, aggression: 0, difficulty: 0.4,
         description: "Chirping insect - crunchy and nutritious for small predators",
-        size: 0.08, weight: 0.003, injury: "hops away frantically", // Better scaling
+        size: 0.08, weight: 0.003, injury: "hops away frantically",
+        minimumAge: 0.05, behaviorType: "skittish"
+    },
+    "Beetle": {
+        emoji: "🪲",
+        image: "/assets/dinos/beetle.png",
+        nutrition: 0.2, danger: 0, aggression: 0, difficulty: 0.3,
+        description: "Armored insect - crunchy shell but nutritious meat inside",
+        size: 0.06, weight: 0.004, injury: "scuttles away quickly",
+        minimumAge: 0.05, behaviorType: "defensive"
+    },
+    "Worm": {
+        emoji: "🪱",
+        image: "/assets/dinos/worm.png",
+        nutrition: 0.05, danger: 0, aggression: 0, difficulty: 0.1,
+        description: "Soft-bodied invertebrate - easy to catch but not very filling",
+        size: 0.05, weight: 0.001, injury: "wriggles harmlessly",
         minimumAge: 0.05, behaviorType: "passive"
     },
     "Mammal": {
         emoji: "🐁",
         image: "/assets/dinos/mammal.png",
-        nutrition: 1.2, // INCREASED - substantial meal for hatchling!
-        danger: 0, aggression: 0.1, difficulty: 0.5, // Balanced
+        nutrition: 1.2, danger: 0, aggression: 0.1, difficulty: 0.5,
         description: "Small Jurassic mammal - excellent nutrition for growing dinosaurs",
-        size: 0.15, weight: 0.25, injury: "squeaks and gives tiny bites", // Better size
+        size: 0.15, weight: 0.25, injury: "squeaks and gives tiny bites",
         minimumAge: 0.05, behaviorType: "skittish"
     },
 
@@ -42,8 +54,7 @@ export const SPECIES_DATA = {
     "Scorpion": {
         emoji: "🦂",
         image: "/assets/dinos/scorpion.png",
-        nutrition: 0.8, // INCREASED - better reward for the risk
-        danger: 8, aggression: 0.25, difficulty: 0.35, // Slightly less dangerous
+        nutrition: 0.8, danger: 8, aggression: 0.25, difficulty: 0.35,
         description: "Venomous arachnid - dangerous but nutritious",
         size: 0.2, weight: 0.03, injury: "stings you with its tail",
         minimumAge: 0.05, behaviorType: "defensive"
@@ -51,17 +62,15 @@ export const SPECIES_DATA = {
     "Frog": {
         emoji: "🐸",
         image: "/assets/dinos/frog.png",
-        nutrition: 0.8, // INCREASED - good transitional prey
-        danger: 0, aggression: 0, difficulty: 0.45, // Slightly easier
+        nutrition: 0.8, danger: 0, aggression: 0, difficulty: 0.45,
         description: "Amphibian near water sources - good nutrition",
         size: 0.2, weight: 0.06, injury: "croaks loudly",
-        minimumAge: 0.05, behaviorType: "passive"
+        minimumAge: 0.05, behaviorType: "skittish"
     },
     "Lizard": {
         emoji: "🦎",
         image: "/assets/dinos/lizard.png",
-        nutrition: 2.5, // INCREASED - substantial meal
-        danger: 0.5, aggression: 0.1, difficulty: 0.45, // Slightly easier
+        nutrition: 2.5, danger: 0.5, aggression: 0.1, difficulty: 0.45,
         description: "Quick reptile - substantial meal for growing predators",
         size: 0.3, weight: 0.12, injury: "bites your toe",
         minimumAge: 0.1, behaviorType: "skittish"
@@ -69,17 +78,31 @@ export const SPECIES_DATA = {
     "Fish": {
         emoji: "🐟",
         image: "/assets/dinos/fish.png",
-        nutrition: 2.0, // INCREASED - good nutrition
-        danger: 0, aggression: 0, difficulty: 0.35, // Easier to catch
+        nutrition: 2.0, danger: 0, aggression: 0, difficulty: 0.35,
         description: "Jurassic fish from rivers and lakes - excellent nutrition",
         size: 0.3, weight: 0.25, injury: "flops around desperately",
         minimumAge: 0.05, behaviorType: "passive"
     },
+    "Turtle": {
+        emoji: "🐢",
+        image: "/assets/dinos/turtle.png",
+        nutrition: 3.0, danger: 2, aggression: 0.05, difficulty: 0.2,
+        description: "Armored reptile - hard to crack but nutritious inside",
+        size: 0.4, weight: 1.5, injury: "retreats into its shell",
+        minimumAge: 0.05, behaviorType: "defensive"
+    },
+    "Snake": {
+        emoji: "🐍",
+        image: "/assets/dinos/snake.png",
+        nutrition: 1.8, danger: 5, aggression: 0.3, difficulty: 0.6,
+        description: "Slithering predator - quick and potentially venomous",
+        size: 0.3, weight: 0.8, injury: "strikes with fanged bite",
+        minimumAge: 0.1, behaviorType: "territorial"
+    },
     "Compsognathus": {
         emoji: "🦖",
         image: "/assets/dinos/compsognathus.png",
-        nutrition: 10, // Slightly increased
-        danger: 4, aggression: 0.5, difficulty: 0.65, // Slightly less dangerous
+        nutrition: 10, danger: 4, aggression: 0.5, difficulty: 0.65,
         description: "Chicken-sized pack predator - dangerous but rewarding",
         size: 0.4, weight: 3, injury: "nips you with needle teeth",
         minimumAge: 0.1, behaviorType: "pack_predator"
@@ -87,8 +110,7 @@ export const SPECIES_DATA = {
     "Coelurus": {
         emoji: "🦴",
         image: "/assets/dinos/coelurus.png",
-        nutrition: 15, // Slightly increased
-        danger: 6, aggression: 0.35, difficulty: 0.45, // Less dangerous
+        nutrition: 15, danger: 6, aggression: 0.35, difficulty: 0.45,
         description: "Gracile small theropod - agile predator with good meat",
         size: 0.5, weight: 15, injury: "slashes with small claws",
         minimumAge: 0.1, behaviorType: "skittish"
@@ -151,6 +173,14 @@ export const SPECIES_DATA = {
         size: 1.0, weight: 15, injury: "flails weakly",
         minimumAge: 0.1, behaviorType: "passive"
     },
+    "Rhamphorhynchus": {
+        emoji: "🦇",
+        image: "/assets/dinos/rhamphorhynchus.png",
+        nutrition: 12, danger: 6, aggression: 0.4, difficulty: 0.7,
+        description: "Long-tailed pterosaur - aggressive fish eater",
+        size: 0.6, weight: 4, injury: "pecks viciously with pointed beak",
+        minimumAge: 0.1, behaviorType: "aerial_predator"
+    },
 
     // LARGE PREY (Good for adults, very dangerous for smaller predators)
     "Ceratosaurus": {
@@ -184,6 +214,22 @@ export const SPECIES_DATA = {
         description: "Ancient apex predator - death roll specialist",
         size: 1.5, weight: 400, injury: "drags you underwater but you break free",
         minimumAge: 0.1, behaviorType: "ambush_predator"
+    },
+    "Kentrosaurus": {
+        emoji: "🦕",
+        image: "/assets/dinos/kentrosaurus.png",
+        nutrition: 280, danger: 180, aggression: 0.15, difficulty: 0.1,
+        description: "Spiky stegosaur relative - dangerous spines and tail",
+        size: 1.4, weight: 1200, injury: "impales you with shoulder spines",
+        minimumAge: 0.05, behaviorType: "dangerous_herbivore"
+    },
+    "Tuojiangosaurus": {
+        emoji: "🦕",
+        image: "/assets/dinos/tuojiangosaurus.png",
+        nutrition: 320, danger: 220, aggression: 0.2, difficulty: 0.08,
+        description: "Asian stegosaur - armored herbivore with spiked tail",
+        size: 1.6, weight: 1500, injury: "whips you with spiked tail",
+        minimumAge: 0.05, behaviorType: "dangerous_herbivore"
     },
 
     // HUGE PREY (Only for apex adult predators)
@@ -219,6 +265,14 @@ export const SPECIES_DATA = {
         size: 3.5, weight: 35000, injury: "steps on you with tree-trunk legs",
         minimumAge: 0.05, behaviorType: "giant_herbivore"
     },
+    "Camarasaurus": {
+        emoji: "🦕",
+        image: "/assets/dinos/camarasaurus.png",
+        nutrition: 980, danger: 600, aggression: 0.1, difficulty: 0.12,
+        description: "Robust sauropod - smaller than Brachiosaurus but still massive",
+        size: 2.5, weight: 18000, injury: "tramples you with massive feet",
+        minimumAge: 0.05, behaviorType: "giant_herbivore"
+    },
     "Male Allosaurus": {
         emoji: "🦖",
         image: "/assets/dinos/allosaurus.png",
@@ -234,17 +288,25 @@ export const SPECIES_DATA = {
         description: "Adult female predator - larger and deadlier",
         size: 1.6, weight: 1800, injury: "tears into you with massive jaws",
         minimumAge: 1.0, behaviorType: "apex_predator"
+    },
+    "Saurophaganax": {
+        emoji: "🦖",
+        image: "/assets/dinos/saurophaganax.png",
+        nutrition: 480, danger: 3200, aggression: 0.9, difficulty: 0.8,
+        description: "Gigantic allosaurid - one of the largest predators ever",
+        size: 2.2, weight: 4000, injury: "crushes you in its massive jaws",
+        minimumAge: 1.0, behaviorType: "apex_predator"
     }
 };
 
-// Enhanced habitat species distributions with better tiny creature spawning for hatchlings
+// Enhanced habitat species distributions with new animals and better balance
 export const HABITAT_SPECIES = {
     // FOREST HIERARCHY - Enhanced for hatchling survival!
     'denseforest': {
         // Much more abundant tiny prey for 300g hatchlings
-        'Dragonfly': 0.7, 'Centipede': 0.8, 'Cricket': 0.6, 'Mammal': 0.6,
+        'Dragonfly': 0.7, 'Centipede': 0.8, 'Cricket': 0.6, 'Beetle': 0.5, 'Worm': 0.4, 'Mammal': 0.6,
         // Small prey
-        'Scorpion': 0.3, 'Lizard': 0.25, 'Frog': 0.25, 'Compsognathus': 0.35,
+        'Scorpion': 0.3, 'Lizard': 0.25, 'Frog': 0.25, 'Snake': 0.2, 'Compsognathus': 0.35,
         // Medium prey  
         'Hesperornithoides': 0.18, 'Sphenodontian': 0.12,
         // Larger threats
@@ -252,114 +314,114 @@ export const HABITAT_SPECIES = {
     },
     'forest': {
         // Enhanced tiny prey availability
-        'Dragonfly': 0.5, 'Centipede': 0.6, 'Cricket': 0.4, 'Mammal': 0.45,
-        'Scorpion': 0.25, 'Lizard': 0.2, 'Compsognathus': 0.3, 'Coelurus': 0.18,
+        'Dragonfly': 0.5, 'Centipede': 0.6, 'Cricket': 0.4, 'Beetle': 0.4, 'Mammal': 0.45,
+        'Scorpion': 0.25, 'Lizard': 0.2, 'Snake': 0.15, 'Compsognathus': 0.3, 'Coelurus': 0.18,
         'Hesperornithoides': 0.15, 'Camptosaurus': 0.18, 'Dryosaurus': 0.18, 'Othnielia': 0.18,
         'Sphenodontian': 0.12, 'Ornitholestes': 0.12, 'Juvenile Allosaurus': 0.1
     },
     'openwoods': {
         // Forest edge species with good tiny prey
-        'Dragonfly': 0.45, 'Cricket': 0.45, 'Mammal': 0.35,
-        'Lizard': 0.25, 'Compsognathus': 0.25, 'Coelurus': 0.18,
+        'Dragonfly': 0.45, 'Cricket': 0.45, 'Beetle': 0.3, 'Mammal': 0.35,
+        'Lizard': 0.25, 'Turtle': 0.15, 'Compsognathus': 0.25, 'Coelurus': 0.18,
         'Camptosaurus': 0.3, 'Dryosaurus': 0.3, 'Othnielia': 0.3, 'Pterosaur': 0.18
     },
     'galleryforest': {
         // Waterside forest with enhanced bug life
-        'Dragonfly': 0.8, 'Frog': 0.5, 'Fish': 0.4, 'Centipede': 0.4, 'Cricket': 0.3,
+        'Dragonfly': 0.8, 'Frog': 0.5, 'Fish': 0.4, 'Centipede': 0.4, 'Cricket': 0.3, 'Turtle': 0.3,
         'Lizard': 0.2, 'Compsognathus': 0.25, 'Crocodile': 0.18, 'Camptosaurus': 0.18
     },
     'deadforest': {
         // Sparse life in dead trees but some bugs remain
-        'Cricket': 0.3, 'Centipede': 0.4, 'Scorpion': 0.3,
+        'Cricket': 0.3, 'Centipede': 0.4, 'Scorpion': 0.3, 'Beetle': 0.2,
         'Lizard': 0.18, 'Injured Pterosaur': 0.18, 'Sphenodontian': 0.18
     },
 
     // PLAINS HIERARCHY - Enhanced tiny creature spawning
     'plains': {
-        'Cricket': 0.4, 'Mammal': 0.25, 'Scorpion': 0.15, 'Dragonfly': 0.2,
+        'Cricket': 0.4, 'Mammal': 0.25, 'Beetle': 0.2, 'Scorpion': 0.15, 'Dragonfly': 0.2,
         'Lizard': 0.2, 'Compsognathus': 0.18, 'Coelurus': 0.12,
         'Hesperornithoides': 0.12, 'Sphenodontian': 0.12, 'Pterosaur': 0.25,
-        'Camptosaurus': 0.25, 'Dryosaurus': 0.2, 'Stegosaurus': 0.18,
+        'Camptosaurus': 0.25, 'Dryosaurus': 0.2, 'Stegosaurus': 0.18, 'Kentrosaurus': 0.15,
         'Ceratosaurus': 0.12, 'Male Allosaurus': 0.12, 'Female Allosaurus': 0.12
     },
     'savanna': {
         'Cricket': 0.35, 'Mammal': 0.3, 'Lizard': 0.2, 'Dragonfly': 0.15,
-        'Compsognathus': 0.25, 'Camptosaurus': 0.25, 'Stegosaurus': 0.25,
+        'Compsognathus': 0.25, 'Camptosaurus': 0.25, 'Stegosaurus': 0.25, 'Tuojiangosaurus': 0.2,
         'Dryosaurus': 0.25, 'Othnielia': 0.25, 'Pterosaur': 0.3
     },
     'scrubland': {
-        'Cricket': 0.2, 'Mammal': 0.2, 'Lizard': 0.25, 'Scorpion': 0.2,
+        'Cricket': 0.2, 'Mammal': 0.2, 'Lizard': 0.25, 'Scorpion': 0.2, 'Snake': 0.15,
         'Compsognathus': 0.18, 'Sphenodontian': 0.18, 'Ornitholestes': 0.18
     },
     'sauropodgrounds': {
         // Migration route - large herbivores and predators
         'Pterosaur': 0.3, 'Camptosaurus': 0.18, 'Stegosaurus': 0.18,
-        'Diplodocus': 0.35, 'Brachiosaurus': 0.25,
-        'Ceratosaurus': 0.18, 'Torvosaurus': 0.12, 'Male Allosaurus': 0.25, 'Female Allosaurus': 0.25
+        'Diplodocus': 0.35, 'Brachiosaurus': 0.25, 'Camarasaurus': 0.3,
+        'Ceratosaurus': 0.18, 'Torvosaurus': 0.12, 'Male Allosaurus': 0.25, 'Female Allosaurus': 0.25, 'Saurophaganax': 0.08
     },
 
     // WATER FEATURES - Enhanced for bugs and small prey
     'river': {
-        'Dragonfly': 0.5, 'Frog': 0.45, 'Fish': 0.6,
+        'Dragonfly': 0.5, 'Frog': 0.45, 'Fish': 0.6, 'Turtle': 0.3,
         'Crocodile': 0.45, 'Compsognathus': 0.12
     },
     'dryriverbed': {
-        'Lizard': 0.2, 'Scorpion': 0.25, 'Cricket': 0.3, 'Mammal': 0.2,
+        'Lizard': 0.2, 'Scorpion': 0.25, 'Cricket': 0.3, 'Mammal': 0.2, 'Snake': 0.15,
         'Compsognathus': 0.18, 'Sphenodontian': 0.12
     },
     'riverbank': {
-        'Dragonfly': 0.5, 'Frog': 0.45, 'Fish': 0.4, 'Cricket': 0.3,
+        'Dragonfly': 0.5, 'Frog': 0.45, 'Fish': 0.4, 'Cricket': 0.3, 'Turtle': 0.25,
         'Crocodile': 0.35, 'Camptosaurus': 0.15, 'Stegosaurus': 0.18,
         'Dryosaurus': 0.15, 'Othnielia': 0.15, 'Male Allosaurus': 0.15, 'Female Allosaurus': 0.15
     },
     'marsh': {
-        'Dragonfly': 0.6, 'Frog': 0.55, 'Fish': 0.3, 'Centipede': 0.2,
+        'Dragonfly': 0.6, 'Frog': 0.55, 'Fish': 0.3, 'Centipede': 0.2, 'Turtle': 0.4,
         'Crocodile': 0.4, 'Lizard': 0.12
     },
     'waterhole': {
-        'Dragonfly': 0.4, 'Frog': 0.4, 'Fish': 0.35, 'Cricket': 0.25,
+        'Dragonfly': 0.4, 'Frog': 0.4, 'Fish': 0.35, 'Cricket': 0.25, 'Turtle': 0.3,
         'Lizard': 0.15, 'Sphenodontian': 0.12, 'Stegosaurus': 0.3,
         'Camptosaurus': 0.2, 'Othnielia': 0.2, 'Dryosaurus': 0.2,
-        'Diplodocus': 0.25, 'Brachiosaurus': 0.2,
+        'Diplodocus': 0.25, 'Brachiosaurus': 0.2, 'Camarasaurus': 0.25,
         'Juvenile Allosaurus': 0.18, 'Male Allosaurus': 0.18, 'Female Allosaurus': 0.25
     },
     'lake': {
-        'Dragonfly': 0.45, 'Frog': 0.45, 'Fish': 0.5,
-        'Crocodile': 0.3, 'Stegosaurus': 0.18, 'Pterosaur': 0.18,
+        'Dragonfly': 0.45, 'Frog': 0.45, 'Fish': 0.5, 'Turtle': 0.35,
+        'Crocodile': 0.3, 'Stegosaurus': 0.18, 'Pterosaur': 0.18, 'Rhamphorhynchus': 0.25,
         'Diplodocus': 0.25, 'Brachiosaurus': 0.18
     },
     'beach': {
-        'Dragonfly': 0.35, 'Frog': 0.2, 'Fish': 0.3, 'Cricket': 0.15,
+        'Dragonfly': 0.35, 'Frog': 0.2, 'Fish': 0.3, 'Cricket': 0.15, 'Turtle': 0.4,
         'Lizard': 0.2, 'Crocodile': 0.3, 'Pterosaur': 0.18
     },
 
     // MOUNTAIN FEATURES
     'hills': {
-        'Pterosaur': 0.4, 'Lizard': 0.25, 'Scorpion': 0.2, 'Cricket': 0.15,
+        'Pterosaur': 0.4, 'Rhamphorhynchus': 0.3, 'Lizard': 0.25, 'Scorpion': 0.2, 'Cricket': 0.15,
         'Compsognathus': 0.18, 'Coelurus': 0.12,
         'Camptosaurus': 0.18, 'Dryosaurus': 0.18, 'Othnielia': 0.18
     },
     'rocky': {
-        'Lizard': 0.2, 'Scorpion': 0.15, 'Compsognathus': 0.12, 'Cricket': 0.1,
+        'Lizard': 0.2, 'Scorpion': 0.15, 'Snake': 0.12, 'Compsognathus': 0.12, 'Cricket': 0.1,
         'Pterosaur': 0.15, 'Coelurus': 0.1
     },
     'mountains': {
-        'Pterosaur': 0.4, 'Lizard': 0.1, 'Cricket': 0.15, 'Mammal': 0.1
+        'Pterosaur': 0.4, 'Rhamphorhynchus': 0.35, 'Lizard': 0.1, 'Cricket': 0.15, 'Mammal': 0.1
     },
 
     // DESERT FEATURES
     'desert': {
-        'Scorpion': 0.2, 'Cricket': 0.12, 'Mammal': 0.08, 'Lizard': 0.12,
+        'Scorpion': 0.2, 'Cricket': 0.12, 'Mammal': 0.08, 'Lizard': 0.12, 'Snake': 0.15,
         'Compsognathus': 0.08, 'Coelurus': 0.08,
         'Sphenodontian': 0.1, 'Injured Pterosaur': 0.12,
         'Ceratosaurus': 0.08, 'Male Allosaurus': 0.1, 'Female Allosaurus': 0.1
     },
     'badlands': {
-        'Scorpion': 0.25, 'Cricket': 0.15, 'Lizard': 0.15, 'Mammal': 0.1,
+        'Scorpion': 0.25, 'Cricket': 0.15, 'Lizard': 0.15, 'Mammal': 0.1, 'Snake': 0.12,
         'Compsognathus': 0.1, 'Injured Pterosaur': 0.18, 'Sphenodontian': 0.1
     },
     'mesa': {
-        'Pterosaur': 0.45, 'Lizard': 0.1, 'Scorpion': 0.1, 'Cricket': 0.08
+        'Pterosaur': 0.45, 'Rhamphorhynchus': 0.4, 'Lizard': 0.1, 'Scorpion': 0.1, 'Cricket': 0.08
     },
     'quicksand': {
         // Almost no life - it's a death trap!
@@ -368,7 +430,7 @@ export const HABITAT_SPECIES = {
 
     // VOLCANIC FEATURES
     'volcanic': {
-        'Pterosaur': 0.35, 'Lizard': 0.08, 'Cricket': 0.05, 'Scorpion': 0.05
+        'Pterosaur': 0.35, 'Rhamphorhynchus': 0.3, 'Lizard': 0.08, 'Cricket': 0.05, 'Scorpion': 0.05
     },
     'lavafield': {
         // Almost no life
@@ -377,7 +439,7 @@ export const HABITAT_SPECIES = {
 
     // SPECIAL AREAS
     'nest': {
-        'Dragonfly': 0.4, 'Cricket': 0.3, 'Centipede': 0.35, 'Scorpion': 0.15,
+        'Dragonfly': 0.4, 'Cricket': 0.3, 'Centipede': 0.35, 'Scorpion': 0.15, 'Beetle': 0.25,
         'Compsognathus': 0.4, 'Ornitholestes': 0.7  // Nest raiders
     }
 };

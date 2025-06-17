@@ -4,7 +4,7 @@ import { hexDistance, getHexNeighbors, hexToPixel } from './utils/hexMath.js';
 import { TERRAIN_TYPES, getBackgroundGradient } from './data/terrain.js';
 import { getTimeOfDay } from './game/gameConstants.js';
 import { initialGameState, gameReducer } from './game/gameState.js';
-
+import CreatureActivityPanel from './components/CreatureActivityPanel.jsx';
 // Component imports
 import HexTile from './components/HexTile.jsx';
 import StatusPanel from './components/StatusPanel.jsx';
