@@ -105,7 +105,7 @@ const attemptCreatureEscape = (speciesData, creatureSize, playerWeight, playerLe
         'Dragonfly': 0.4,    // Very hard to catch
         'Cricket': 0.25,     // Quick hoppers
         'Centipede': 0.1,    // Slower ground dwellers
-        'Mammal': 0.3,       // Quick and nervous
+        'Mammal': 0.2,       // Quick and nervous
         'Scorpion': 0.15,    // Defensive but not super fast
         'Frog': 0.2,         // Can leap away
         'Lizard': 0.25,      // Quick but not as agile as bugs

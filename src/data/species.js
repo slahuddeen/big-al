@@ -288,31 +288,26 @@ export const HABITAT_SPECIES = {
     // FOREST HIERARCHY - Reduced spawning rates across the board
     'denseforest': {
         // Reduced tiny prey spawning significantly
-        'Dragonfly': 0.35, 'Centipede': 0.4, 'Cricket': 0.3, 'Mammal': 0.3,
+        'Dragonfly': 0.35, 'Centipede': 0.4, 'Mammal': 0.3,
         // Small prey - reduced
-        'Scorpion': 0.15, 'Lizard': 0.12, 'Frog': 0.12, 'Snake': 0.1, 'Compsognathus': 0.18,
+        'Lizard': 0.12, 'Compsognathus': 0.18,
         // Medium prey - reduced
-        'Hesperornithoides': 0.09, 'Sphenodontian': 0.06,
+        'Hesperornithoides': 0.1, 'Sphenodontian': 0.06,
         // Larger threats - reduced
-        'Ornitholestes': 0.08, 'Juvenile Allosaurus': 0.04
+        'Ornitholestes': 0.08, 'Juvenile Allosaurus': 0.04,
     },
     'forest': {
         // Reduced tiny prey
         'Dragonfly': 0.25, 'Centipede': 0.3, 'Cricket': 0.2, 'Mammal': 0.22,
-        'Scorpion': 0.12, 'Lizard': 0.1, 'Snake': 0.08, 'Compsognathus': 0.15, 'Coelurus': 0.09,
+        'Scorpion': 0.12, 'Lizard': 0.1, 'Compsognathus': 0.15, 'Coelurus': 0.09,
         'Hesperornithoides': 0.08, 'Camptosaurus': 0.09, 'Dryosaurus': 0.09, 'Othnielia': 0.09,
-        'Sphenodontian': 0.06, 'Ornitholestes': 0.06, 'Juvenile Allosaurus': 0.05
+        'Sphenodontian': 0.06, 'Ornitholestes': 0.06, 'Juvenile Allosaurus': 0.05, 'Torvosaurus': 0.1
     },
     'openwoods': {
         // Forest edge species - reduced
         'Dragonfly': 0.22, 'Cricket': 0.22, 'Mammal': 0.18,
         'Lizard': 0.12, 'Turtle': 0.08, 'Compsognathus': 0.12, 'Coelurus': 0.09,
-        'Camptosaurus': 0.15, 'Dryosaurus': 0.15, 'Othnielia': 0.15, 'Pterosaur': 0.09
-    },
-    'galleryforest': {
-        // Waterside forest - reduced
-        'Dragonfly': 0.4, 'Frog': 0.25, 'Fish': 0.2, 'Centipede': 0.2, 'Cricket': 0.15, 'Turtle': 0.15,
-        'Lizard': 0.1, 'Compsognathus': 0.12, 'Crocodile': 0.09, 'Camptosaurus': 0.09
+        'Camptosaurus': 0.15, 'Dryosaurus': 0.15, 'Othnielia': 0.15, 'Pterosaur': 0.09, 'Torvosaurus': 0.3
     },
     'deadforest': {
         // Sparse life - reduced

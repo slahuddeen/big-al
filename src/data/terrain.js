@@ -22,7 +22,7 @@ export const TERRAIN_TYPES = {
     river: createTerrain("River", "🌊", "#2563eb", {
         image: "/assets/tiles/river.png",
         isLinear: true, isWater: true, description: "Flowing river - wade carefully",
-        dangerLevel: 2, energyCost: 12, fitnessRisk: 0.3, minWeight: 500
+        dangerLevel: 2, energyCost: 12, fitnessRisk: 0.3, minWeight: 50
     }),
     dryriverbed: createTerrain("Dry Riverbed", "🪨", "#a8a29e", {
         image: "/assets/tiles/dryriverbed.png",
@@ -75,7 +75,7 @@ export const TERRAIN_TYPES = {
 
     // PLAINS TYPES - Simplified
     plains: createTerrain("Plains", "🌾", "#ca8a04", {
-        image: "/assets/tiles/grass2.png",
+        image: "/assets/tiles/grassland.png",
         category: "plains", description: "Open grasslands", energyCost: 6
     }),
     savanna: createTerrain("Savanna", "🌾", "#eab308", {
