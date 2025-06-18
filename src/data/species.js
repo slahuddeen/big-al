@@ -85,7 +85,7 @@ export const SPECIES_DATA = {
     },
     "Compsognathus": {
         emoji: "🦖",
-        image: "/assets/dinos/compsognathus.png",
+        image: "/assets/dinos/compsognathus2.png",
         nutrition: 10, danger: 4, aggression: 0.5, difficulty: 0.65,
         description: "Chicken-sized pack predator - dangerous but rewarding",
         size: 0.4, weight: 3, injury: "nips you with needle teeth",
@@ -93,7 +93,7 @@ export const SPECIES_DATA = {
     },
     "Coelurus": {
         emoji: "🦴",
-        image: "/assets/dinos/compsognathus.png",
+        image: "/assets/dinos/coelurus.png",
         nutrition: 15, danger: 6, aggression: 0.35, difficulty: 0.45,
         description: "Gracile small theropod - agile predator with good meat",
         size: 0.5, weight: 15, injury: "slashes with small claws",
@@ -267,7 +267,7 @@ export const SPECIES_DATA = {
     },
     "Female Allosaurus": {
         emoji: "🦖",
-        image: "/assets/dinos/allosaurus.png",
+        image: "/assets/dinos/female.png",
         nutrition: 280, danger: 2200, aggression: 0.85, difficulty: 0.75,
         description: "Adult female predator - larger and deadlier",
         size: 1.6, weight: 1800, injury: "tears into you with massive jaws",

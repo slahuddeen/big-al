@@ -22,10 +22,10 @@ export const LEVEL_WEIGHTS = [0, 15, 600, 2200, 2700]; // Adjusted thresholds fo
 
 // Enhanced prey size categories for better scaling (worms and beetles removed)
 export const PREY_SIZE_CATEGORIES = {
-    'tiny': ['Dragonfly', 'Centipede', 'Cricket'],
-    'small': ['Scorpion', 'Frog', 'Lizard', 'Mammal', 'Fish'],
-    'medium': ['Sphenodontian', 'Dryosaurus', 'Othnielia', 'Pterosaur', 'Injured Pterosaur', 'Compsognathus', 'Coelurus'],
-    'large': ['Ornitholestes', 'Juvenile Allosaurus', 'Crocodile', 'Hesperornithoides', 'Camptosaurus'],
+    'tiny': ['Dragonfly', 'Centipede', 'Cricket', 'Scorpion'],
+    'small': ['Frog', 'Lizard', 'Mammal', 'Fish', 'Sphenodontian'],
+    'medium': ['Dryosaurus', 'Othnielia', 'Pterosaur', 'Injured Pterosaur', 'Compsognathus', 'Coelurus', 'Hesperornithoides'],
+    'large': ['Ornitholestes', 'Juvenile Allosaurus', 'Crocodile', 'Camptosaurus'],
     'huge': ['Stegosaurus', 'Male Allosaurus', 'Female Allosaurus', 'Ceratosaurus', 'Torvosaurus', 'Diplodocus', 'Brachiosaurus']
 };
 
@@ -47,8 +47,8 @@ const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
     const multipliers = {
         1: { tiny: 6.0, small: 2.0, medium: 0.2, large: 0.05, huge: 0.01 }, // Hatchling - loves tiny prey
         2: { tiny: 3.0, small: 3.0, medium: 1.2, large: 0.3, huge: 0.08 },  // Juvenile  
-        3: { tiny: 0.4, small: 1.8, medium: 2.5, large: 1.8, huge: 0.4 },   // Sub-adult
-        4: { tiny: 0.08, small: 0.3, medium: 1.2, large: 2.5, huge: 2.0 }   // Adult
+        3: { tiny: 0.4, small: 1.8, medium: 2.5, large: 2.0, huge: 1.0 },   // Sub-adult
+        4: { tiny: 0.08, small: 0.3, medium: 2.0, large: 3.0, huge: 3.5 }   // Adult
     };
 
     let multiplier = multipliers[playerLevel][category];
@@ -339,7 +339,7 @@ const applyCreatureBehaviorResults = (gameState, behaviorLog) => {
 export const gameReducer = (state, action) => {
     switch (action.type) {
         case 'GENERATE_TERRAIN_FEATURES': {
-            const features = generateTerrainFeatures(state.player.q, state.player.r, 6);
+            const features = generateTerrainFeatures(state.player.q, state.player.r, 2);
             return { ...state, linearFeatures: features, mapGenerated: true };
         }
 
@@ -392,8 +392,8 @@ export const gameReducer = (state, action) => {
 
             // Enhanced movement costs - scale better with 300g baseline
             const baseEnergyCost = terrain.energyCost;
-            const sizeMultiplier = Math.max(0.4, Math.pow(state.weight / 150, 0.6)); // Adjusted for 300g
-            const energyCost = Math.round(baseEnergyCost * sizeMultiplier);
+            // Cap energy scaling for large dinosaurs
+            const sizeMultiplier = Math.max(0.4, Math.min(2.0, Math.pow(state.weight / 150, 0.4))); const energyCost = Math.round(baseEnergyCost * sizeMultiplier);
 
             let newEnergy = Math.max(0, state.energy - energyCost);
             let newFitness = state.fitness;

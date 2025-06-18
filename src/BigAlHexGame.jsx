@@ -1,4 +1,4 @@
-﻿// ==================== ENHANCED CAMERA SYSTEM WITH DYNAMIC MAP BOUNDS ====================
+﻿// ==================== UNCONSTRAINED CAMERA SYSTEM ====================
 import React, { useReducer, useEffect, useCallback, useState, useMemo } from 'react';
 import { hexDistance, getHexNeighbors, hexToPixel } from './utils/hexMath.js';
 import { TERRAIN_TYPES, getBackgroundGradient } from './data/terrain.js';
@@ -18,71 +18,43 @@ const BigAlHexGame = () => {
     const [gameState, dispatch] = useReducer(gameReducer, initialGameState);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-    // ============ ENHANCED MAP DRAGGING STATE ============
+    // ============ UNCONSTRAINED MAP DRAGGING STATE ============
     const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [dragStartOffset, setDragStartOffset] = useState({ x: 0, y: 0 });
 
-    // ============ CALCULATE MAP BOUNDS ============
+    // ============ MAP BOUNDS (FOR INFO ONLY - NO CONSTRAINTS) ============
     const mapBounds = useMemo(() => {
         if (gameState.hexes.size === 0) {
             return { minX: -500, maxX: 500, minY: -500, maxY: 500 };
         }
 
-        let minQ = Infinity, maxQ = -Infinity;
-        let minR = Infinity, maxR = -Infinity;
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
 
-        // Find the bounds of all generated hexes
+        // Calculate actual pixel bounds by converting each hex position
         for (const hex of gameState.hexes.values()) {
-            minQ = Math.min(minQ, hex.q);
-            maxQ = Math.max(maxQ, hex.q);
-            minR = Math.min(minR, hex.r);
-            maxR = Math.max(maxR, hex.r);
+            const pixel = hexToPixel(hex.q, hex.r);
+            minX = Math.min(minX, pixel.x);
+            maxX = Math.max(maxX, pixel.x);
+            minY = Math.min(minY, pixel.y);
+            maxY = Math.max(maxY, pixel.y);
         }
 
-        // Convert hex coordinates to pixel coordinates
-        const minPixel = hexToPixel(minQ, minR);
-        const maxPixel = hexToPixel(maxQ, maxR);
-
-        // Add padding so edge hexes are fully visible
-        const padding = 200;
+        // Add padding for hex size
+        const hexSize = 42;
+        const padding = hexSize * 1.5;
 
         return {
-            minX: Math.min(minPixel.x, maxPixel.x) - padding,
-            maxX: Math.max(minPixel.x, maxPixel.x) + padding,
-            minY: Math.min(minPixel.y, maxPixel.y) - padding,
-            maxY: Math.max(minPixel.y, maxPixel.y) + padding
+            minX: minX - padding,
+            maxX: maxX + padding,
+            minY: minY - padding,
+            maxY: maxY + padding
         };
     }, [gameState.hexes]);
 
-    // ============ ENHANCED CAMERA BOUNDS ============
-    const getCameraBounds = useCallback(() => {
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
-
-        // Calculate how far the camera can move to show all map content
-        const cameraBounds = {
-            minX: mapBounds.minX - windowWidth / 2,
-            maxX: mapBounds.maxX + windowWidth / 2,
-            minY: mapBounds.minY - windowHeight / 2,
-            maxY: mapBounds.maxY + windowHeight / 2
-        };
-
-        return cameraBounds;
-    }, [mapBounds]);
-
-    // ============ CONSTRAIN CAMERA TO BOUNDS ============
-    const constrainCamera = useCallback((offset) => {
-        const bounds = getCameraBounds();
-
-        return {
-            x: Math.max(bounds.minX, Math.min(bounds.maxX, offset.x)),
-            y: Math.max(bounds.minY, Math.min(bounds.maxY, offset.y))
-        };
-    }, [getCameraBounds]);
-
-    // ============ DRAGGING EVENT HANDLERS ============
+    // ============ UNCONSTRAINED DRAGGING EVENT HANDLERS ============
     const handleMouseDown = useCallback((e) => {
         // Allow dragging unless clicking on hex tiles or UI elements
         if (!e.target.closest('.hex-tile') && !e.target.closest('[data-no-drag]')) {
@@ -97,7 +69,7 @@ const BigAlHexGame = () => {
         // Update mouse position for tooltips
         setMousePos({ x: e.clientX, y: e.clientY });
 
-        // Handle map dragging
+        // Handle map dragging - NO CONSTRAINTS
         if (isDragging) {
             const deltaX = e.clientX - dragStart.x;
             const deltaY = e.clientY - dragStart.y;
@@ -107,11 +79,10 @@ const BigAlHexGame = () => {
                 y: dragStartOffset.y + deltaY
             };
 
-            // Apply bounds constraints
-            const constrainedOffset = constrainCamera(newOffset);
-            setCameraOffset(constrainedOffset);
+            // Apply NO constraints - camera can move anywhere
+            setCameraOffset(newOffset);
         }
-    }, [isDragging, dragStart, dragStartOffset, constrainCamera]);
+    }, [isDragging, dragStart, dragStartOffset]);
 
     const handleMouseUp = useCallback(() => {
         setIsDragging(false);
@@ -121,7 +92,7 @@ const BigAlHexGame = () => {
         setIsDragging(false);
     }, []);
 
-    // ============ ENHANCED KEYBOARD SHORTCUTS ============
+    // ============ UNCONSTRAINED KEYBOARD SHORTCUTS ============
     useEffect(() => {
         const handleKeyPress = (e) => {
             // Reset camera with 'R' key
@@ -145,7 +116,7 @@ const BigAlHexGame = () => {
                 console.log("🗺️ Camera showing full map");
             }
 
-            // Arrow keys for precise camera movement
+            // Arrow keys for precise camera movement - NO CONSTRAINTS
             const moveDistance = 100;
             let newOffset = { ...cameraOffset };
 
@@ -164,14 +135,14 @@ const BigAlHexGame = () => {
             }
 
             if (newOffset.x !== cameraOffset.x || newOffset.y !== cameraOffset.y) {
-                const constrainedOffset = constrainCamera(newOffset);
-                setCameraOffset(constrainedOffset);
+                // NO constraints applied
+                setCameraOffset(newOffset);
             }
         };
 
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
-    }, [cameraOffset, constrainCamera, gameState.player, mapBounds]);
+    }, [cameraOffset, gameState.player, mapBounds]);
 
     // ============ HEX INTERACTION HANDLERS ============
     const handleHexClick = useCallback((hex) => {
@@ -398,18 +369,18 @@ const BigAlHexGame = () => {
                 <CreatureActivityPanel gameState={gameState} />
             </div>
 
-            {/* CLEANED: Camera Controls Info - Removed Debug Mode */}
+            {/* Camera Controls Info - Unlimited Movement */}
             <div className="absolute bottom-4 left-4 bg-black bg-opacity-80 text-white text-xs p-3 rounded-lg border border-amber-600" data-no-drag>
-                <div className="font-bold text-amber-400 mb-2">🎮 Camera Controls</div>
+                <div className="font-bold text-amber-400 mb-2">🎮 Camera Controls (Unlimited)</div>
                 <div className="space-y-1">
-                    <div>🖱️ <strong>Drag</strong> empty space to explore</div>
+                    <div>🖱️ <strong>Drag</strong> anywhere to explore freely</div>
                     <div>⌨️ <strong>Arrow Keys</strong> for precise movement</div>
                     <div>📹 <strong>R</strong> - Reset to center</div>
                     <div>🎯 <strong>C</strong> - Center on player</div>
-                    <div>🗺️ <strong>F</strong> - Show full map</div>
+                    <div>🗺️ <strong>F</strong> - Show full map center</div>
                 </div>
 
-                {/* FIXED: Enhanced map info with properly updating ecosystem data */}
+                {/* Map info */}
                 <div className="mt-2 pt-2 border-t border-amber-600 text-gray-300">
                     <div>Map: {boundsInfo.totalHexes} hexes explored</div>
                     <div>Size: {Math.round(boundsInfo.mapWidth / 100)}×{Math.round(boundsInfo.mapHeight / 100)} units</div>
@@ -419,16 +390,28 @@ const BigAlHexGame = () => {
                             🧠 {ecosystemInfo.recentBehaviors} recent behaviors
                         </div>
                     )}
-                    {isDragging && <div className="text-yellow-400 animate-pulse">📷 Exploring...</div>}
+                    {isDragging && <div className="text-yellow-400 animate-pulse">📷 Free roaming...</div>}
+
+                    {/* Show current camera offset */}
+                    <div className="mt-2 pt-2 border-t border-amber-500 text-xs">
+                        <div className="text-amber-400 font-bold">📍 Camera Position:</div>
+                        <div>Offset: ({Math.round(cameraOffset.x)}, {Math.round(cameraOffset.y)})</div>
+                    </div>
                 </div>
             </div>
 
-            {/* Hex World with Enhanced Camera Offset */}
-            <div className="absolute inset-0 flex items-center justify-center">
+            {/* Hex World with No Viewport Clipping */}
+            <div className="absolute inset-0">
                 <div
-                    className="relative w-full h-full overflow-hidden"
+                    className="relative"
                     style={{
-                        transform: `translate(${cameraOffset.x}px, ${cameraOffset.y}px)`,
+                        // Large container to prevent clipping
+                        width: '400vw',
+                        height: '400vh',
+                        // Center the large container in the viewport
+                        left: '50%',
+                        top: '50%',
+                        transform: `translate(-50%, -50%) translate(${cameraOffset.x}px, ${cameraOffset.y}px)`,
                         transition: isDragging ? 'none' : 'transform 0.3s ease-out'
                     }}
                 >
@@ -454,7 +437,7 @@ const BigAlHexGame = () => {
                                 onClick={handleHexClick}
                                 onHover={handleHexHover}
                                 onLeave={handleHexLeave}
-                                onMouseDown={handleHexMouseDown} // Prevent dragging on hexes
+                                onMouseDown={handleHexMouseDown}
                             />
                         );
                     })}

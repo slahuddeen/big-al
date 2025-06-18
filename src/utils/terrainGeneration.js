@@ -2,6 +2,29 @@
 import { HEX_DIRECTIONS, getHexNeighbors, hexDistance } from './hexMath.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 
+// Helper function to check plains density in a radius
+const checkPlainsInRadius = (centerQ, centerR, radius, existingHexes) => {
+    let plainsCount = 0;
+    let totalHexes = 0;
+
+    for (let dq = -radius; dq <= radius; dq++) {
+        for (let dr = -radius; dr <= radius; dr++) {
+            if (Math.abs(dq + dr) <= radius) {
+                const hexKey = `${centerQ + dq},${centerR + dr}`;
+                const hex = existingHexes.get(hexKey);
+                if (hex) {
+                    totalHexes++;
+                    if (['plains', 'savanna', 'scrubland'].includes(hex.terrain)) {
+                        plainsCount++;
+                    }
+                }
+            }
+        }
+    }
+
+    return totalHexes > 0 ? plainsCount / totalHexes : 0;
+};
+
 // Enhanced terrain generation with proper ecological rules
 export const generateTerrainFeatures = (centerQ, centerR, radius) => {
     const features = [];
@@ -258,10 +281,39 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
         return 'plains';  // Plains as "neutral" terrain
     }
 
-    // 9. Desert placement rules - can't be near forests, but can be near plains
+    // NEW RULE: Plains to desert transition - check for large plains areas
     const hasForestNeighbors = neighborTypes.some(t =>
         ['forest', 'denseforest', 'openwoods', 'deadforest'].includes(t)
     );
+
+    if (!hasForestNeighbors) {
+        const plainsRatio2Hex = checkPlainsInRadius(q, r, 2, existingHexes);
+        const plainsRatio3Hex = checkPlainsInRadius(q, r, 3, existingHexes);
+
+        // If we're in a large plains area, start transitioning to more arid terrain
+        if (plainsRatio2Hex > 0.7 && plainsRatio3Hex > 0.6) {
+            // Very large plains area - high chance of arid transition
+            const aridChance = 0.4; // 40% chance
+            if (Math.random() < aridChance) {
+                const transitionRoll = Math.random();
+                if (transitionRoll < 0.3) return 'scrubland';  // Start transition
+                if (transitionRoll < 0.6) return 'savanna';    // Drier plains
+                if (transitionRoll < 0.8) return 'badlands';   // More arid
+                return 'desert';                               // Full desert
+            }
+        } else if (plainsRatio2Hex > 0.6) {
+            // Medium plains area - moderate chance of transition
+            const aridChance = 0.25; // 25% chance
+            if (Math.random() < aridChance) {
+                const transitionRoll = Math.random();
+                if (transitionRoll < 0.5) return 'scrubland';  // Most likely
+                if (transitionRoll < 0.8) return 'savanna';    // Still grassy
+                return 'badlands';                             // Some desertification
+            }
+        }
+    }
+
+    // 9. Desert placement rules - can't be near forests, but can be near plains
     const hasPlains = neighborTypes.some(t =>
         ['plains', 'savanna', 'scrubland'].includes(t)
     );

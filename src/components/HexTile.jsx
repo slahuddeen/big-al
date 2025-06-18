@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { hexToPixel } from '../utils/hexMath.js';  // ← ADD THIS IMPORT
+import { hexToPixel } from '../utils/hexMath.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA } from '../data/species.js';
 import { LEVEL_NAMES } from '../game/gameState.js';
@@ -14,10 +14,10 @@ const HexTile = ({
     onClick,
     onHover,
     onLeave,
-    onMouseDown, // ← Add this prop
+    onMouseDown,
     isNight,
     creatures,
-    gameState // Add gameState to access level information
+    gameState
 }) => {
     const { x, y } = hexToPixel(hex.q, hex.r);
     const terrain = TERRAIN_TYPES[hex.terrain];
@@ -33,7 +33,6 @@ const HexTile = ({
     // Enhanced discovery-based visibility
     const isCurrentlyVisible = hex.visible && hex.inRange;
     const isDiscovered = hex.discovered;
-    const isExplored = hex.visited;
 
     // Visual states based on discovery
     const getVisualState = () => {
@@ -116,6 +115,7 @@ const HexTile = ({
         <div
             className={`absolute cursor-pointer transition-all duration-500 ease-out`}
             style={{
+                // Position hex relative to the large container center
                 left: '50%',
                 top: '50%',
                 transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
@@ -125,7 +125,7 @@ const HexTile = ({
             onClick={() => onClick(hex)}
             onMouseEnter={() => onHover(hex)}
             onMouseLeave={onLeave}
-            onMouseDown={onMouseDown} // ← Add this line
+            onMouseDown={onMouseDown}
         >
             <div
                 className={`hex-tile ${isTallTerrain ? 'terrain-tall' : ''} ${isMovable ? 'hex-movable' : ''} ${isSelected ? 'hex-selected' : ''
