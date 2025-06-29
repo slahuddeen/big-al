@@ -20,12 +20,12 @@ import {
 export const LEVEL_NAMES = ['', 'hatchling', 'juvenile', 'sub-adult', 'adult'];
 export const LEVEL_WEIGHTS = [0, 15, 600, 2200, 2700]; // Adjusted thresholds for 300g start
 
-// Enhanced prey size categories for better scaling (worms and beetles removed)
+// Enhanced prey size categories for better scaling with updated pterosaurs
 export const PREY_SIZE_CATEGORIES = {
     'tiny': ['Dragonfly', 'Centipede', 'Cricket', 'Scorpion'],
-    'small': ['Frog', 'Lizard', 'Mammal', 'Fish', 'Sphenodontian'],
-    'medium': ['Dryosaurus', 'Othnielia', 'Pterosaur', 'Injured Pterosaur', 'Compsognathus', 'Coelurus', 'Hesperornithoides'],
-    'large': ['Ornitholestes', 'Juvenile Allosaurus', 'Crocodile', 'Camptosaurus'],
+    'small': ['Frog', 'Lizard', 'Mammal', 'Fish', 'Sphenodontian', 'Mesadactylus'],
+    'medium': ['Dryosaurus', 'Othnielia', 'Harpactognathus', 'Injured Pterosaur', 'Compsognathus', 'Coelurus', 'Hesperornithoides'],
+    'large': ['Ornitholestes', 'Juvenile Allosaurus', 'Crocodile', 'Camptosaurus', 'Kepodactylus'],
     'huge': ['Stegosaurus', 'Male Allosaurus', 'Female Allosaurus', 'Ceratosaurus', 'Torvosaurus', 'Diplodocus', 'Brachiosaurus']
 };
 
@@ -33,7 +33,7 @@ export const PREY_SIZE_CATEGORIES = {
 const MAX_BEHAVIOR_LOG_SIZE = 15;
 const MAX_CREATURES_PER_HEX = 5; // Maximum 5 creatures per hex tile
 
-// Enhanced size-based spawn multipliers with better hatchling focus
+// ENHANCED size-based spawn multipliers - MORE VARIETY FOR EARLY GAME!
 const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
     let category = 'medium';
     for (const [cat, species] of Object.entries(PREY_SIZE_CATEGORIES)) {
@@ -43,21 +43,23 @@ const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
         }
     }
 
-    // Enhanced multipliers - tiny prey is MUCH more common for hatchlings
+    // ENHANCED multipliers - much more variety for hatchlings!
     const multipliers = {
-        1: { tiny: 6.0, small: 2.0, medium: 0.2, large: 0.05, huge: 0.01 }, // Hatchling - loves tiny prey
-        2: { tiny: 3.0, small: 3.0, medium: 1.2, large: 0.3, huge: 0.08 },  // Juvenile  
-        3: { tiny: 0.4, small: 1.8, medium: 2.5, large: 2.0, huge: 1.0 },   // Sub-adult
-        4: { tiny: 0.08, small: 0.3, medium: 2.0, large: 3.0, huge: 3.5 }   // Adult
+        1: { tiny: 4.0, small: 3.5, medium: 2.0, large: 0.8, huge: 0.15 }, // Hatchling - variety of prey including medium!
+        2: { tiny: 2.5, small: 4.0, medium: 3.0, large: 1.5, huge: 0.3 },  // Juvenile - good variety
+        3: { tiny: 0.6, small: 2.5, medium: 3.5, large: 3.0, huge: 1.8 },   // Sub-adult - shifting up
+        4: { tiny: 0.1, small: 0.8, medium: 2.5, large: 4.0, huge: 4.5 }   // Adult - big prey focus
     };
 
     let multiplier = multipliers[playerLevel][category];
 
-    // Less harsh reduction for tiny prey at 300g - they should still be viable
-    if (category === 'tiny' && playerWeight > 1.0) { // Only start reducing above 1kg
-        multiplier *= Math.max(0.1, 1 / (playerWeight / 20)); // Gentler reduction
-    } else if (category === 'small' && playerWeight > 5.0) {
-        multiplier *= Math.max(0.15, 1 / (playerWeight / 100));
+    // MUCH more lenient size scaling - hatchlings can hunt surprisingly large prey!
+    if (category === 'tiny' && playerWeight > 2.0) { // Only reduce above 2kg
+        multiplier *= Math.max(0.3, 1 / (playerWeight / 50)); // Much gentler
+    } else if (category === 'small' && playerWeight > 10.0) { // Only reduce above 10kg
+        multiplier *= Math.max(0.4, 1 / (playerWeight / 200)); // Gentler
+    } else if (category === 'medium' && playerWeight < 0.5) { // Small bonus for hatchlings hunting medium prey
+        multiplier *= 1.5; // 50% bonus - brave little hunters!
     }
 
     return multiplier;
@@ -98,39 +100,45 @@ export const initialGameState = {
     deathReason: null,
 };
 
-// Helper function to check if a creature should attempt escape
+// Helper function to check if a creature should attempt escape - REDUCED ESCAPE CHANCES
 const attemptCreatureEscape = (speciesData, creatureSize, playerWeight, playerLevel) => {
-    // Escape chances based on creature agility and size difference
+    // REDUCED escape chances - more catchable prey!
     const escapeBaseChance = {
-        'Dragonfly': 0.4,    // Very hard to catch
-        'Cricket': 0.25,     // Quick hoppers
-        'Centipede': 0.1,    // Slower ground dwellers
-        'Mammal': 0.2,       // Quick and nervous
-        'Scorpion': 0.15,    // Defensive but not super fast
-        'Frog': 0.2,         // Can leap away
-        'Lizard': 0.25,      // Quick but not as agile as bugs
+        'Dragonfly': 0.2,        // Reduced from 0.4 - still quick but catchable
+        'Cricket': 0.15,         // Reduced from 0.25 - hoppers but manageable
+        'Centipede': 0.05,       // Reduced from 0.1 - slow ground dwellers
+        'Mammal': 0.1,           // Reduced from 0.2 - nervous but catchable
+        'Scorpion': 0.08,        // Reduced from 0.15 - defensive but slow
+        'Frog': 0.12,            // Reduced from 0.2 - can leap but not too far
+        'Lizard': 0.15,          // Reduced from 0.25 - quick but huntable
+        'Mesadactylus': 0.25,    // Reduced from 0.5 - still skittish but more catchable
+        'Harpactognathus': 0.18, // Reduced from 0.3 - agile but huntable
+        'Kepodactylus': 0.08,    // Reduced from 0.15 - large and less agile
+        'Compsognathus': 0.12,   // Small theropod - quick but catchable
+        'Coelurus': 0.15,        // Gracile predator - agile
+        'Hesperornithoides': 0.18, // Smart troodontid - harder to catch
     };
 
     const speciesName = Object.keys(SPECIES_DATA).find(name =>
         SPECIES_DATA[name] === speciesData
     );
 
-    let baseEscape = escapeBaseChance[speciesName] || 0.1;
+    let baseEscape = escapeBaseChance[speciesName] || 0.08; // Lower default
 
-    // Higher escape chance for tiny creatures vs bigger predators
+    // REDUCED size penalties - less harsh on hatchlings
     const sizeRatio = (speciesData.weight * creatureSize) / playerWeight;
     if (sizeRatio < 0.01) {
-        baseEscape += 0.3; // Much higher escape chance for tiny prey
+        baseEscape += 0.15; // Reduced from 0.3 - still harder but not impossible
     } else if (sizeRatio < 0.1) {
-        baseEscape += 0.15;
+        baseEscape += 0.08; // Reduced from 0.15
     }
 
-    // Hatchlings are clumsy hunters
+    // REDUCED hatchling penalty - they're still predators!
     if (playerLevel === 1) {
-        baseEscape += 0.2; // 20% higher escape chance against hatchlings
+        baseEscape += 0.1; // Reduced from 0.2 - hatchlings can hunt!
     }
 
-    return Math.random() < Math.min(0.7, baseEscape); // Cap at 70% escape chance
+    return Math.random() < Math.min(0.5, baseEscape); // Reduced cap from 0.7 to 0.5
 };
 
 // Helper function to add notifications with limits

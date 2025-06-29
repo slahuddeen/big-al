@@ -61,7 +61,7 @@ export const TERRAIN_TYPES = {
         visibility: 1, category: "forest", description: "Dense forest", energyCost: 8
     }),
     openwoods: createTerrain("Open Woods", "🌿", "#65a30d", {
-        image: "/assets/tiles/woods.png",
+        image: "/assets/tiles/forest.png",
         visibility: 2, category: "forest", description: "Sparse woodland", energyCost: 7
     }),
     galleryforest: createTerrain("Gallery Forest", "🌳", "#166534", {
