@@ -13,11 +13,22 @@ import SettlementPanel from './components/SettlementPanel.jsx';
 import TradePanel from './components/TradePanel.jsx';
 import NotificationSystem from './components/NotificationSystem.jsx';
 import HoverTooltip from './components/HoverTooltip.jsx';
+import LeaderSelectionScreen from './components/LeaderSelectionScreen.jsx';
+import QuestLogPanel from './components/QuestLogPanel.jsx';
+import TechTreePanel from './components/TechTreePanel.jsx';
+import MilitaryPanel from './components/MilitaryPanel.jsx';
+import ChapterProgressPanel from './components/ChapterProgressPanel.jsx';
 
 const PrehistoricTribesGame = () => {
   const [gameState, dispatch] = useReducer(tribGameReducer, initialTribGameState);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [selectedSettlement, setSelectedSettlement] = useState(null);
+
+  // Panel visibility state
+  const [showQuestLog, setShowQuestLog] = useState(false);
+  const [showTechTree, setShowTechTree] = useState(false);
+  const [showMilitary, setShowMilitary] = useState(false);
+  const [showChapterProgress, setShowChapterProgress] = useState(false);
 
   // Camera state
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 });
@@ -202,6 +213,46 @@ const PrehistoricTribesGame = () => {
     });
   }, []);
 
+  // Leader/Character handlers
+  const handleSelectLeader = useCallback((characterId) => {
+    dispatch({ type: 'SELECT_LEADER', characterId });
+  }, []);
+
+  const handleRecruitCharacter = useCallback((characterId, location) => {
+    dispatch({ type: 'RECRUIT_CHARACTER', characterId, location });
+  }, []);
+
+  // Tech handlers
+  const handleStartResearch = useCallback((techId) => {
+    dispatch({ type: 'START_RESEARCH', techId });
+  }, []);
+
+  const handleCancelResearch = useCallback(() => {
+    dispatch({ type: 'CANCEL_RESEARCH' });
+  }, []);
+
+  // Military handlers
+  const handleTrainUnit = useCallback((unitTypeId, settlementId) => {
+    dispatch({ type: 'TRAIN_UNIT', unitTypeId, settlementId });
+  }, []);
+
+  const handleMoveUnit = useCallback((unitId, targetHex) => {
+    dispatch({ type: 'MOVE_UNIT', unitId, targetHex });
+  }, []);
+
+  const handleDisbandUnit = useCallback((unitId) => {
+    dispatch({ type: 'DISBAND_UNIT', unitId });
+  }, []);
+
+  // Quest handlers
+  const handleAcceptQuest = useCallback((questId) => {
+    dispatch({ type: 'ACCEPT_QUEST', questId });
+  }, []);
+
+  const handleAbandonQuest = useCallback((questId) => {
+    dispatch({ type: 'ABANDON_QUEST', questId });
+  }, []);
+
   // Render hexes
   const renderHexes = useMemo(() => {
     const hexes = [];
@@ -285,6 +336,52 @@ const PrehistoricTribesGame = () => {
         {renderHexes}
       </div>
 
+      {/* Leader Selection Screen */}
+      {gameState.gamePhase === 'setup' && (
+        <LeaderSelectionScreen
+          faction={playerFaction}
+          onSelectLeader={handleSelectLeader}
+        />
+      )}
+
+      {/* Menu Bar */}
+      {gameState.gamePhase === 'playing' && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-40 flex gap-2">
+          <button
+            onClick={() => setShowQuestLog(true)}
+            className="bg-yellow-700 hover:bg-yellow-600 text-white px-4 py-2 rounded font-semibold transition-colors flex items-center gap-2"
+          >
+            📜 Quests
+            {gameState.availableQuests && gameState.availableQuests.length > 0 && (
+              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {gameState.availableQuests.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setShowTechTree(true)}
+            className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded font-semibold transition-colors"
+          >
+            🔬 Tech Tree
+          </button>
+          <button
+            onClick={() => setShowMilitary(true)}
+            className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded font-semibold transition-colors flex items-center gap-2"
+          >
+            ⚔️ Military
+            <span className="bg-gray-800 text-white text-xs px-2 py-0.5 rounded-full">
+              {gameState.units.filter(u => u.factionId === playerFaction.id).length}
+            </span>
+          </button>
+          <button
+            onClick={() => setShowChapterProgress(true)}
+            className="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded font-semibold transition-colors"
+          >
+            📖 Chapter
+          </button>
+        </div>
+      )}
+
       {/* UI Panels */}
       {gameState.gamePhase === 'playing' && (
         <>
@@ -323,6 +420,46 @@ const PrehistoricTribesGame = () => {
               factions={gameState.factions}
               onAcceptTrade={handleAcceptTrade}
               onRejectTrade={handleRejectTrade}
+            />
+          )}
+
+          {/* New Panels */}
+          {showQuestLog && (
+            <QuestLogPanel
+              quests={gameState.quests || []}
+              availableQuests={gameState.availableQuests || []}
+              onAcceptQuest={handleAcceptQuest}
+              onAbandonQuest={handleAbandonQuest}
+              onClose={() => setShowQuestLog(false)}
+            />
+          )}
+
+          {showTechTree && (
+            <TechTreePanel
+              faction={playerFaction}
+              researchQueue={gameState.researchQueue}
+              onStartResearch={handleStartResearch}
+              onCancelResearch={handleCancelResearch}
+              onClose={() => setShowTechTree(false)}
+            />
+          )}
+
+          {showMilitary && (
+            <MilitaryPanel
+              faction={playerFaction}
+              units={gameState.units}
+              settlements={gameState.settlements.filter(s => s.factionId === playerFaction.id)}
+              onTrainUnit={handleTrainUnit}
+              onDisbandUnit={handleDisbandUnit}
+              onClose={() => setShowMilitary(false)}
+            />
+          )}
+
+          {showChapterProgress && (
+            <ChapterProgressPanel
+              activeChapter={gameState.activeChapter}
+              completedChapters={gameState.completedChapters || []}
+              onClose={() => setShowChapterProgress(false)}
             />
           )}
         </>
