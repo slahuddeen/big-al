@@ -7,20 +7,22 @@ import ImageWithFallback from './ImageWithFallback.jsx';
 
 const HexTile = ({
     hex,
+    terrain,
     isPlayer,
     isSelected,
     isMovable,
     isHovered,
     onClick,
-    onHover,
-    onLeave,
+    onMouseEnter,
+    onMouseLeave,
     onMouseDown,
     isNight,
     creatures,
+    settlement,
     gameState
 }) => {
     const { x, y } = hexToPixel(hex.q, hex.r);
-    const terrain = TERRAIN_TYPES[hex.terrain];
+    const terrainData = terrain || TERRAIN_TYPES[hex.terrain];
 
     const baseSize = 80;
     const selectedSize = 95;
@@ -80,8 +82,8 @@ const HexTile = ({
     if (visualState === 'hidden') return null;
 
     const terrainColor = isNight ?
-        `color-mix(in srgb, ${terrain.color} 40%, #1a1a2e)` :
-        terrain.color;
+        `color-mix(in srgb, ${terrainData.color} 40%, #1a1a2e)` :
+        terrainData.color;
 
     // Calculate z-index based on position - bottom hexes render on top, but keep all hexes behind UI
     const baseZIndex = 1 + hex.r; // Start very low, max around 20-30
@@ -123,13 +125,13 @@ const HexTile = ({
                 opacity: stateEffects.opacity
             }}
             onClick={() => onClick(hex)}
-            onMouseEnter={() => onHover(hex)}
-            onMouseLeave={onLeave}
+            onMouseEnter={() => onMouseEnter?.(hex)}
+            onMouseLeave={() => onMouseLeave?.(hex)}
             onMouseDown={onMouseDown}
         >
             <div
                 className={`hex-tile ${isTallTerrain ? 'terrain-tall' : ''} ${isMovable ? 'hex-movable' : ''} ${isSelected ? 'hex-selected' : ''
-                    } ${isHovered && isMovable ? 'hex-hovered' : ''} ${!terrain.passable ? 'hex-impassable' : ''
+                    } ${isHovered && isMovable ? 'hex-hovered' : ''} ${!terrainData.passable ? 'hex-impassable' : ''
                     } ${stateEffects.brightness}`}
                 style={{
                     backgroundColor: terrainColor,
@@ -142,9 +144,9 @@ const HexTile = ({
                 {/* Terrain image/emoji */}
                 <div className="absolute inset-0 flex items-center justify-center">
                     <ImageWithFallback
-                        src={terrain.image}
-                        fallback={terrain.emoji}
-                        alt={terrain.name}
+                        src={terrainData.image}
+                        fallback={terrainData.emoji}
+                        alt={terrainData.name}
                         className={`pointer-events-none transition-all duration-300 text-lg`}
                         style={{
                             width: '100%',
@@ -154,6 +156,17 @@ const HexTile = ({
                         }}
                     />
                 </div>
+
+                {/* Settlement indicator */}
+                {settlement && (
+                    <div className="absolute inset-0 flex items-center justify-center z-20">
+                        <div className="text-4xl drop-shadow-lg" title={settlement.name}>
+                            {settlement.type === 'CAMP' && '⛺'}
+                            {settlement.type === 'VILLAGE' && '🏘️'}
+                            {settlement.type === 'SETTLEMENT' && '🏛️'}
+                        </div>
+                    </div>
+                )}
 
                 {/* Discovery state overlay */}
                 {visualState === 'discovered' && !['mountains', 'volcanic', 'quicksand'].includes(hex.terrain) && (
@@ -235,7 +248,7 @@ const HexTile = ({
                 )}
 
                 {/* Impassable terrain indicator */}
-                {!terrain.passable && hex.terrain !== 'quicksand' && (
+                {!terrainData.passable && hex.terrain !== 'quicksand' && (
                     <div className="absolute inset-0 bg-red-900 bg-opacity-50 hex-shape" />
                 )}
 
@@ -245,7 +258,7 @@ const HexTile = ({
                 )}
 
                 {/* Danger level indicator */}
-                {terrain.dangerLevel > 0 && isCurrentlyVisible && (
+                {terrainData.dangerLevel > 0 && isCurrentlyVisible && (
                     <div className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                 )}
 

@@ -1,11 +1,11 @@
 import React from 'react';
-import BigAlHexGame from './BigAlHexGame.jsx';
+import PrehistoricTribesGame from './PrehistoricTribesGame.jsx';
 import './index.css';
 
 function App() {
     return (
         <div className="App">
-            <BigAlHexGame />
+            <PrehistoricTribesGame />
         </div>
     );
 }
