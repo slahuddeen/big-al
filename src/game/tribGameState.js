@@ -39,6 +39,47 @@ import {
 } from '../data/gameEvents.js';
 import { calculateVisibility } from '../utils/visibilitySystem.js';
 import { generateTerrainFeatures, generateTerrain, applyEcologicalPostProcessing } from '../utils/terrainGeneration.js';
+import {
+  TECH_TREE,
+  getTechById,
+  getAvailableTechs,
+  getTechCost,
+  canResearchTech
+} from '../data/techTree.js';
+import {
+  UNIT_TYPES,
+  getUnitById,
+  getAvailableUnits,
+  canAffordUnit,
+  calculateUnitUpkeep
+} from '../data/militaryUnits.js';
+import {
+  QUEST_TEMPLATES,
+  generateQuest,
+  updateQuestProgress,
+  checkQuestCompletion,
+  completeQuest,
+  failQuest,
+  getAvailableQuestTemplates,
+  QUEST_STATUS
+} from '../data/questSystem.js';
+import {
+  CHAPTERS,
+  initializeChapters,
+  getCurrentChapter,
+  updateChapterObjective,
+  checkChapterCompletion,
+  completeChapter,
+  trackChapterEvent
+} from '../data/chapterSystem.js';
+import {
+  CHARACTERS,
+  getCharacterById,
+  getStartingLeadersForSpecies,
+  generateCharacterEncounter,
+  createCharacterInstance,
+  canRecruitCharacter
+} from '../data/characters.js';
 
 // Game constants
 const MAX_NOTIFICATIONS = 5;
@@ -103,6 +144,7 @@ export const initialTribGameState = {
   playerFactionId: 'player_faction',
   selectedUnit: null, // Current tribe leader/scout position
   playerPosition: { q: 0, r: 0 }, // Player's current exploration position
+  playerLeader: null, // Selected character leader
 
   // Map
   hexes: new Map(),
@@ -118,6 +160,24 @@ export const initialTribGameState = {
   // Animals (wildlife for hunting)
   animals: new Map(), // hexKey -> [animals]
 
+  // Military Units
+  units: [], // All military units on the map
+
+  // Characters (leaders, heroes, NPCs)
+  characters: [],
+
+  // Quests
+  quests: [], // Active and completed quests
+  availableQuests: [], // Quests that can be accepted
+
+  // Chapters (story progression)
+  activeChapter: null, // Will be initialized when game starts
+  completedChapters: [],
+
+  // Technology Research
+  researchQueue: null, // Current tech being researched
+  researchProgress: 0,
+
   // Diplomacy
   activeDiplomacy: null, // Current diplomacy screen
   tradeOffers: [],
@@ -127,6 +187,7 @@ export const initialTribGameState = {
   hoveredHex: null,
   selectedSettlement: null,
   selectedFaction: null,
+  selectedCharacter: null,
 
   // Notifications and messages
   notifications: [],
@@ -141,6 +202,9 @@ export const initialTribGameState = {
   hasFoundedSettlement: false,
   hasMetAnotherFaction: false,
   hasTraded: false,
+  hasRecruitedCharacter: false,
+  hasResearchedTech: false,
+  hasTrainedUnit: false,
 
   // Event history
   history: []
@@ -309,6 +373,142 @@ const processEndTurn = (state) => {
 
   // Expire old trades
   newState.tradeOffers = processExpiredTrades(newState.tradeOffers || [], state.turn);
+
+  // ========== RESEARCH PROGRESS ==========
+  if (newState.researchQueue) {
+    newState.researchQueue.turnsRemaining -= 1;
+
+    if (newState.researchQueue.turnsRemaining <= 0) {
+      // Research complete!
+      const tech = getTechById(newState.researchQueue.techId);
+      if (playerFaction && tech) {
+        playerFaction.technologies.push(tech.id);
+
+        notifications = addNotification(notifications, {
+          type: 'success',
+          message: `🔬 ${tech.name} researched! ${tech.description}`
+        });
+
+        // Track for chapter
+        if (newState.activeChapter) {
+          trackChapterEvent(newState, 'technology_researched', {
+            totalTechs: playerFaction.technologies.length
+          });
+        }
+      }
+
+      newState.researchQueue = null;
+      newState.hasResearchedTech = true;
+    }
+  }
+
+  // ========== UNIT UPKEEP ==========
+  const playerUnits = state.units.filter(u => u.factionId === playerFaction?.id);
+  const upkeep = calculateUnitUpkeep(playerUnits);
+
+  if (playerFaction && upkeep.food > 0) {
+    playerFaction.resources.food -= upkeep.food;
+    if (upkeep.knowledge > 0) {
+      playerFaction.resources.knowledge -= upkeep.knowledge;
+    }
+
+    // If can't afford upkeep, units start deserting
+    if (playerFaction.resources.food < 0) {
+      const unitsToDisband = Math.ceil(Math.abs(playerFaction.resources.food) / 10);
+      for (let i = 0; i < Math.min(unitsToDisband, playerUnits.length); i++) {
+        const unit = playerUnits[i];
+        newState.units = newState.units.filter(u => u.id !== unit.id);
+      }
+
+      notifications = addNotification(notifications, {
+        type: 'danger',
+        message: `⚠️ ${unitsToDisband} units disbanded due to lack of food!`
+      });
+
+      playerFaction.resources.food = 0;
+    }
+  }
+
+  // ========== QUEST GENERATION ==========
+  if (playerFaction && Math.random() < 0.2) { // 20% chance per turn
+    const availableTemplates = getAvailableQuestTemplates(playerFaction, newState);
+    if (availableTemplates.length > 0) {
+      const randomTemplate = availableTemplates[Math.floor(Math.random() * availableTemplates.length)];
+      const newQuest = generateQuest(randomTemplate, newState, playerFaction);
+
+      newState.availableQuests = [...(newState.availableQuests || []), newQuest];
+
+      notifications = addNotification(notifications, {
+        type: 'info',
+        message: `📜 New quest available: ${newQuest.name}!`
+      });
+    }
+  }
+
+  // ========== QUEST EXPIRATION AND AUTO-PROGRESS ==========
+  newState.quests = (newState.quests || []).map(quest => {
+    // Check expiration
+    if (quest.expiresAtTurn && state.turn >= quest.expiresAtTurn) {
+      quest.status = QUEST_STATUS.EXPIRED;
+      notifications = addNotification(notifications, {
+        type: 'warning',
+        message: `⏰ Quest expired: ${quest.name}`
+      });
+    }
+
+    // Auto-progress certain quests
+    if (quest.type === 'exploration' && quest.objectives.exploredHexes !== undefined) {
+      quest.objectives.exploredHexes = playerFaction?.exploredHexes.size || 0;
+      if (checkQuestCompletion(quest)) {
+        const result = completeQuest(quest, playerFaction);
+        notifications = addNotification(notifications, {
+          type: 'success',
+          message: result.message
+        });
+      }
+    }
+
+    return quest;
+  });
+
+  // Remove expired quests
+  newState.quests = (newState.quests || []).filter(q => q.status !== QUEST_STATUS.EXPIRED);
+
+  // Expire available quests too
+  newState.availableQuests = (newState.availableQuests || []).filter(q => {
+    if (q.expiresAtTurn && state.turn >= q.expiresAtTurn) {
+      return false;
+    }
+    return true;
+  });
+
+  // ========== CHAPTER PROGRESS ==========
+  if (newState.activeChapter) {
+    // Update chapter objectives based on game state
+    if (playerFaction) {
+      updateChapterObjective(newState.activeChapter, 'reach_population_20', playerFaction.resources.population);
+      updateChapterObjective(newState.activeChapter, 'gather_100_food', playerFaction.resources.food);
+      updateChapterObjective(newState.activeChapter, 'reach_population_100', playerFaction.resources.population);
+      updateChapterObjective(newState.activeChapter, 'reach_3_settlements', playerFaction.settlements.length);
+    }
+
+    // Check if chapter is complete
+    if (checkChapterCompletion(newState.activeChapter)) {
+      const result = completeChapter(newState.activeChapter, newState, playerFaction);
+      newState.completedChapters = [...newState.completedChapters, newState.activeChapter.id];
+
+      notifications = addNotification(notifications, {
+        type: 'success',
+        message: `📖 ${result.message}`
+      });
+
+      // Show narrative
+      notifications = addNotification(notifications, {
+        type: 'info',
+        message: result.narrative
+      });
+    }
+  }
 
   newState.factions = updatedFactions;
   newState.notifications = notifications;
@@ -849,6 +1049,264 @@ export const tribGameReducer = (state, action) => {
         notifications: addNotification(state.notifications, {
           type: 'info',
           message: `Trade offer rejected.`,
+          timestamp: Date.now()
+        })
+      };
+    }
+
+    // ========== LEADER/CHARACTER ACTIONS ==========
+
+    case 'SELECT_LEADER': {
+      const { characterId } = action;
+      const character = CHARACTERS[characterId.toUpperCase()];
+
+      if (!character) return state;
+
+      const characterInstance = createCharacterInstance(character, state.turn);
+      characterInstance.currentRole = 'leader';
+
+      const playerFaction = getPlayerFaction(state);
+
+      return {
+        ...state,
+        playerLeader: characterInstance,
+        characters: [characterInstance],
+        gamePhase: 'playing',
+        activeChapter: initializeChapters(),
+        notifications: addNotification(state.notifications, {
+          type: 'success',
+          message: `${character.name} leads your tribe!`,
+          timestamp: Date.now()
+        })
+      };
+    }
+
+    case 'RECRUIT_CHARACTER': {
+      const { characterId, location } = action;
+      const character = CHARACTERS[characterId.toUpperCase()];
+      const playerFaction = getPlayerFaction(state);
+
+      if (!character || !canRecruitCharacter(character, playerFaction)) {
+        return state;
+      }
+
+      const characterInstance = createCharacterInstance(character, state.turn);
+      characterInstance.location = location;
+
+      // Deduct recruitment cost
+      const cost = character.recruitCost;
+      if (cost.food) playerFaction.resources.food -= cost.food;
+      if (cost.materials) playerFaction.resources.materials -= cost.materials;
+      if (cost.knowledge) playerFaction.resources.knowledge -= cost.knowledge;
+      if (cost.culturalInfluence) playerFaction.culturalInfluence -= cost.culturalInfluence;
+
+      return {
+        ...state,
+        characters: [...state.characters, characterInstance],
+        hasRecruitedCharacter: true,
+        notifications: addNotification(state.notifications, {
+          type: 'success',
+          message: `🎖️ ${character.name} has joined your tribe!`,
+          timestamp: Date.now()
+        })
+      };
+    }
+
+    // ========== TECH RESEARCH ACTIONS ==========
+
+    case 'START_RESEARCH': {
+      const { techId } = action;
+      const tech = getTechById(techId);
+      const playerFaction = getPlayerFaction(state);
+
+      if (!tech || !canResearchTech(playerFaction, tech)) {
+        return state;
+      }
+
+      const cost = getTechCost(tech, playerFaction.speciesId);
+
+      // Deduct knowledge cost
+      playerFaction.resources.knowledge -= cost.knowledge;
+
+      return {
+        ...state,
+        researchQueue: {
+          techId: tech.id,
+          turnsRemaining: cost.time,
+          totalTurns: cost.time
+        },
+        actionPoints: state.actionPoints - 1,
+        notifications: addNotification(state.notifications, {
+          type: 'info',
+          message: `🔬 Researching ${tech.name}... (${cost.time} turns)`,
+          timestamp: Date.now()
+        })
+      };
+    }
+
+    case 'CANCEL_RESEARCH': {
+      return {
+        ...state,
+        researchQueue: null,
+        notifications: addNotification(state.notifications, {
+          type: 'warning',
+          message: 'Research cancelled.',
+          timestamp: Date.now()
+        })
+      };
+    }
+
+    // ========== MILITARY UNIT ACTIONS ==========
+
+    case 'TRAIN_UNIT': {
+      const { unitTypeId, settlementId } = action;
+      const unitType = getUnitById(unitTypeId);
+      const playerFaction = getPlayerFaction(state);
+      const settlement = state.settlements.find(s => s.id === settlementId);
+
+      if (!unitType || !settlement || !canAffordUnit(playerFaction, unitType)) {
+        return state;
+      }
+
+      // Deduct costs
+      playerFaction.resources.food -= unitType.cost.food || 0;
+      playerFaction.resources.materials -= unitType.cost.materials || 0;
+      playerFaction.resources.knowledge -= unitType.cost.knowledge || 0;
+      playerFaction.resources.population -= unitType.cost.population || 0;
+
+      // Create unit
+      const unit = {
+        id: `unit_${Date.now()}`,
+        typeId: unitType.id,
+        factionId: playerFaction.id,
+        position: settlement.hex,
+        health: unitType.stats.health,
+        experience: 0,
+        veterancy: 0,
+        createdTurn: state.turn
+      };
+
+      return {
+        ...state,
+        units: [...state.units, unit],
+        hasTrainedUnit: true,
+        actionPoints: state.actionPoints - 1,
+        notifications: addNotification(state.notifications, {
+          type: 'success',
+          message: `⚔️ ${unitType.name} trained in ${settlement.name}!`,
+          timestamp: Date.now()
+        })
+      };
+    }
+
+    case 'MOVE_UNIT': {
+      const { unitId, targetHex } = action;
+      const unit = state.units.find(u => u.id === unitId);
+
+      if (!unit) return state;
+
+      const unitType = getUnitById(unit.typeId);
+      const distance = hexDistance(unit.position, targetHex);
+
+      if (distance > unitType.stats.movement) {
+        return {
+          ...state,
+          notifications: addNotification(state.notifications, {
+            type: 'warning',
+            message: 'Unit cannot move that far!',
+            timestamp: Date.now()
+          })
+        };
+      }
+
+      // Update unit position
+      unit.position = targetHex;
+
+      // Check for encounters with animals
+      const hexKey = `${targetHex.q},${targetHex.r}`;
+      const animals = state.animals.get(hexKey) || [];
+
+      if (animals.length > 0 && animals.some(a => a.aggressive)) {
+        return {
+          ...state,
+          actionPoints: state.actionPoints - 1,
+          notifications: addNotification(state.notifications, {
+            type: 'warning',
+            message: `⚠️ Unit encountered ${animals[0].type} at ${hexKey}!`,
+            timestamp: Date.now()
+          })
+        };
+      }
+
+      return {
+        ...state,
+        actionPoints: state.actionPoints - 1
+      };
+    }
+
+    case 'DISBAND_UNIT': {
+      const { unitId } = action;
+      const unit = state.units.find(u => u.id === unitId);
+
+      if (!unit) return state;
+
+      const unitType = getUnitById(unit.typeId);
+      const playerFaction = getPlayerFaction(state);
+
+      // Refund half the population cost
+      if (unitType.cost.population) {
+        playerFaction.resources.population += Math.floor(unitType.cost.population / 2);
+      }
+
+      return {
+        ...state,
+        units: state.units.filter(u => u.id !== unitId),
+        notifications: addNotification(state.notifications, {
+          type: 'info',
+          message: `${unitType.name} disbanded.`,
+          timestamp: Date.now()
+        })
+      };
+    }
+
+    // ========== QUEST ACTIONS ==========
+
+    case 'ACCEPT_QUEST': {
+      const { questId } = action;
+      const quest = state.availableQuests.find(q => q.id === questId);
+
+      if (!quest) return state;
+
+      quest.status = QUEST_STATUS.ACTIVE;
+      quest.turnAccepted = state.turn;
+
+      return {
+        ...state,
+        quests: [...state.quests, quest],
+        availableQuests: state.availableQuests.filter(q => q.id !== questId),
+        notifications: addNotification(state.notifications, {
+          type: 'info',
+          message: `📜 Quest Accepted: ${quest.name}`,
+          timestamp: Date.now()
+        })
+      };
+    }
+
+    case 'ABANDON_QUEST': {
+      const { questId } = action;
+      const quest = state.quests.find(q => q.id === questId);
+
+      if (!quest) return state;
+
+      const playerFaction = getPlayerFaction(state);
+      const result = failQuest(quest, playerFaction);
+
+      return {
+        ...state,
+        quests: state.quests.filter(q => q.id !== questId),
+        notifications: addNotification(state.notifications, {
+          type: 'warning',
+          message: result.message,
           timestamp: Date.now()
         })
       };
