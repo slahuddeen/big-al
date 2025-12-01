@@ -122,6 +122,28 @@ export const SETTLEMENT_BUILDINGS = {
     cost: { materials: 15 },
     benefit: { foodProduction: 8 },
     requiresTerrain: ['river', 'lake', 'riverbank', 'waterhole']
+  },
+  WELL: {
+    name: 'Well',
+    emoji: '🚰',
+    description: 'Provides water far from natural sources',
+    cost: { materials: 30, knowledge: 15 },
+    benefit: { waterProduction: 15, waterSecurity: true }
+  },
+  WATER_STORAGE: {
+    name: 'Water Storage',
+    emoji: '🏺',
+    description: 'Store water for dry seasons',
+    cost: { materials: 20 },
+    benefit: { waterStorage: 50, droughtResistance: 0.5 }
+  },
+  AQUEDUCT: {
+    name: 'Aqueduct',
+    emoji: '🌉',
+    description: 'Channels water from distant sources',
+    cost: { materials: 50, knowledge: 30 },
+    benefit: { waterProduction: 30, waterRange: 3 },
+    requiresNearbyWater: true
   }
 };
 
@@ -155,6 +177,7 @@ export const createSettlement = ({
     // Resources
     storedFood: 20,
     storedMaterials: 10,
+    storedWater: 20, // New: Water storage
 
     // Buildings
     buildings: ['SHELTER'], // Start with basic shelter
@@ -432,4 +455,136 @@ export const reassignPopulation = (settlement, newAssignments) => {
 
   settlement.assignments = newAssignments;
   return true;
+};
+
+// ==== WATER MANAGEMENT SYSTEM ====
+
+// Check if hex has natural water access
+export const hasNaturalWaterAccess = (hexes, hex) => {
+  const hexKey = `${hex.q},${hex.r}`;
+  const currentHex = hexes.get(hexKey);
+
+  if (!currentHex) return false;
+
+  // Direct water access terrains
+  const waterTerrains = ['river', 'lake', 'riverbank', 'waterhole', 'marsh'];
+  if (waterTerrains.includes(currentHex.terrain)) {
+    return true;
+  }
+
+  // Check adjacent hexes for water
+  const { getHexNeighbors } = require('../utils/hexMath.js');
+  const neighbors = getHexNeighbors(hex);
+
+  for (const neighbor of neighbors) {
+    const neighborKey = `${neighbor.q},${neighbor.r}`;
+    const neighborHex = hexes.get(neighborKey);
+
+    if (neighborHex && waterTerrains.includes(neighborHex.terrain)) {
+      return true; // Adjacent to water
+    }
+  }
+
+  return false;
+};
+
+// Calculate water production for settlement
+export const calculateWaterProduction = (settlement, hexes, terrain) => {
+  let waterProduction = 0;
+
+  // Natural water from terrain
+  if (hasNaturalWaterAccess(hexes, settlement.hex)) {
+    waterProduction += 20; // Base natural water
+  }
+
+  // Check for wells and water buildings
+  settlement.buildings.forEach(buildingKey => {
+    const building = SETTLEMENT_BUILDINGS[buildingKey];
+    if (building.benefit.waterProduction) {
+      waterProduction += building.benefit.waterProduction;
+    }
+  });
+
+  // Fishing posts also provide water
+  if (settlement.buildings.includes('FISHING_POST')) {
+    waterProduction += 5;
+  }
+
+  return waterProduction;
+};
+
+// Calculate water consumption
+export const calculateWaterConsumption = (settlement) => {
+  const baseConsumption = settlement.population * 2; // 2 water per person per turn
+  return baseConsumption;
+};
+
+// Check if settlement has enough water
+export const hasAdequateWater = (settlement, hexes) => {
+  const production = calculateWaterProduction(settlement, hexes);
+  const consumption = calculateWaterConsumption(settlement);
+
+  return production >= consumption;
+};
+
+// Process water shortage effects
+export const processWaterShortage = (settlement, hexes) => {
+  if (!hasAdequateWater(settlement, hexes)) {
+    // Reduce morale
+    settlement.morale = Math.max(0.3, settlement.morale - 0.15);
+
+    // Chance of population loss
+    if (Math.random() < 0.3) {
+      settlement.population = Math.max(1, settlement.population - 1);
+      settlement.events.push({
+        turn: settlement.foundedTurn,
+        type: 'drought',
+        message: 'Water shortage! 1 person died of thirst.'
+      });
+    }
+
+    settlement.events.push({
+      turn: settlement.foundedTurn,
+      type: 'drought',
+      message: 'Settlement suffering from water shortage!'
+    });
+
+    return true; // Has water shortage
+  }
+
+  return false; // Water adequate
+};
+
+// Check if settlement can be founded here (includes water check)
+export const canFoundSettlement = (hexes, hex, settlements) => {
+  const hexKey = `${hex.q},${hex.r}`;
+  const targetHex = hexes.get(hexKey);
+
+  if (!targetHex) return { can: false, reason: 'Unknown location' };
+
+  // Check if hex is passable
+  const { TERRAIN_TYPES } = require('../data/terrain.js');
+  const terrain = TERRAIN_TYPES[targetHex.terrain];
+  if (!terrain.passable) {
+    return { can: false, reason: 'Impassable terrain' };
+  }
+
+  // Check if another settlement already here
+  const existingSettlement = settlements.find(s =>
+    s.hex.q === hex.q && s.hex.r === hex.r
+  );
+  if (existingSettlement) {
+    return { can: false, reason: 'Settlement already exists here' };
+  }
+
+  // Check for water access (warning, not blocking)
+  if (!hasNaturalWaterAccess(hexes, hex)) {
+    return {
+      can: true,
+      reason: 'No natural water nearby',
+      warning: 'Settlement will need a Well to survive! Cost: 30 materials, 15 knowledge'
+    };
+  }
+
+  return { can: true, reason: 'Suitable location' };
 };

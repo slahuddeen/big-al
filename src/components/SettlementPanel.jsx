@@ -108,6 +108,10 @@ const SettlementPanel = ({ settlement, terrain, faction, onBuild, onUpgrade, onC
                   <span className="text-sm text-gray-300">🪵 Materials</span>
                   <span className="font-bold text-orange-400">{settlement.storedMaterials}</span>
                 </div>
+                <div className="bg-gray-800 rounded p-2 flex justify-between items-center">
+                  <span className="text-sm text-gray-300">💧 Water</span>
+                  <span className="font-bold text-cyan-400">{settlement.storedWater || 0}</span>
+                </div>
               </div>
             </div>
 

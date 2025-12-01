@@ -113,6 +113,23 @@ const ResourcesPanel = ({ faction, turn, actionPoints, maxActionPoints, onEndTur
           </div>
         </div>
 
+        {/* Water */}
+        <div className="bg-gray-800 rounded-lg p-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">💧</span>
+              <span className="text-sm text-gray-300">Water</span>
+            </div>
+            <span className={`font-bold ${
+              (faction.resources.water || 0) >= 50 ? 'text-cyan-400' :
+              (faction.resources.water || 0) >= 20 ? 'text-yellow-400' :
+              'text-red-400'
+            }`}>
+              {faction.resources.water || 0}
+            </span>
+          </div>
+        </div>
+
         {/* Population */}
         <div className="bg-gray-800 rounded-lg p-2">
           <div className="flex items-center justify-between">

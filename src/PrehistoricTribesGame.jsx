@@ -10,6 +10,7 @@ import HexTile from './components/HexTile.jsx';
 import ResourcesPanel from './components/ResourcesPanel.jsx';
 import DiplomacyPanel from './components/DiplomacyPanel.jsx';
 import SettlementPanel from './components/SettlementPanel.jsx';
+import TradePanel from './components/TradePanel.jsx';
 import NotificationSystem from './components/NotificationSystem.jsx';
 import HoverTooltip from './components/HoverTooltip.jsx';
 
@@ -176,6 +177,15 @@ const PrehistoricTribesGame = () => {
     dispatch({ type: 'CLOSE_DIPLOMACY' });
   }, []);
 
+  // Trade handlers
+  const handleAcceptTrade = useCallback((offerId) => {
+    dispatch({ type: 'ACCEPT_TRADE', offerId });
+  }, []);
+
+  const handleRejectTrade = useCallback((offerId) => {
+    dispatch({ type: 'REJECT_TRADE', offerId });
+  }, []);
+
   // Settlement handlers
   const handleBuildInSettlement = useCallback((settlementId, buildingKey) => {
     dispatch({
@@ -304,6 +314,15 @@ const PrehistoricTribesGame = () => {
               isFirstContact={gameState.activeDiplomacy.isFirstContact}
               onAction={handleDiplomacyAction}
               onClose={handleCloseDiplomacy}
+            />
+          )}
+
+          {gameState.tradeOffers && (
+            <TradePanel
+              tradeOffers={gameState.tradeOffers}
+              factions={gameState.factions}
+              onAcceptTrade={handleAcceptTrade}
+              onRejectTrade={handleRejectTrade}
             />
           )}
         </>

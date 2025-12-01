@@ -16,12 +16,27 @@ import {
   createSettlement,
   calculateSettlementProduction,
   calculateFoodConsumption,
+  calculateWaterProduction,
+  calculateWaterConsumption,
+  processWaterShortage,
   processPopulationGrowth,
   canUpgrade,
   upgradeSettlement,
   buildBuilding,
-  canBuildBuilding
+  canBuildBuilding,
+  canFoundSettlement
 } from '../data/settlements.js';
+import {
+  processPredatorAttack,
+  shouldSettlementBeAttacked,
+  getRandomPredator,
+  createTradeOffer,
+  executeTrade,
+  evaluateTradeOffer,
+  generateAITradeOffer,
+  processExpiredTrades,
+  TRADE_STATUS
+} from '../data/gameEvents.js';
 import { calculateVisibility } from '../utils/visibilitySystem.js';
 import { generateTerrainFeatures, generateTerrain, applyEcologicalPostProcessing } from '../utils/terrainGeneration.js';
 
@@ -191,6 +206,7 @@ const spawnAnimalsInHex = (hex, currentAnimals = []) => {
 const processEndTurn = (state) => {
   let newState = { ...state };
   let notifications = [...state.notifications];
+  const isNight = state.turn % 2 === 0; // Even turns are night
 
   // Process each faction
   const updatedFactions = state.factions.map(faction => {
@@ -202,6 +218,7 @@ const processEndTurn = (state) => {
     let totalFood = 0;
     let totalMaterials = 0;
     let totalKnowledge = 0;
+    let totalWater = 0;
 
     factionSettlements.forEach(settlement => {
       const hex = state.hexes.get(`${settlement.hex.q},${settlement.hex.r}`);
@@ -211,34 +228,87 @@ const processEndTurn = (state) => {
       totalMaterials += production.materials;
       totalKnowledge += production.knowledge;
 
+      // Water production and consumption
+      const waterProduction = calculateWaterProduction(settlement, state.hexes, hex);
+      const waterConsumption = calculateWaterConsumption(settlement);
+      totalWater += (waterProduction - waterConsumption);
+
+      // Check for water shortage
+      const hasWaterShortage = processWaterShortage(settlement, state.hexes);
+      if (hasWaterShortage && faction.isPlayer) {
+        notifications = addNotification(notifications, {
+          type: 'warning',
+          message: `💧 ${settlement.name} suffering from water shortage!`
+        });
+      }
+
       // Food consumption
-      const consumption = calculateFoodConsumption(settlement);
-      totalFood -= consumption;
+      const foodConsumption = calculateFoodConsumption(settlement);
+      totalFood -= foodConsumption;
 
       // Population growth
       settlement.foundedTurn = state.turn;
       processPopulationGrowth(settlement);
+
+      // PREDATOR ATTACKS
+      if (shouldSettlementBeAttacked(settlement, isNight, state.hexes)) {
+        const predator = getRandomPredator();
+        if (predator) {
+          const attackEvent = processPredatorAttack(settlement, predator, isNight, faction);
+
+          if (faction.isPlayer) {
+            notifications = addNotification(notifications, {
+              type: 'danger',
+              message: `🐺 ${attackEvent.message}`
+            });
+          }
+        }
+      }
     });
 
     // Update faction resources
     factionCopy.resources.food += totalFood;
     factionCopy.resources.materials += totalMaterials;
     factionCopy.resources.knowledge += totalKnowledge;
+    factionCopy.resources.water = (factionCopy.resources.water || 0) + totalWater;
 
     // Prevent negative resources
     factionCopy.resources.food = Math.max(0, factionCopy.resources.food);
     factionCopy.resources.materials = Math.max(0, factionCopy.resources.materials);
+    factionCopy.resources.water = Math.max(0, factionCopy.resources.water);
 
     // Add production notification for player
     if (faction.isPlayer) {
       notifications = addNotification(notifications, {
         type: 'success',
-        message: `Turn ${state.turn} production: ${totalFood >= 0 ? '+' : ''}${totalFood} food, +${totalMaterials} materials, +${totalKnowledge} knowledge`
+        message: `Turn ${state.turn} production: ${totalFood >= 0 ? '+' : ''}${totalFood} 🍖, ${totalMaterials >= 0 ? '+' : ''}${totalMaterials} 🪵, ${totalWater >= 0 ? '+' : ''}${totalWater} 💧`
       });
     }
 
     return factionCopy;
   });
+
+  // Process trades (AI makes offers occasionally)
+  const playerFaction = updatedFactions.find(f => f.isPlayer);
+  if (playerFaction && Math.random() < 0.3) { // 30% chance per turn
+    // Random AI faction makes trade offer
+    const aiFactions = updatedFactions.filter(f => !f.isPlayer && f.knownFactions.has(playerFaction.id));
+    if (aiFactions.length > 0) {
+      const randomAI = aiFactions[Math.floor(Math.random() * aiFactions.length)];
+      const tradeOffer = generateAITradeOffer(randomAI, playerFaction, state.turn);
+
+      if (tradeOffer) {
+        newState.tradeOffers = [...(newState.tradeOffers || []), tradeOffer];
+        notifications = addNotification(notifications, {
+          type: 'info',
+          message: `💱 Trade offer from ${randomAI.name}!`
+        });
+      }
+    }
+  }
+
+  // Expire old trades
+  newState.tradeOffers = processExpiredTrades(newState.tradeOffers || [], state.turn);
 
   newState.factions = updatedFactions;
   newState.notifications = notifications;
@@ -414,6 +484,18 @@ export const tribGameReducer = (state, action) => {
           notifications: addNotification(state.notifications, {
             type: 'warning',
             message: 'A settlement already exists here!'
+          })
+        };
+      }
+
+      // Check if location is suitable for settlement (including water access)
+      const validationResult = canFoundSettlement(state.hexes, hex);
+      if (!validationResult.canFound) {
+        return {
+          ...state,
+          notifications: addNotification(state.notifications, {
+            type: 'warning',
+            message: `Cannot found settlement: ${validationResult.reason}`
           })
         };
       }
@@ -695,6 +777,80 @@ export const tribGameReducer = (state, action) => {
         ...initialTribGameState,
         hexes: new Map(),
         factions: generateStartingFactions('player_faction')
+      };
+    }
+
+    case 'ACCEPT_TRADE': {
+      const { offerId } = action;
+      const offer = state.tradeOffers.find(o => o.id === offerId);
+      if (!offer || offer.status !== TRADE_STATUS.PENDING) {
+        return state;
+      }
+
+      const fromFaction = getFactionById(state, offer.fromFactionId);
+      const toFaction = getFactionById(state, offer.toFactionId);
+
+      if (!fromFaction || !toFaction) {
+        return state;
+      }
+
+      const result = executeTrade(offer, fromFaction, toFaction);
+
+      if (result.success) {
+        return {
+          ...state,
+          factions: state.factions.map(f =>
+            f.id === fromFaction.id ? fromFaction :
+            f.id === toFaction.id ? toFaction : f
+          ),
+          tradeOffers: state.tradeOffers.map(o =>
+            o.id === offerId ? result.offer : o
+          ),
+          notifications: addNotification(state.notifications, {
+            type: 'success',
+            message: `✅ Trade completed with ${fromFaction.name}!`,
+            timestamp: Date.now()
+          })
+        };
+      } else {
+        return {
+          ...state,
+          notifications: addNotification(state.notifications, {
+            type: 'error',
+            message: `❌ Trade failed: ${result.reason}`,
+            timestamp: Date.now()
+          })
+        };
+      }
+    }
+
+    case 'REJECT_TRADE': {
+      const { offerId } = action;
+      const offer = state.tradeOffers.find(o => o.id === offerId);
+
+      if (!offer) {
+        return state;
+      }
+
+      const fromFaction = getFactionById(state, offer.fromFactionId);
+      const updatedOffers = state.tradeOffers.map(o =>
+        o.id === offerId ? { ...o, status: TRADE_STATUS.REJECTED } : o
+      );
+
+      // Slightly negative relation impact for rejection
+      if (fromFaction) {
+        const { modifyRelation } = require('../data/factions.js');
+        modifyRelation(fromFaction, offer.toFactionId, -2, 'Trade rejected');
+      }
+
+      return {
+        ...state,
+        tradeOffers: updatedOffers,
+        notifications: addNotification(state.notifications, {
+          type: 'info',
+          message: `Trade offer rejected.`,
+          timestamp: Date.now()
+        })
       };
     }
 
