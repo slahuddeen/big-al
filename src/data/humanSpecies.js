@@ -1,13 +1,15 @@
-// Prehistoric Human Species Definitions
+// Prehistoric Human and Hominid Species Definitions
 // Each species has unique traits that affect gameplay
 
 export const HUMAN_SPECIES = {
   HOMO_SAPIENS: {
     id: 'homo_sapiens',
     name: 'Homo Sapiens',
-    displayName: 'Homo Sapiens',
+    fantasyName: 'The Wise Ones',
+    displayName: 'Homo Sapiens (The Wise Ones)',
     emoji: '🧑',
-    description: 'Innovative and adaptable humans with advanced cognitive abilities',
+    description: 'Innovative and adaptable humans with advanced cognitive abilities and unmatched creativity',
+    isPlayable: true,
 
     // Base stats
     baseStats: {
@@ -37,18 +39,16 @@ export const HUMAN_SPECIES = {
       }
     },
 
-    // Starting bonuses
     startingBonus: {
       population: 12,
       food: 30,
       materials: 20,
-      knowledge: 15
+      knowledge: 15,
+      water: 20
     },
 
-    // Preferred terrain
     preferredTerrain: ['plains', 'savanna', 'forest', 'riverbank'],
 
-    // Available customizations
     customization: {
       skinTones: ['light', 'medium', 'dark', 'very_dark'],
       tribalPatterns: ['geometric', 'spiral', 'linear', 'dotted'],
@@ -59,9 +59,11 @@ export const HUMAN_SPECIES = {
   NEANDERTHAL: {
     id: 'neanderthal',
     name: 'Neanderthal',
-    displayName: 'Neanderthal',
-    emoji: '💪',
-    description: 'Robust and powerful humans adapted to harsh climates',
+    fantasyName: 'Dwarves',
+    displayName: 'Neanderthal (Dwarves)',
+    emoji: '🧔',
+    description: 'Robust, stocky folk of the mountains - masters of stone and cold, fierce warriors',
+    isPlayable: true,
 
     baseStats: {
       strength: 10,
@@ -72,35 +74,36 @@ export const HUMAN_SPECIES = {
     },
 
     traits: {
-      coldAdapted: {
-        name: 'Cold Adapted',
-        description: 'No penalties in cold/mountain terrain, +2 food from hunting',
-        bonus: { coldTerrain: true, huntingBonus: 2 }
+      mountainLords: {
+        name: 'Lords of Stone',
+        description: 'No penalties in mountains/caves, +3 materials from mining',
+        bonus: { coldTerrain: true, miningBonus: 3, caveBonus: 1.5 }
       },
       powerfulBuild: {
-        name: 'Powerful Build',
-        description: '+30% combat strength in melee, can hunt larger animals',
-        bonus: { combatStrength: 1.3, huntingSize: 1.2 }
+        name: 'Dwarven Strength',
+        description: '+30% combat strength, can hunt megafauna alone',
+        bonus: { combatStrength: 1.3, huntingSize: 1.3 }
       },
-      smallGroups: {
-        name: 'Small Groups',
-        description: 'Lower population cap but higher individual efficiency',
-        bonus: { populationCap: 0.8, efficiency: 1.25 }
+      craftsmasters: {
+        name: 'Master Craftsmen',
+        description: 'Superior tool quality, +25% building durability',
+        bonus: { toolQuality: 1.25, buildingBonus: 1.25 }
       }
     },
 
     startingBonus: {
       population: 8,
       food: 40,
-      materials: 25,
-      knowledge: 8
+      materials: 30,
+      knowledge: 8,
+      water: 15
     },
 
-    preferredTerrain: ['mountains', 'hills', 'forest', 'rocky_terrain'],
+    preferredTerrain: ['mountains', 'hills', 'rocky_terrain', 'forest'],
 
     customization: {
-      skinTones: ['pale', 'light'],
-      tribalPatterns: ['simple', 'handprint', 'cave_art'],
+      skinTones: ['pale', 'light', 'ruddy'],
+      tribalPatterns: ['runic', 'handprint', 'cave_art', 'geometric'],
       colors: ['#5D4E37', '#CD853F', '#8B7355', '#A0826D', '#C19A6B']
     }
   },
@@ -108,48 +111,51 @@ export const HUMAN_SPECIES = {
   DENISOVAN: {
     id: 'denisovan',
     name: 'Denisovan',
-    displayName: 'Denisovan',
-    emoji: '🏔️',
-    description: 'Mysterious humans adapted to high altitudes and diverse environments',
+    fantasyName: 'Giants',
+    displayName: 'Denisovan (Giants)',
+    emoji: '🗻',
+    description: 'Tall, powerful people of the high peaks - mysterious wanderers with ancient knowledge',
+    isPlayable: true,
 
     baseStats: {
-      strength: 8,
+      strength: 9,
       intelligence: 8,
-      endurance: 9,
-      agility: 7,
+      endurance: 10,
+      agility: 6,
       social: 7
     },
 
     traits: {
-      highAltitude: {
-        name: 'High Altitude Adaptation',
-        description: '+50% efficiency in mountains and hills, better oxygen usage',
-        bonus: { mountainBonus: 1.5, enduranceBonus: 2 }
+      highlandGiants: {
+        name: 'Highland Giants',
+        description: '+50% efficiency in mountains, can cross difficult terrain easily',
+        bonus: { mountainBonus: 1.5, terrainMovement: 1.3 }
       },
-      geneticDiversity: {
-        name: 'Genetic Diversity',
-        description: 'Better disease resistance, faster population growth',
-        bonus: { diseaseResistance: 0.7, growthRate: 1.15 }
+      ancientBlood: {
+        name: 'Ancient Bloodline',
+        description: 'Better disease resistance, population grows faster',
+        bonus: { diseaseResistance: 0.6, growthRate: 1.2 }
       },
-      mysteriousKnowledge: {
-        name: 'Mysterious Knowledge',
-        description: 'Random knowledge breakthroughs, +10% research',
-        bonus: { researchSpeed: 1.1, randomBreakthrough: true }
+      mysteriousWisdom: {
+        name: 'Mysterious Wisdom',
+        description: 'Random knowledge breakthroughs, +15% research',
+        bonus: { researchSpeed: 1.15, randomBreakthrough: true }
       }
     },
 
     startingBonus: {
       population: 10,
       food: 35,
-      materials: 22,
-      knowledge: 12
+      materials: 25,
+      knowledge: 12,
+      water: 25
     },
 
     preferredTerrain: ['mountains', 'hills', 'mesa', 'rocky_terrain'],
 
     customization: {
-      skinTones: ['medium', 'tan'],
-      tribalPatterns: ['mountain', 'wave', 'zigzag'],
+      skinTones: ['tan', 'medium', 'weathered'],
+      tribalPatterns: ['mountain', 'wave', 'zigzag', 'spiral'],
       colors: ['#4A5568', '#2D3748', '#718096', '#A0AEC0', '#CBD5E0']
     }
   },
@@ -157,48 +163,51 @@ export const HUMAN_SPECIES = {
   HOMO_FLORESIENSIS: {
     id: 'homo_floresiensis',
     name: 'Homo Floresiensis',
-    displayName: 'Homo Floresiensis',
-    emoji: '🌴',
-    description: 'Small-statured "Hobbits" adapted to island life and dense forests',
+    fantasyName: 'Hobbits',
+    displayName: 'Homo Floresiensis (Hobbits)',
+    emoji: '🌿',
+    description: 'Small, nimble folk of forests and islands - cheerful survivors who thrive where others starve',
+    isPlayable: true,
 
     baseStats: {
-      strength: 5,
+      strength: 4,
       intelligence: 8,
-      endurance: 6,
+      endurance: 7,
       agility: 10,
-      social: 8
+      social: 9
     },
 
     traits: {
-      smallStature: {
-        name: 'Small Stature',
-        description: '-40% food consumption, can move through dense terrain easily',
-        bonus: { foodConsumption: 0.6, terrainMovement: 1.3 }
+      littlePeople: {
+        name: 'The Little Folk',
+        description: '-50% food consumption, can hide from predators easily',
+        bonus: { foodConsumption: 0.5, predatorAvoidance: 1.5 }
       },
-      islandAdapted: {
-        name: 'Island Adapted',
-        description: 'Can cross water more easily, +2 movement in forests',
-        bonus: { waterCrossing: true, forestMovement: 2 }
+      forestWalkers: {
+        name: 'Forest Walkers',
+        description: '+3 movement in forests, can gather twice as much food',
+        bonus: { forestMovement: 3, gatheringBonus: 2.0 }
       },
-      resourceful: {
-        name: 'Resourceful',
-        description: '+25% material gathering from limited resources',
-        bonus: { gatheringBonus: 1.25, efficiencyBonus: 1.2 }
+      cheerfulResilience: {
+        name: 'Cheerful Resilience',
+        description: 'High morale even in hardship, community bonds strong',
+        bonus: { moraleBonus: 1.3, loyaltyBonus: 1.5 }
       }
     },
 
     startingBonus: {
-      population: 15,
+      population: 18,
       food: 25,
-      materials: 18,
-      knowledge: 10
+      materials: 15,
+      knowledge: 10,
+      water: 15
     },
 
-    preferredTerrain: ['forest', 'dense_forest', 'jungle', 'beach'],
+    preferredTerrain: ['forest', 'dense_forest', 'jungle', 'beach', 'riverbank'],
 
     customization: {
-      skinTones: ['tan', 'medium'],
-      tribalPatterns: ['leaf', 'bamboo', 'wave', 'shell'],
+      skinTones: ['tan', 'brown', 'olive'],
+      tribalPatterns: ['leaf', 'bamboo', 'wave', 'shell', 'vine'],
       colors: ['#27AE60', '#16A085', '#2ECC71', '#1ABC9C', '#48C9B0']
     }
   },
@@ -206,33 +215,35 @@ export const HUMAN_SPECIES = {
   HOMO_ERECTUS: {
     id: 'homo_erectus',
     name: 'Homo Erectus',
-    displayName: 'Homo Erectus',
+    fantasyName: 'The Old Ones',
+    displayName: 'Homo Erectus (The Old Ones)',
     emoji: '🔥',
-    description: 'Ancient pioneers who mastered fire and long-distance travel',
+    description: 'Ancient wanderers who first tamed fire - hardy explorers with knowledge passed down through ages',
+    isPlayable: true,
 
     baseStats: {
       strength: 8,
       intelligence: 6,
-      endurance: 9,
+      endurance: 10,
       agility: 7,
       social: 7
     },
 
     traits: {
-      fireMasters: {
-        name: 'Masters of Fire',
-        description: 'Start with fire technology, +3 food from cooking',
-        bonus: { startingTech: ['fire'], cookingBonus: 3, warmth: true }
+      firekeepers: {
+        name: 'Keepers of the First Flame',
+        description: 'Start with fire mastery, +4 food from cooking, warmth bonus',
+        bonus: { startingTech: ['fire'], cookingBonus: 4, warmth: true }
       },
-      longDistance: {
-        name: 'Long Distance Travelers',
-        description: '+2 movement range, lower terrain costs',
-        bonus: { movementRange: 2, terrainCost: 0.8 }
+      endlessWanderers: {
+        name: 'Endless Wanderers',
+        description: '+2 movement range, can travel without rest',
+        bonus: { movementRange: 2, terrainCost: 0.7, staminaBonus: 1.3 }
       },
-      persistent: {
-        name: 'Persistent Hunters',
-        description: 'Better at exhausting prey, +15% hunting success',
-        bonus: { huntingSuccess: 1.15, stamina: 1.2 }
+      ancientKnowledge: {
+        name: 'Ancient Ways',
+        description: 'Better tracking and hunting, +20% hunt success',
+        bonus: { huntingSuccess: 1.2, trackingBonus: 1.4 }
       }
     },
 
@@ -240,15 +251,156 @@ export const HUMAN_SPECIES = {
       population: 10,
       food: 35,
       materials: 20,
-      knowledge: 5
+      knowledge: 5,
+      water: 20
     },
 
     preferredTerrain: ['plains', 'savanna', 'scrubland', 'open_woods'],
 
     customization: {
-      skinTones: ['dark', 'very_dark'],
-      tribalPatterns: ['flame', 'sun', 'spiral'],
+      skinTones: ['dark', 'very_dark', 'ebony'],
+      tribalPatterns: ['flame', 'sun', 'spiral', 'ancestral'],
       colors: ['#E67E22', '#D35400', '#F39C12', '#CA6F1E', '#DC7633']
+    }
+  },
+
+  // ========== NON-HUMAN GREAT APES ==========
+
+  GIGANTOPITHECUS: {
+    id: 'gigantopithecus',
+    name: 'Gigantopithecus',
+    fantasyName: 'Mountain Apes',
+    displayName: 'Gigantopithecus (Mountain Apes)',
+    emoji: '🦍',
+    description: 'Massive gentle apes of bamboo forests - peaceful unless threatened, immensely strong',
+    isPlayable: false,
+    isHostile: false,
+
+    baseStats: {
+      strength: 15,
+      intelligence: 4,
+      endurance: 12,
+      agility: 5,
+      social: 8
+    },
+
+    traits: {
+      gentleGiants: {
+        name: 'Gentle Giants',
+        description: 'Peaceful herbivores, will trade bamboo and forest goods',
+        bonus: { peacefulNature: true, tradeBonus: 1.3 }
+      },
+      terrifyingStrength: {
+        name: 'Terrifying When Angered',
+        description: 'If attacked, becomes devastating combatant',
+        bonus: { combatStrength: 2.0, intimidation: 2.0 }
+      }
+    },
+
+    startingBonus: {
+      population: 6,
+      food: 50,
+      materials: 10,
+      knowledge: 2,
+      water: 30
+    },
+
+    preferredTerrain: ['dense_forest', 'forest', 'jungle', 'bamboo'],
+
+    customization: {
+      colors: ['#2C3E2F', '#3E5641', '#4A6352']
+    }
+  },
+
+  DINOPITHECUS: {
+    id: 'dinopithecus',
+    name: 'Dinopithecus',
+    fantasyName: 'Savanna Baboons',
+    displayName: 'Dinopithecus (Savanna Baboons)',
+    emoji: '🐵',
+    description: 'Large aggressive baboons of the plains - cunning pack hunters and fierce competitors',
+    isPlayable: false,
+    isHostile: true,
+
+    baseStats: {
+      strength: 7,
+      intelligence: 5,
+      endurance: 8,
+      agility: 9,
+      social: 10
+    },
+
+    traits: {
+      packTactics: {
+        name: 'Pack Tactics',
+        description: 'Fight in coordinated groups, flanking and ambushing',
+        bonus: { packBonus: 2.0, ambushChance: 0.4 }
+      },
+      cunningScavengers: {
+        name: 'Cunning Scavengers',
+        description: 'Will steal food and tools, raid settlements at night',
+        bonus: { stealChance: 0.3, nightBonus: 1.5 }
+      }
+    },
+
+    startingBonus: {
+      population: 15,
+      food: 20,
+      materials: 5,
+      knowledge: 1,
+      water: 15
+    },
+
+    preferredTerrain: ['savanna', 'plains', 'rocky_terrain', 'scrubland'],
+
+    customization: {
+      colors: ['#8B7355', '#A0826D', '#6B5D52']
+    }
+  },
+
+  AUSTRALOPITHECUS: {
+    id: 'australopithecus',
+    name: 'Australopithecus',
+    fantasyName: 'The First Walkers',
+    displayName: 'Australopithecus (The First Walkers)',
+    emoji: '🦧',
+    description: 'Ancient upright apes - primitive but curious, live in harmony with nature',
+    isPlayable: false,
+    isHostile: false,
+
+    baseStats: {
+      strength: 6,
+      intelligence: 3,
+      endurance: 7,
+      agility: 8,
+      social: 6
+    },
+
+    traits: {
+      primitiveWays: {
+        name: 'Primitive Simplicity',
+        description: 'Live in small family groups, avoid conflict when possible',
+        bonus: { peacefulNature: true, avoidance: 1.5 }
+      },
+      natureBond: {
+        name: 'Bond with Nature',
+        description: 'Can guide you to hidden resources and safe paths',
+        bonus: { guidanceChance: 0.4, resourceBonus: 1.2 }
+      }
+    },
+
+    startingBonus: {
+      population: 8,
+      food: 15,
+      materials: 5,
+      knowledge: 1,
+      water: 10
+    },
+
+    preferredTerrain: ['forest', 'savanna', 'riverbank', 'open_woods'],
+
+    customization: {
+      colors: ['#6B5D52', '#8B7355', '#5D4E37']
     }
   }
 };
@@ -256,6 +408,16 @@ export const HUMAN_SPECIES = {
 // Helper function to get species by ID
 export const getSpeciesById = (id) => {
   return Object.values(HUMAN_SPECIES).find(species => species.id === id);
+};
+
+// Helper function to get all playable species
+export const getPlayableSpecies = () => {
+  return Object.values(HUMAN_SPECIES).filter(species => species.isPlayable);
+};
+
+// Helper function to get all non-playable species
+export const getNonPlayableSpecies = () => {
+  return Object.values(HUMAN_SPECIES).filter(species => !species.isPlayable);
 };
 
 // Helper function to calculate total stats for a species
@@ -281,3 +443,4 @@ export const calculateSpeciesStats = (speciesId, customizations = {}) => {
 
 // Export species count for easy reference
 export const SPECIES_COUNT = Object.keys(HUMAN_SPECIES).length;
+export const PLAYABLE_SPECIES_COUNT = getPlayableSpecies().length;
