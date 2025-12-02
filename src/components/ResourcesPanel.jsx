@@ -7,43 +7,101 @@ const ResourcesPanel = ({ faction, turn, actionPoints, maxActionPoints, onEndTur
   const species = getSpeciesById(faction.speciesId);
 
   return (
-    <div className="fixed top-4 left-4 bg-gray-900 bg-opacity-95 border-2 border-yellow-600 rounded-lg p-4 w-80 z-40">
+    <div style={{
+      position: 'fixed',
+      top: '12px',
+      left: '12px',
+      width: '280px',
+      background: '#12110f',
+      border: '1px solid #2a2a2a',
+      borderRadius: '8px',
+      padding: '12px',
+      zIndex: 40,
+      overflowY: 'auto',
+      maxHeight: 'calc(100vh - 120px)'
+    }}>
       {/* Faction Header */}
-      <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-700">
-        <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
-          style={{ backgroundColor: faction.color }}
-        >
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '12px',
+        paddingBottom: '12px',
+        borderBottom: '1px solid #2a2a2a'
+      }}>
+        <div style={{
+          width: '48px',
+          height: '48px',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '24px',
+          background: `linear-gradient(135deg, ${faction.color}66, ${faction.color}33)`,
+          border: `2px solid ${faction.color}`
+        }}>
           {species.emoji}
         </div>
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-yellow-500">{faction.name}</h3>
-          <p className="text-xs text-gray-400">{species.displayName}</p>
+        <div style={{ flex: 1 }}>
+          <h3 style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: '#c9a66b',
+            marginBottom: '2px'
+          }}>
+            {faction.name}
+          </h3>
+          <p style={{
+            fontSize: '11px',
+            color: '#6a6a5a',
+            fontStyle: 'italic'
+          }}>
+            {species.displayName}
+          </p>
         </div>
       </div>
 
       {/* Turn Info */}
-      <div className="bg-gray-800 rounded-lg p-3 mb-3">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-gray-400">Turn</span>
-          <span className="text-lg font-bold text-white">{turn}</span>
+      <div style={{
+        background: '#1a1815',
+        border: '1px solid #2a2a2a',
+        borderRadius: '4px',
+        padding: '10px',
+        marginBottom: '10px'
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '8px'
+        }}>
+          <span style={{ fontSize: '11px', color: '#6a6a5a', textTransform: 'uppercase' }}>Turn</span>
+          <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#c9a66b' }}>{turn}</span>
         </div>
 
         {/* Action Points */}
-        <div className="mb-2">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-sm text-gray-400">Action Points</span>
-            <span className="text-sm font-bold text-cyan-400">
+        <div style={{ marginBottom: '10px' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '4px'
+          }}>
+            <span style={{ fontSize: '11px', color: '#6a6a5a', textTransform: 'uppercase' }}>Action Points</span>
+            <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#7d9a6f' }}>
               {actionPoints} / {maxActionPoints}
             </span>
           </div>
-          <div className="flex gap-1">
+          <div style={{ display: 'flex', gap: '2px' }}>
             {[...Array(maxActionPoints)].map((_, i) => (
               <div
                 key={i}
-                className={`h-2 flex-1 rounded ${
-                  i < actionPoints ? 'bg-cyan-500' : 'bg-gray-700'
-                }`}
+                style={{
+                  height: '6px',
+                  flex: 1,
+                  borderRadius: '2px',
+                  background: i < actionPoints ? '#7d9a6f' : '#2a2a2a'
+                }}
               />
             ))}
           </div>
@@ -52,92 +110,149 @@ const ResourcesPanel = ({ faction, turn, actionPoints, maxActionPoints, onEndTur
         {/* End Turn Button */}
         <button
           onClick={onEndTurn}
-          className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
-            actionPoints > 0
-              ? 'bg-yellow-700 hover:bg-yellow-600 text-white'
-              : 'bg-yellow-600 hover:bg-yellow-500 text-white animate-pulse'
-          }`}
+          style={{
+            width: '100%',
+            padding: '10px',
+            background: actionPoints > 0 ? 'linear-gradient(135deg, #4a3a2a, #3a2a1a)' : 'linear-gradient(135deg, #5a4a3a, #4a3a2a)',
+            border: '2px solid #6a5a3a',
+            borderRadius: '6px',
+            color: '#c9a66b',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            fontSize: '13px',
+            animation: actionPoints === 0 ? 'pulse 2s infinite' : 'none'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'scale(1.02)';
+            e.target.style.boxShadow = '0 0 15px #6a5a3a44';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'scale(1)';
+            e.target.style.boxShadow = 'none';
+          }}
         >
           {actionPoints > 0 ? 'End Turn' : 'End Turn →'}
         </button>
       </div>
 
       {/* Resources */}
-      <div className="space-y-2">
-        <h4 className="text-sm font-semibold text-yellow-500 mb-2">Resources</h4>
+      <div>
+        <h4 style={{
+          fontSize: '11px',
+          fontWeight: 'bold',
+          color: '#6a6a5a',
+          textTransform: 'uppercase',
+          marginBottom: '8px'
+        }}>
+          Resources
+        </h4>
 
         {/* Food */}
-        <div className="bg-gray-800 rounded-lg p-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🍖</span>
-              <span className="text-sm text-gray-300">Food</span>
+        <div style={{
+          background: '#1a1815',
+          border: '1px solid #2a2a2a',
+          borderRadius: '4px',
+          padding: '8px',
+          marginBottom: '6px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '16px' }}>🍖</span>
+              <span style={{ fontSize: '12px', color: '#8a8a7a' }}>Food</span>
             </div>
-            <span className={`font-bold ${
-              faction.resources.food >= 50 ? 'text-green-400' :
-              faction.resources.food >= 20 ? 'text-yellow-400' :
-              'text-red-400'
-            }`}>
+            <span style={{
+              fontWeight: 'bold',
+              fontSize: '14px',
+              color: faction.resources.food >= 50 ? '#7d9a6f' :
+                     faction.resources.food >= 20 ? '#c4a35a' : '#a65d32'
+            }}>
               {faction.resources.food}
             </span>
           </div>
         </div>
 
         {/* Materials */}
-        <div className="bg-gray-800 rounded-lg p-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🪵</span>
-              <span className="text-sm text-gray-300">Materials</span>
+        <div style={{
+          background: '#1a1815',
+          border: '1px solid #2a2a2a',
+          borderRadius: '4px',
+          padding: '8px',
+          marginBottom: '6px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '16px' }}>🪵</span>
+              <span style={{ fontSize: '12px', color: '#8a8a7a' }}>Materials</span>
             </div>
-            <span className={`font-bold ${
-              faction.resources.materials >= 50 ? 'text-green-400' :
-              faction.resources.materials >= 20 ? 'text-yellow-400' :
-              'text-red-400'
-            }`}>
+            <span style={{
+              fontWeight: 'bold',
+              fontSize: '14px',
+              color: faction.resources.materials >= 50 ? '#7d9a6f' :
+                     faction.resources.materials >= 20 ? '#c4a35a' : '#a65d32'
+            }}>
               {faction.resources.materials}
             </span>
           </div>
         </div>
 
         {/* Knowledge */}
-        <div className="bg-gray-800 rounded-lg p-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">📚</span>
-              <span className="text-sm text-gray-300">Knowledge</span>
+        <div style={{
+          background: '#1a1815',
+          border: '1px solid #2a2a2a',
+          borderRadius: '4px',
+          padding: '8px',
+          marginBottom: '6px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '16px' }}>📚</span>
+              <span style={{ fontSize: '12px', color: '#8a8a7a' }}>Knowledge</span>
             </div>
-            <span className="font-bold text-purple-400">
+            <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#7a5c8a' }}>
               {faction.resources.knowledge}
             </span>
           </div>
         </div>
 
         {/* Water */}
-        <div className="bg-gray-800 rounded-lg p-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">💧</span>
-              <span className="text-sm text-gray-300">Water</span>
+        <div style={{
+          background: '#1a1815',
+          border: '1px solid #2a2a2a',
+          borderRadius: '4px',
+          padding: '8px',
+          marginBottom: '6px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '16px' }}>💧</span>
+              <span style={{ fontSize: '12px', color: '#8a8a7a' }}>Water</span>
             </div>
-            <span className={`font-bold ${
-              (faction.resources.water || 0) >= 50 ? 'text-cyan-400' :
-              (faction.resources.water || 0) >= 20 ? 'text-yellow-400' :
-              'text-red-400'
-            }`}>
+            <span style={{
+              fontWeight: 'bold',
+              fontSize: '14px',
+              color: (faction.resources.water || 0) >= 50 ? '#5b8a9a' :
+                     (faction.resources.water || 0) >= 20 ? '#c4a35a' : '#a65d32'
+            }}>
               {faction.resources.water || 0}
             </span>
           </div>
         </div>
 
         {/* Population */}
-        <div className="bg-gray-800 rounded-lg p-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">👥</span>
-              <span className="text-sm text-gray-300">Population</span>
+        <div style={{
+          background: '#1a1815',
+          border: '1px solid #2a2a2a',
+          borderRadius: '4px',
+          padding: '8px',
+          marginBottom: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '16px' }}>👥</span>
+              <span style={{ fontSize: '12px', color: '#8a8a7a' }}>Population</span>
             </div>
-            <span className="font-bold text-blue-400">
+            <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#c9a66b' }}>
               {faction.resources.population}
             </span>
           </div>
@@ -145,39 +260,90 @@ const ResourcesPanel = ({ faction, turn, actionPoints, maxActionPoints, onEndTur
       </div>
 
       {/* Stats Summary */}
-      <div className="mt-3 pt-3 border-t border-gray-700">
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-gray-800 rounded p-2">
-            <div className="text-gray-400 mb-1">Settlements</div>
-            <div className="text-white font-bold">{faction.settlements.length}</div>
+      <div style={{
+        marginTop: '10px',
+        paddingTop: '10px',
+        borderTop: '1px solid #2a2a2a'
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+          <div style={{
+            background: '#1a1815',
+            border: '1px solid #2a2a2a',
+            borderRadius: '4px',
+            padding: '8px'
+          }}>
+            <div style={{ fontSize: '10px', color: '#6a6a5a', marginBottom: '4px' }}>Settlements</div>
+            <div style={{ fontSize: '14px', color: '#c9a66b', fontWeight: 'bold' }}>{faction.settlements.length}</div>
           </div>
-          <div className="bg-gray-800 rounded p-2">
-            <div className="text-gray-400 mb-1">Known Tribes</div>
-            <div className="text-white font-bold">{faction.knownFactions.size}</div>
+          <div style={{
+            background: '#1a1815',
+            border: '1px solid #2a2a2a',
+            borderRadius: '4px',
+            padding: '8px'
+          }}>
+            <div style={{ fontSize: '10px', color: '#6a6a5a', marginBottom: '4px' }}>Known Tribes</div>
+            <div style={{ fontSize: '14px', color: '#c9a66b', fontWeight: 'bold' }}>{faction.knownFactions.size}</div>
           </div>
-          <div className="bg-gray-800 rounded p-2">
-            <div className="text-gray-400 mb-1">Military</div>
-            <div className="text-white font-bold">{faction.militaryStrength}</div>
+          <div style={{
+            background: '#1a1815',
+            border: '1px solid #2a2a2a',
+            borderRadius: '4px',
+            padding: '8px'
+          }}>
+            <div style={{ fontSize: '10px', color: '#6a6a5a', marginBottom: '4px' }}>Military</div>
+            <div style={{ fontSize: '14px', color: '#c9a66b', fontWeight: 'bold' }}>{faction.militaryStrength}</div>
           </div>
-          <div className="bg-gray-800 rounded p-2">
-            <div className="text-gray-400 mb-1">Culture</div>
-            <div className="text-white font-bold">{faction.culturalInfluence}</div>
+          <div style={{
+            background: '#1a1815',
+            border: '1px solid #2a2a2a',
+            borderRadius: '4px',
+            padding: '8px'
+          }}>
+            <div style={{ fontSize: '10px', color: '#6a6a5a', marginBottom: '4px' }}>Culture</div>
+            <div style={{ fontSize: '14px', color: '#c9a66b', fontWeight: 'bold' }}>{faction.culturalInfluence}</div>
           </div>
         </div>
       </div>
 
       {/* Species Traits */}
-      <div className="mt-3 pt-3 border-t border-gray-700">
-        <h4 className="text-xs font-semibold text-yellow-500 mb-2">Species Traits</h4>
-        <div className="space-y-1">
+      <div style={{
+        marginTop: '10px',
+        paddingTop: '10px',
+        borderTop: '1px solid #2a2a2a'
+      }}>
+        <h4 style={{
+          fontSize: '10px',
+          fontWeight: 'bold',
+          color: '#6a6a5a',
+          textTransform: 'uppercase',
+          marginBottom: '6px'
+        }}>
+          Species Traits
+        </h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {Object.entries(species.traits).map(([key, trait]) => (
             <div
               key={key}
-              className="bg-gray-800 rounded p-2 text-xs"
+              style={{
+                background: '#1a1815',
+                border: '1px solid #2a2a2a',
+                borderRadius: '4px',
+                padding: '6px'
+              }}
               title={trait.description}
             >
-              <div className="font-semibold text-cyan-400">{trait.name}</div>
-              <div className="text-gray-400 text-[10px] truncate">{trait.description}</div>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#7d9a6f', marginBottom: '2px' }}>
+                {trait.name}
+              </div>
+              <div style={{
+                fontSize: '9px',
+                color: '#6a6a5a',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {trait.description}
+              </div>
             </div>
           ))}
         </div>

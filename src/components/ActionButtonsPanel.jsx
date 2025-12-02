@@ -23,40 +23,97 @@ const ActionButtonsPanel = ({
   const foundValidation = canFound ? canFoundSettlement(hexes, selectedHex) : { canFound: false };
 
   return (
-    <div className="fixed right-4 bottom-20 bg-gray-900 bg-opacity-95 border-2 border-yellow-600 rounded-lg p-4 w-80 z-40">
-      <h3 className="text-lg font-bold text-yellow-400 mb-3">Actions</h3>
+    <div style={{
+      position: 'fixed',
+      right: '12px',
+      bottom: '100px',
+      width: '240px',
+      background: '#12110f',
+      border: '1px solid #2a2a2a',
+      borderRadius: '8px',
+      padding: '12px',
+      zIndex: 40
+    }}>
+      <div style={{
+        padding: '8px 12px',
+        borderBottom: '1px solid #2a2a2a',
+        color: '#6a6a5a',
+        fontSize: '11px',
+        textTransform: 'uppercase',
+        fontWeight: 'bold',
+        marginBottom: '10px'
+      }}>
+        Selected Hex
+      </div>
 
       {!isPlayerHere && (
-        <div className="text-sm text-gray-400 mb-3">
-          Move to this hex to perform actions
+        <div style={{
+          fontSize: '12px',
+          color: '#6a6a5a',
+          marginBottom: '12px',
+          fontStyle: 'italic',
+          textAlign: 'center'
+        }}>
+          Move here to perform actions
         </div>
       )}
 
-      <div className="space-y-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {/* Found Settlement */}
         {isPlayerHere && !settlement && (
-          <button
-            onClick={() => {
-              const name = prompt('Enter settlement name:', 'New Camp');
-              if (name) {
-                onFoundSettlement(selectedHex, name);
-              }
-            }}
-            disabled={actionPoints < 2 || !foundValidation.canFound}
-            className={`w-full py-3 rounded-lg font-semibold transition-colors flex items-center justify-between ${
-              actionPoints >= 2 && foundValidation.canFound
-                ? 'bg-green-700 hover:bg-green-600 text-white'
-                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            <span>🏘️ Found Settlement</span>
-            <span className="text-xs">2 AP</span>
-          </button>
-        )}
-        {isPlayerHere && !settlement && !foundValidation.canFound && (
-          <div className="text-xs text-red-400 -mt-2 mb-2 px-2">
-            {foundValidation.reason}
-          </div>
+          <>
+            <button
+              onClick={() => {
+                const name = prompt('Enter settlement name:', 'New Camp');
+                if (name) {
+                  onFoundSettlement(selectedHex, name);
+                }
+              }}
+              disabled={actionPoints < 2 || !foundValidation.canFound}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: (actionPoints >= 2 && foundValidation.canFound)
+                  ? 'linear-gradient(135deg, #3a4a3a, #2a3a2a)'
+                  : '#2a2a2a',
+                border: (actionPoints >= 2 && foundValidation.canFound)
+                  ? '1px solid #5a6a5a'
+                  : '1px solid #3a3a3a',
+                borderRadius: '4px',
+                color: (actionPoints >= 2 && foundValidation.canFound) ? '#c9a66b' : '#5a5a4a',
+                fontWeight: 'bold',
+                cursor: (actionPoints >= 2 && foundValidation.canFound) ? 'pointer' : 'not-allowed',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '12px'
+              }}
+              onMouseEnter={(e) => {
+                if (actionPoints >= 2 && foundValidation.canFound) {
+                  e.target.style.background = 'linear-gradient(135deg, #4a5a4a, #3a4a3a)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (actionPoints >= 2 && foundValidation.canFound) {
+                  e.target.style.background = 'linear-gradient(135deg, #3a4a3a, #2a3a2a)';
+                }
+              }}
+            >
+              <span>🏘️ Found Settlement</span>
+              <span style={{ fontSize: '10px' }}>2 AP</span>
+            </button>
+            {!foundValidation.canFound && (
+              <div style={{
+                fontSize: '10px',
+                color: '#a65d32',
+                paddingLeft: '8px',
+                marginTop: '-4px'
+              }}>
+                {foundValidation.reason}
+              </div>
+            )}
+          </>
         )}
 
         {/* Hunt Animal */}
@@ -64,25 +121,54 @@ const ActionButtonsPanel = ({
           <button
             onClick={() => onHuntAnimal(selectedHex)}
             disabled={actionPoints < 1}
-            className={`w-full py-3 rounded-lg font-semibold transition-colors flex items-center justify-between ${
-              actionPoints >= 1
-                ? 'bg-orange-700 hover:bg-orange-600 text-white'
-                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-            }`}
+            style={{
+              width: '100%',
+              padding: '10px',
+              background: actionPoints >= 1
+                ? 'linear-gradient(135deg, #4a3a2a, #3a2a1a)'
+                : '#2a2a2a',
+              border: actionPoints >= 1
+                ? '1px solid #6a5a3a'
+                : '1px solid #3a3a3a',
+              borderRadius: '4px',
+              color: actionPoints >= 1 ? '#c9a66b' : '#5a5a4a',
+              fontWeight: 'bold',
+              cursor: actionPoints >= 1 ? 'pointer' : 'not-allowed',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '12px'
+            }}
+            onMouseEnter={(e) => {
+              if (actionPoints >= 1) {
+                e.target.style.background = 'linear-gradient(135deg, #5a4a3a, #4a3a2a)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (actionPoints >= 1) {
+                e.target.style.background = 'linear-gradient(135deg, #4a3a2a, #3a2a1a)';
+              }
+            }}
           >
             <span>🏹 Hunt Animals</span>
-            <span className="text-xs">1 AP</span>
+            <span style={{ fontSize: '10px' }}>1 AP</span>
           </button>
         )}
 
         {/* View Settlement */}
         {settlement && (
-          <div className="bg-gray-800 rounded p-3">
-            <div className="text-sm text-gray-300">
-              Settlement: <span className="text-yellow-400 font-semibold">{settlement.name}</span>
+          <div style={{
+            background: '#1a1815',
+            border: '1px solid #2a2a2a',
+            borderRadius: '4px',
+            padding: '10px'
+          }}>
+            <div style={{ fontSize: '12px', color: '#8a8a7a', marginBottom: '4px' }}>
+              Settlement: <span style={{ color: '#c9a66b', fontWeight: 'bold' }}>{settlement.name}</span>
             </div>
-            <div className="text-xs text-gray-400 mt-1">
-              Click settlement icon on map to view details
+            <div style={{ fontSize: '10px', color: '#6a6a5a', fontStyle: 'italic' }}>
+              Click settlement on map to view details
             </div>
           </div>
         )}
@@ -90,15 +176,40 @@ const ActionButtonsPanel = ({
         {/* Center Camera */}
         <button
           onClick={onCenterCamera}
-          className="w-full py-2 rounded-lg font-semibold bg-blue-700 hover:bg-blue-600 text-white transition-colors"
+          style={{
+            width: '100%',
+            padding: '8px',
+            background: 'linear-gradient(135deg, #2a3a4a, #1a2a3a)',
+            border: '1px solid #3a4a5a',
+            borderRadius: '4px',
+            color: '#c9a66b',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            fontSize: '12px'
+          }}
+          onMouseEnter={(e) => e.target.style.background = 'linear-gradient(135deg, #3a4a5a, #2a3a4a)'}
+          onMouseLeave={(e) => e.target.style.background = 'linear-gradient(135deg, #2a3a4a, #1a2a3a)'}
         >
           🎯 Center Camera
         </button>
 
         {/* Hex Info */}
-        <div className="bg-gray-800 rounded p-3 text-xs">
-          <div className="text-gray-400">Coordinates: ({selectedHex.q}, {selectedHex.r})</div>
-          <div className="text-gray-400">Terrain: {selectedHex.terrain}</div>
+        <div style={{
+          background: '#1a1815',
+          border: '1px solid #2a2a2a',
+          borderRadius: '4px',
+          padding: '8px',
+          fontSize: '10px',
+          borderTop: '1px solid #2a2a2a',
+          marginTop: '4px'
+        }}>
+          <div style={{ color: '#6a6a5a', marginBottom: '2px' }}>
+            Coordinates: ({selectedHex.q}, {selectedHex.r})
+          </div>
+          <div style={{ color: '#6a6a5a' }}>
+            Terrain: {selectedHex.terrain}
+          </div>
         </div>
       </div>
     </div>

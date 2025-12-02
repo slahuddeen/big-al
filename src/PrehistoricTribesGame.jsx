@@ -339,40 +339,107 @@ const PrehistoricTribesGame = () => {
 
   if (!playerFaction) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-white text-xl">Loading...</div>
+      <div style={{
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(180deg, #1a1815 0%, #0a0a08 100%)'
+      }}>
+        <div style={{ color: '#c9a66b', fontSize: '20px' }}>Loading...</div>
       </div>
     );
   }
 
   return (
     <div
-      className="w-screen h-screen overflow-hidden relative select-none"
-      style={{ background: backgroundGradient }}
+      style={{
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        position: 'relative',
+        userSelect: 'none',
+        background: 'linear-gradient(180deg, #1a1815 0%, #0a0a08 100%)',
+        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        color: '#c9c9b9',
+        display: 'flex',
+        flexDirection: 'column'
+      }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Game Title */}
-      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
-        <h1 className="text-4xl font-bold text-yellow-500 text-center drop-shadow-lg">
-          Prehistoric Tribes
-        </h1>
-        <p className="text-sm text-gray-300 text-center">
-          {gameState.currentMessage}
-        </p>
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 20px',
+        background: '#0a0a08',
+        borderBottom: '2px solid #2a2a2a',
+        zIndex: 50
+      }}>
+        <div>
+          <span style={{
+            fontSize: '20px',
+            fontWeight: 'bold',
+            color: '#c9a66b',
+            fontFamily: 'Georgia, serif',
+            textShadow: '2px 2px 4px #000'
+          }}>
+            PREHISTORIC TRIBES
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{
+            padding: '6px 16px',
+            background: '#7d9a6f33',
+            border: '1px solid #7d9a6f',
+            borderRadius: '4px',
+            color: '#7d9a6f',
+            fontSize: '14px'
+          }}>
+            Turn {gameState.turn}
+          </div>
+          <button
+            onClick={handleEndTurn}
+            style={{
+              padding: '10px 24px',
+              background: 'linear-gradient(135deg, #4a3a2a, #3a2a1a)',
+              border: '2px solid #6a5a3a',
+              borderRadius: '6px',
+              color: '#c9a66b',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontSize: '14px'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'scale(1.02)';
+              e.target.style.boxShadow = '0 0 20px #6a5a3a44';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'scale(1)';
+              e.target.style.boxShadow = 'none';
+            }}
+          >
+            End Turn
+          </button>
+        </div>
       </div>
 
       {/* Hex Grid Container */}
       <div
-        className="absolute"
         style={{
+          position: 'absolute',
           width: '400vw',
           height: '400vh',
           left: '50%',
           top: '50%',
-          transform: `translate(calc(-50% + ${cameraOffset.x}px), calc(-50% + ${cameraOffset.y}px))`
+          transform: `translate(calc(-50% + ${cameraOffset.x}px), calc(-50% + ${cameraOffset.y}px))`,
+          flex: 1
         }}
       >
         {renderHexes}
@@ -394,36 +461,110 @@ const PrehistoricTribesGame = () => {
 
       {/* Menu Bar */}
       {gameState.gamePhase === 'playing' && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-40 flex gap-2">
+        <div style={{
+          position: 'fixed',
+          top: '70px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 40,
+          display: 'flex',
+          gap: '8px'
+        }}>
           <button
             onClick={() => setShowQuestLog(true)}
-            className="bg-yellow-700 hover:bg-yellow-600 text-white px-4 py-2 rounded font-semibold transition-colors flex items-center gap-2"
+            style={{
+              padding: '8px 16px',
+              background: 'linear-gradient(135deg, #4a3a2a, #3a2a1a)',
+              border: '1px solid #6a5a3a',
+              borderRadius: '4px',
+              color: '#c9a66b',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px'
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'linear-gradient(135deg, #5a4a3a, #4a3a2a)'}
+            onMouseLeave={(e) => e.target.style.background = 'linear-gradient(135deg, #4a3a2a, #3a2a1a)'}
           >
             📜 Quests
             {gameState.availableQuests && gameState.availableQuests.length > 0 && (
-              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+              <span style={{
+                background: '#a65d32',
+                color: '#fff',
+                fontSize: '10px',
+                padding: '2px 6px',
+                borderRadius: '10px'
+              }}>
                 {gameState.availableQuests.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setShowTechTree(true)}
-            className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded font-semibold transition-colors"
+            style={{
+              padding: '8px 16px',
+              background: 'linear-gradient(135deg, #3a4a4a, #2a3a3a)',
+              border: '1px solid #4a5a5a',
+              borderRadius: '4px',
+              color: '#c9a66b',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontSize: '12px'
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'linear-gradient(135deg, #4a5a5a, #3a4a4a)'}
+            onMouseLeave={(e) => e.target.style.background = 'linear-gradient(135deg, #3a4a4a, #2a3a3a)'}
           >
             🔬 Tech Tree
           </button>
           <button
             onClick={() => setShowMilitary(true)}
-            className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded font-semibold transition-colors flex items-center gap-2"
+            style={{
+              padding: '8px 16px',
+              background: 'linear-gradient(135deg, #4a2a2a, #3a1a1a)',
+              border: '1px solid #6a3a3a',
+              borderRadius: '4px',
+              color: '#c9a66b',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px'
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'linear-gradient(135deg, #5a3a3a, #4a2a2a)'}
+            onMouseLeave={(e) => e.target.style.background = 'linear-gradient(135deg, #4a2a2a, #3a1a1a)'}
           >
             ⚔️ Military
-            <span className="bg-gray-800 text-white text-xs px-2 py-0.5 rounded-full">
+            <span style={{
+              background: '#2a2a1a',
+              color: '#c9a66b',
+              fontSize: '10px',
+              padding: '2px 6px',
+              borderRadius: '10px'
+            }}>
               {gameState.units.filter(u => u.factionId === playerFaction.id).length}
             </span>
           </button>
           <button
             onClick={() => setShowChapterProgress(true)}
-            className="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded font-semibold transition-colors"
+            style={{
+              padding: '8px 16px',
+              background: 'linear-gradient(135deg, #2a3a4a, #1a2a3a)',
+              border: '1px solid #3a4a5a',
+              borderRadius: '4px',
+              color: '#c9a66b',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontSize: '12px'
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'linear-gradient(135deg, #3a4a5a, #2a3a4a)'}
+            onMouseLeave={(e) => e.target.style.background = 'linear-gradient(135deg, #2a3a4a, #1a2a3a)'}
           >
             📖 Chapter
           </button>
@@ -544,9 +685,20 @@ const PrehistoricTribesGame = () => {
       )}
 
       {/* Controls Info */}
-      <div className="fixed bottom-4 left-4 bg-gray-900 bg-opacity-80 rounded-lg p-3 text-xs text-gray-300 z-40">
-        <div>🖱️ <strong>Click</strong> hex to move | <strong>Drag</strong> to pan map</div>
-        <div>⌨️ <strong>C</strong> center | <strong>R</strong> reset | <strong>Space</strong> end turn</div>
+      <div style={{
+        position: 'fixed',
+        bottom: '12px',
+        left: '12px',
+        background: '#0a0a08e6',
+        border: '1px solid #2a2a2a',
+        borderRadius: '4px',
+        padding: '8px 12px',
+        fontSize: '11px',
+        color: '#8a8a7a',
+        zIndex: 40
+      }}>
+        <div style={{ marginBottom: '2px' }}>🖱️ <strong style={{ color: '#c9a66b' }}>Click</strong> hex to move | <strong style={{ color: '#c9a66b' }}>Drag</strong> to pan map</div>
+        <div style={{ marginBottom: '2px' }}>⌨️ <strong style={{ color: '#c9a66b' }}>C</strong> center | <strong style={{ color: '#c9a66b' }}>R</strong> reset | <strong style={{ color: '#c9a66b' }}>Space</strong> end turn</div>
         <div>📍 Hexes explored: {[...gameState.hexes.values()].filter(h => h.discovered).length}</div>
       </div>
     </div>
