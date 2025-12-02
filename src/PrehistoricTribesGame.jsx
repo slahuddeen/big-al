@@ -14,6 +14,8 @@ import TradePanel from './components/TradePanel.jsx';
 import NotificationSystem from './components/NotificationSystem.jsx';
 import HoverTooltip from './components/HoverTooltip.jsx';
 import LeaderSelectionScreen from './components/LeaderSelectionScreen.jsx';
+import SpeciesSelectionScreen from './components/SpeciesSelectionScreen.jsx';
+import ActionButtonsPanel from './components/ActionButtonsPanel.jsx';
 import QuestLogPanel from './components/QuestLogPanel.jsx';
 import TechTreePanel from './components/TechTreePanel.jsx';
 import MilitaryPanel from './components/MilitaryPanel.jsx';
@@ -23,6 +25,7 @@ const PrehistoricTribesGame = () => {
   const [gameState, dispatch] = useReducer(tribGameReducer, initialTribGameState);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [selectedSettlement, setSelectedSettlement] = useState(null);
+  const [setupPhase, setSetupPhase] = useState('species'); // 'species', 'leader', 'playing'
 
   // Panel visibility state
   const [showQuestLog, setShowQuestLog] = useState(false);
@@ -253,6 +256,44 @@ const PrehistoricTribesGame = () => {
     dispatch({ type: 'ABANDON_QUEST', questId });
   }, []);
 
+  // Species and setup handlers
+  const handleSelectSpecies = useCallback((speciesData) => {
+    dispatch({
+      type: 'SETUP_PLAYER_FACTION',
+      name: speciesData.name,
+      speciesId: speciesData.speciesId,
+      color: speciesData.color,
+      customization: {}
+    });
+    setSetupPhase('leader');
+  }, []);
+
+  const handleCompleteLeaderSelection = useCallback((characterId) => {
+    handleSelectLeader(characterId);
+    setSetupPhase('playing');
+  }, [handleSelectLeader]);
+
+  // Action button handlers
+  const handleFoundSettlement = useCallback((hex, name) => {
+    dispatch({
+      type: 'FOUND_SETTLEMENT',
+      hex,
+      name
+    });
+  }, []);
+
+  const handleHuntAnimal = useCallback((hex) => {
+    dispatch({
+      type: 'HUNT_ANIMAL',
+      hex
+    });
+  }, []);
+
+  const handleCenterCamera = useCallback(() => {
+    const playerPixel = hexToPixel(gameState.playerPosition.q, gameState.playerPosition.r);
+    setCameraOffset({ x: -playerPixel.x, y: -playerPixel.y });
+  }, [gameState.playerPosition]);
+
   // Render hexes
   const renderHexes = useMemo(() => {
     const hexes = [];
@@ -292,8 +333,9 @@ const PrehistoricTribesGame = () => {
 
   // Background gradient
   const backgroundGradient = useMemo(() => {
-    return getBackgroundGradient(1); // Always day for now
-  }, []);
+    const isNight = gameState.turn % 2 === 0;
+    return getBackgroundGradient({ isNight, currentTerrain: 'plains' });
+  }, [gameState.turn]);
 
   if (!playerFaction) {
     return (
@@ -336,11 +378,17 @@ const PrehistoricTribesGame = () => {
         {renderHexes}
       </div>
 
-      {/* Leader Selection Screen */}
-      {gameState.gamePhase === 'setup' && (
+      {/* Setup Screens */}
+      {gameState.gamePhase === 'setup' && setupPhase === 'species' && (
+        <SpeciesSelectionScreen
+          onSelectSpecies={handleSelectSpecies}
+        />
+      )}
+
+      {gameState.gamePhase === 'setup' && setupPhase === 'leader' && playerFaction && (
         <LeaderSelectionScreen
           faction={playerFaction}
-          onSelectLeader={handleSelectLeader}
+          onSelectLeader={handleCompleteLeaderSelection}
         />
       )}
 
@@ -481,62 +529,26 @@ const PrehistoricTribesGame = () => {
         />
       )}
 
+      {/* Action Buttons */}
+      {gameState.gamePhase === 'playing' && gameState.selectedHex && (
+        <ActionButtonsPanel
+          selectedHex={gameState.selectedHex}
+          hexes={gameState.hexes}
+          settlements={gameState.settlements}
+          playerPosition={gameState.playerPosition}
+          actionPoints={gameState.actionPoints}
+          onFoundSettlement={handleFoundSettlement}
+          onHuntAnimal={handleHuntAnimal}
+          onCenterCamera={handleCenterCamera}
+        />
+      )}
+
       {/* Controls Info */}
       <div className="fixed bottom-4 left-4 bg-gray-900 bg-opacity-80 rounded-lg p-3 text-xs text-gray-300 z-40">
         <div>🖱️ <strong>Click</strong> hex to move | <strong>Drag</strong> to pan map</div>
         <div>⌨️ <strong>C</strong> center | <strong>R</strong> reset | <strong>Space</strong> end turn</div>
         <div>📍 Hexes explored: {[...gameState.hexes.values()].filter(h => h.discovered).length}</div>
       </div>
-
-      {/* Setup Screen */}
-      {gameState.gamePhase === 'setup' && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border-4 border-yellow-600 rounded-lg p-8 max-w-2xl">
-            <h2 className="text-3xl font-bold text-yellow-500 mb-4 text-center">
-              🌍 Welcome to Prehistoric Tribes
-            </h2>
-            <p className="text-gray-300 mb-6 text-center">
-              Lead your tribe through the challenges of prehistoric life. Hunt, explore, trade with other tribes,
-              and build settlements to ensure your people's survival.
-            </p>
-
-            <div className="bg-gray-800 rounded-lg p-6 mb-6">
-              <h3 className="text-xl font-semibold text-yellow-500 mb-4">Choose Your Species</h3>
-              <div className="space-y-3">
-                {/* For now, auto-start with Homo Sapiens */}
-                <button
-                  onClick={() => dispatch({
-                    type: 'SETUP_PLAYER_FACTION',
-                    name: 'The Wanderers',
-                    speciesId: 'homo_sapiens',
-                    color: '#004E89',
-                    customization: {}
-                  })}
-                  className="w-full bg-blue-700 hover:bg-blue-600 text-white py-4 px-6 rounded-lg transition-colors text-left"
-                >
-                  <div className="flex items-center gap-4">
-                    <span className="text-4xl">🧑</span>
-                    <div>
-                      <div className="text-lg font-bold">Homo Sapiens - The Wanderers</div>
-                      <div className="text-sm text-blue-200">
-                        Innovative, adaptable, and social. Best all-around species.
-                      </div>
-                    </div>
-                  </div>
-                </button>
-
-                <div className="text-center text-gray-500 text-sm mt-4">
-                  More species and customization coming soon!
-                </div>
-              </div>
-            </div>
-
-            <div className="text-center text-gray-400 text-xs">
-              Click Start to begin your journey
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
