@@ -514,7 +514,7 @@ export class WorldRenderer {
         const sd = SPECIES_DATA[c.species] || { weight: 1 };
         // the giants are drawn at their real size next to Big Al (length grows with the cube root of mass)
         const metres = BODY_LENGTH_M[c.species];
-        const len = metres ? metres * 0.162 * Math.cbrt(c.size || 1) : displayLength((sd.weight || 1) * (c.size || 1), template.minLen);
+        const len = metres ? metres * 0.14 * Math.cbrt(c.size || 1) : displayLength((sd.weight || 1) * (c.size || 1), template.minLen);
         const rand = mulberry32(hashString(c.id));
         model.seed = rand() * 100;
         const v = {
@@ -560,6 +560,8 @@ export class WorldRenderer {
             const r = Math.sqrt(rand()) * pool.r;
             return new THREE.Vector3(tile.x + (pool.x + Math.cos(a) * r) * scale, 0, tile.z + (pool.z + Math.sin(a) * r) * scale);
         }
+        // sauropod herds stand side by side, facing the way they are travelling
+        if (v.role === 'browser') return this.herdSpot(v, hexKey, tile, scale);
         // keep the middle of the cell free for Big Al; big animals stand further out
         const minR = Math.min(tile.inradius * 0.75, 0.3 + v.len * 0.3);
         const [x, z] = randomPointInCell(tile.localPoly, rand, minR, 0.12 + v.len * 0.1);
@@ -581,6 +583,76 @@ export class WorldRenderer {
             if (away.lengthSq() < 0.25) spot.add(away.normalize().multiplyScalar(0.35));
         }
         return spot;
+    }
+
+    // Formation slot for a sauropod: grown animals abreast across the travel
+    // direction (they are long but narrow, so they fit side by side), young
+    // tucked in between and just ahead. Big Al's spot in the middle stays clear.
+    herdSpot(v, hexKey, tile, scale) {
+        const heading = v.data?.heading ?? 0;
+        const fx = Math.cos(heading);
+        const fz = Math.sin(heading);
+        const px = -fz;
+        const pz = fx;
+        const herd = [...this.creatures.values()]
+            .filter((o) => o.hexKey === hexKey && o.role === 'browser' && !o.dying)
+            .sort((a, b) => b.len - a.len || (a.id < b.id ? -1 : 1));
+        const adults = herd.filter((o) => o.len > 1.5);
+        const young = herd.filter((o) => o.len <= 1.5);
+        const widest = Math.max(0.6, ...adults.map((o) => o.len));
+        const playerHere = hexKey === this.state?.player;
+        let side;
+        let along;
+        if (v.len > 1.5) {
+            const i = adults.indexOf(v);
+            const n = adults.length;
+            // flanks of the cell when Big Al is standing in the middle
+            side = n === 1 ? (playerHere ? 0.72 : 0) : (i - (n - 1) / 2) * (playerHere ? 1.5 : 0.95);
+            along = (i % 2 ? -0.12 : 0.12) * widest;
+        } else {
+            const i = young.indexOf(v);
+            side = (i - (young.length - 1) / 2) * 0.45;
+            along = 0.3 + widest * 0.18;
+        }
+        const jitter = (v.rand() - 0.5) * 0.12;
+        const x = (px * side + fx * along) * (0.9 + 0.1 * v.rand()) + jitter;
+        const z = (pz * side + fz * along) * (0.9 + 0.1 * v.rand()) + jitter;
+        return new THREE.Vector3(tile.x + x * scale, 0, tile.z + z * scale);
+    }
+
+    // Soft push apart for animals that overlap on the same cell (bodies as circles)
+    separate(dt) {
+        const byCell = new Map();
+        for (const v of this.creatures.values()) {
+            if (v.dying || v.gait === 'fly' || v.gait === 'flutter' || v.gait === 'swim' || v.pendingAttack) continue;
+            if (!byCell.has(v.hexKey)) byCell.set(v.hexKey, []);
+            byCell.get(v.hexKey).push(v);
+        }
+        const radius = (v) => v.len * (v.role === 'browser' ? 0.17 : 0.24);
+        for (const list of byCell.values()) {
+            for (let i = 0; i < list.length; i++) {
+                for (let j = i + 1; j < list.length; j++) {
+                    const a = list[i];
+                    const b = list[j];
+                    let dx = b.pos.x - a.pos.x;
+                    let dz = b.pos.z - a.pos.z;
+                    let d = Math.hypot(dx, dz);
+                    const min = radius(a) + radius(b);
+                    if (d >= min) continue;
+                    if (d < 1e-4) {
+                        dx = a.rand() - 0.5;
+                        dz = a.rand() - 0.5;
+                        d = Math.hypot(dx, dz) || 1;
+                    }
+                    const push = Math.min(min - d, dt * 1.5) / d;
+                    const wa = b.len / (a.len + b.len); // smaller animals give way
+                    a.pos.x -= dx * push * wa;
+                    a.pos.z -= dz * push * wa;
+                    b.pos.x += dx * push * (1 - wa);
+                    b.pos.z += dz * push * (1 - wa);
+                }
+            }
+        }
     }
 
     // Animals notice Big Al arriving next to or among them
@@ -755,6 +827,7 @@ export class WorldRenderer {
                 if (dist <= 0.02) v.urgent = 0;
                 if (v.gait === 'hop') v.hop = 0;
                 if (stalking) v.yaw = lerpAngle(v.yaw, toPlayer, damp(dt, 2));
+                else if (v.role === 'browser' && !alert && v.data?.heading !== undefined) v.yaw = lerpAngle(v.yaw, -v.data.heading, damp(dt, 0.6));
             }
         }
 
@@ -1933,6 +2006,7 @@ export class WorldRenderer {
         this.cameraMoved = prevTarget.distanceToSquared(this.cam.target) > 1e-6 || Math.abs(prevAz - this.cam.az) > 1e-4 || Math.abs(prevEl - this.cam.el) > 1e-4;
         this.updateLighting(dt);
         for (const v of [...this.creatures.values()]) this.updateCreature(v, dt);
+        this.separate(dt);
         this.updatePlayer(dt);
         this.updatePack(dt);
         this.updateMarkers();

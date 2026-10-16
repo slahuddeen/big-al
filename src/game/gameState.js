@@ -114,10 +114,15 @@ const makeCreature = (species, state, size, extra = {}) => {
     };
 };
 
+// A grown sauropod fills half an area on its own: at most two per area
+export const MAX_GIANTS_PER_CELL = 2;
+export const isBigGiant = (c) => GIANTS.has(c.species) && (c.size ?? 1) > 0.3;
+const countGiants = (list) => (list || []).filter(isBigGiant).length;
+
 const countFlyers = (creatures) => [...creatures.values()].flat().filter((c) => FLYERS.has(c.species)).length;
 
 // Roll which creatures appear on a cell of the given terrain. Herds and packs arrive together.
-const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_HEX, existing = 0, key = null, flyerBudget = 2 } = {}) => {
+const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_HEX, existing = 0, key = null, flyerBudget = 2, giantsHere = 0 } = {}) => {
     const dist = { ...(HABITAT_SPECIES[terrain] || {}) };
     const poi = key ? state.pois?.get(key) : null;
     if (poi?.type === 'sauropodcarcass' && poi.portions > 0) {
@@ -142,13 +147,22 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
         if (n <= 0) continue;
         if (FLYERS.has(species)) flyers -= n;
         const herd = uid('herd');
-        const heading = Math.random() * Math.PI * 2;
+        // every herd in the basin migrates the same way along the routes
+        const heading = GIANTS.has(species) ? (state.migration ?? Math.random() * Math.PI * 2) : Math.random() * Math.PI * 2;
+        if (GIANTS.has(species)) {
+            // two grown animals at most per area; the young walk among them
+            const adults = Math.min(MAX_GIANTS_PER_CELL - giantsHere - countGiants(spawned), 1 + Math.floor(Math.random() * 2));
+            if (adults <= 0) continue;
+            const young = Math.min(max - existing - spawned.length - adults, Math.floor(Math.random() * 3));
+            for (let i = 0; i < adults; i++) spawned.push(makeCreature(species, state, undefined, { herd, heading }));
+            for (let i = 0; i < young; i++) spawned.push(makeCreature(species, state, 0.01 + Math.random() * 0.07, { herd, heading }));
+            continue;
+        }
         spawned.push(makeCreature(species, state, undefined, { herd, heading }));
         for (let i = 1; i < n; i++) {
             // herds bring their young along (a young sauropod is tiny next to its parents)
-            const young = (GIANTS.has(species) || species === 'Stegosaurus') && Math.random() < 0.6;
-            const youngSize = GIANTS.has(species) ? 0.01 + Math.random() * 0.07 : 0.15 + Math.random() * 0.25;
-            spawned.push(makeCreature(species, state, young ? youngSize : undefined, { herd, heading }));
+            const young = species === 'Stegosaurus' && Math.random() < 0.6;
+            spawned.push(makeCreature(species, state, young ? 0.15 + Math.random() * 0.25 : undefined, { herd, heading }));
         }
     }
     return spawned;
@@ -332,15 +346,23 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
     const blood = new Map(gameState.blood || []);
     const behaviorLog = [];
     const occupancy = new Map();
-    for (const [k, list] of gameState.creatures) occupancy.set(k, list.length);
+    const giants = new Map();
+    for (const [k, list] of gameState.creatures) {
+        occupancy.set(k, list.length);
+        giants.set(k, countGiants(list));
+    }
     const player = gameState.player;
     const pf = playerFierceness(gameState);
     const turn = gameState.moveNumber;
-    const move = (from, to) => {
+    const move = (from, to, c = null) => {
         occupancy.set(from, (occupancy.get(from) || 1) - 1);
         occupancy.set(to, (occupancy.get(to) || 0) + 1);
+        if (c && isBigGiant(c)) {
+            giants.set(from, (giants.get(from) || 1) - 1);
+            giants.set(to, (giants.get(to) || 0) + 1);
+        }
     };
-    const roomAt = (key) => (occupancy.get(key) || 0) < MAX_CREATURES_PER_HEX;
+    const roomAt = (key, c = null) => (occupancy.get(key) || 0) < MAX_CREATURES_PER_HEX && (!c || !isBigGiant(c) || (giants.get(key) || 0) < MAX_GIANTS_PER_CELL);
     const pushAttack = (creature, key, charged, message, raw) => {
         attacked.add(creature.id);
         creature.engaged = true;
@@ -435,9 +457,9 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                                 best = n;
                             }
                         }
-                        if (best && roomAt(best)) {
+                        if (best && roomAt(best, creature)) {
                             destKey = best;
-                            move(hexKey, best);
+                            move(hexKey, best, creature);
                         } else if (!best) {
                             creature.heading = heading + Math.PI; // end of the trail: turn back
                         }
@@ -487,9 +509,9 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                         }
                     } else if (MOVE_ACTIONS.has(behavior.action) && behavior.target) {
                         const targetKey = behavior.target;
-                        if (passable(gameState, targetKey) && roomAt(targetKey)) {
+                        if (passable(gameState, targetKey) && roomAt(targetKey, creature)) {
                             destKey = targetKey;
-                            move(hexKey, targetKey);
+                            move(hexKey, targetKey, creature);
                             if (behavior.message) {
                                 behaviorLog.push({
                                     id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id,
@@ -798,7 +820,7 @@ const coreReducer = (state, action) => {
                     visited: false, visible: false, discovered: false, inRange: false, inSight: false
                 });
             }
-            return { ...state, worldSeed: seed, cells, player: world.spawnKey, mapGenerated: true, pois: generatePois(world) };
+            return { ...state, worldSeed: seed, cells, player: world.spawnKey, mapGenerated: true, pois: generatePois(world), migration: ((seed * 9301 + 49297) % 233280) / 233280 * Math.PI * 2 };
         }
 
         case 'MOVE_PLAYER': {
@@ -1077,7 +1099,7 @@ const coreReducer = (state, action) => {
             if (!playerHex) return state;
             const current = state.creatures.get(playerKey) || [];
             if (current.length >= MAX_CREATURES_PER_HEX) return state;
-            const spawned = rollSpawns(playerHex.terrain, state, { existing: current.length, key: playerKey, flyerBudget: Math.max(0, 3 - countFlyers(state.creatures)) });
+            const spawned = rollSpawns(playerHex.terrain, state, { existing: current.length, key: playerKey, flyerBudget: Math.max(0, 3 - countFlyers(state.creatures)), giantsHere: countGiants(current) });
             if (spawned.length === 0) return state;
             const newCreaturesMap = new Map(state.creatures);
             newCreaturesMap.set(playerKey, [...current, ...spawned]);
