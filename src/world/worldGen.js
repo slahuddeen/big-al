@@ -386,12 +386,13 @@ export const generateWorld = (seed) => {
         else if (m < 0.7) t = pick(['forest', 'denseforest', 'oldgrowth', 'youngforest'], v);
         else t = L <= 2 && nearRiver ? pick(['marsh', 'jungle'], v) : pick(['jungle', 'oldgrowth', 'denseforest'], v);
 
-        // river-side variety
+        // river-side variety: where forest meets a river it becomes gallery forest
         if (nearRiver && !['volcanic', 'lavafield', 'mountains'].includes(t)) {
             const r = rand();
-            if (m > 0.52 && r < 0.3) t = 'galleryforest';
-            else if (L <= 3 && r < 0.5) t = pick(['floodplain', 'riverbank', 'floodplain'], c.v2);
-            else if (m < 0.4 && r < 0.6) t = 'riverbank';
+            const forested = ['forest', 'denseforest', 'oldgrowth', 'jungle', 'youngforest', 'openwoods', 'ginkgogrove', 'forestedge'].includes(t);
+            if ((forested && r < 0.8) || (m > 0.48 && r < 0.4)) t = 'galleryforest';
+            else if (L <= 3 && r < 0.6) t = pick(['floodplain', 'riverbank', 'floodplain'], c.v2);
+            else if (m < 0.4 && r < 0.7) t = 'riverbank';
         }
         // rare features
         const r2 = rand();

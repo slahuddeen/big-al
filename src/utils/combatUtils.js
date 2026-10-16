@@ -199,6 +199,43 @@ export const calculateEnergyGain = (speciesData, creatureSize, playerWeight, pla
     }
 };
 
+// Chance an animal bolts before you can close in
+export const escapeChance = (speciesName, speciesData, creatureSize, playerWeight, playerLevel) => {
+    const escapeBaseChance = {
+        Dragonfly: 0.2, Cricket: 0.15, Centipede: 0.05, Mammal: 0.1, Scorpion: 0.08, Frog: 0.12, Lizard: 0.15,
+        Mesadactylus: 0.25, Harpactognathus: 0.18, Kepodactylus: 0.08, Compsognathus: 0.12, Coelurus: 0.15, Hesperornithoides: 0.18
+    };
+    let baseEscape = escapeBaseChance[speciesName] || 0.08;
+    const sizeRatio = (speciesData.weight * creatureSize) / playerWeight;
+    if (sizeRatio < 0.01) baseEscape += 0.15;
+    else if (sizeRatio < 0.1) baseEscape += 0.08;
+    if (playerLevel === 1) baseEscape += 0.1;
+    return Math.min(0.5, baseEscape);
+};
+
+// Deterministic odds for the encounter cards, matching ATTACK_CREATURE.
+// mods: [fierceness, agility, escape] multipliers for the attack style.
+export const previewAttack = (state, creature, mods = [1, 1, 1], style = 'normal') => {
+    const sd = SPECIES_DATA[creature.species];
+    if (!sd) return { success: 0, fierceness: 9, agility: 9, energyGain: 0 };
+    const woundMul = creature.wounded ? Math.max(0.15, (creature.health ?? 100) / 100) : 1;
+    const fierceness = calculateFiercenessRatio(state.weight, state.fitness, sd, creature.size, 1, false) * mods[0] * woundMul;
+    const agility = calculateAgilityRatio(state.weight, sd, false) * mods[1] * (creature.wounded ? 0.6 : 1);
+    const energyGain = calculateEnergyGain(sd, creature.size, state.weight, state.level);
+    let success;
+    if (style === 'hatchet') {
+        success = fierceness >= 2.5 ? 8 : Math.max(15, Math.min(92, 100 - agility * 45));
+    } else {
+        if (fierceness >= 1) success = Math.max(8, 35 - fierceness * 12);
+        else if (agility >= 1) success = Math.max(25, 85 - agility * 20);
+        else success = Math.max(75, 96 - fierceness * 8 - agility * 8);
+        const sizeRatio = (sd.weight * creature.size) / state.weight;
+        if (state.weight <= 2.0 && sizeRatio >= 0.001 && sizeRatio <= 0.1) success += 15;
+        success *= 1 - escapeChance(creature.species, sd, creature.size, state.weight, state.level) * mods[2] * 0.6;
+    }
+    return { success: Math.round(Math.max(5, Math.min(96, success))), fierceness, agility, energyGain };
+};
+
 // Enhanced debug function
 export const debugCombatCalculations = (playerWeight, playerFitness, speciesData, creatureSize) => {
     console.group("🔧 Combat Debug");

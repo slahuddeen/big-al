@@ -38,6 +38,7 @@ const WorldView = forwardRef(({ gameState, movable, path, onHexClick, onHexHover
         rotate: (dir) => rendererRef.current?.rotate(dir),
         zoom: (f) => rendererRef.current?.zoomBy(f),
         center: () => rendererRef.current?.centerOnPlayer(),
+        lookAt: (x, z) => rendererRef.current?.lookAt(x, z),
         reset: () => rendererRef.current?.resetView()
     }), []);
 
@@ -46,7 +47,6 @@ const WorldView = forwardRef(({ gameState, movable, path, onHexClick, onHexHover
             {error && (
                 <div className="absolute inset-0 flex items-center justify-center text-white text-center p-8">
                     <div className="bg-black bg-opacity-80 rounded-xl p-6 border-2 border-red-500 max-w-md">
-                        <div className="text-2xl mb-2">🦖💥</div>
                         <div className="font-bold mb-2">Couldn't start the 3D world</div>
                         <div className="text-sm text-gray-300">Your browser needs WebGL enabled to play. ({error})</div>
                     </div>

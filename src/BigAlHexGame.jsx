@@ -1,32 +1,27 @@
-﻿// ==================== BIG AL: ISOMETRIC 3D WORLD ====================
+// ==================== BIG AL: ISOMETRIC 3D WORLD ====================
 import React, { useReducer, useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import { areNeighbors } from './world/cellGraph.js';
 import { TERRAIN_TYPES } from './data/terrain.js';
 import { SPECIES_DATA } from './data/species.js';
-import { getTimeOfDay } from './game/gameConstants.js';
 import { initialGameState, gameReducer } from './game/gameState.js';
 import { calculateFiercenessRatio } from './utils/combatUtils.js';
-import { phaseIndex } from './three/WorldRenderer.js';
 // Component imports
 import WorldView from './components/WorldView.jsx';
 import StatusPanel from './components/StatusPanel.jsx';
+import TimeWidget from './components/TimeWidget.jsx';
 import CreaturesPanel from './components/CreaturesPanel.jsx';
-import CreatureActivityPanel from './components/CreatureActivityPanel.jsx';
+import ActionBar, { actionHotkeys } from './components/ActionBar.jsx';
+import Minimap from './components/Minimap.jsx';
+import EventLog from './components/EventLog.jsx';
 import NotificationSystem from './components/NotificationSystem.jsx';
 import DeathScreen from './components/DeathScreen.jsx';
 import HoverTooltip from './components/HoverTooltip.jsx';
+import Journal from './components/Journal.jsx';
+import IntroOverlay from './components/IntroOverlay.jsx';
+import Icon from './components/Icon.jsx';
 
 const TRAVEL_STEP_MS = 650;
 const MAX_PATH = 40;
-
-// Sky behind the (transparent) 3D canvas for each turn of the day/night cycle
-const SKIES = [
-    'radial-gradient(ellipse at 30% 0%, #ffe3b8 0%, #b9dcf5 45%, #8cc4e8 100%)', // morning
-    'radial-gradient(ellipse at 50% 0%, #f4fbff 0%, #a6d8f5 45%, #6fb6e6 100%)', // noon
-    'radial-gradient(ellipse at 70% 0%, #ffd29a 0%, #f2a27a 40%, #8a6aa8 100%)', // evening
-    'radial-gradient(ellipse at 50% 0%, #3a4a8a 0%, #1c2350 50%, #0b0f26 100%)', // night
-    'radial-gradient(ellipse at 40% 0%, #6a4a9a 0%, #2c2456 50%, #120e2a 100%)' // pre-dawn
-];
 
 const isWalkable = (hex, weight) => {
     if (!hex || !hex.discovered) return false;
@@ -61,8 +56,14 @@ const BigAlHexGame = () => {
     const [gameState, dispatch] = useReducer(gameReducer, initialGameState);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const [travelPath, setTravelPath] = useState([]);
+    const [journalOpen, setJournalOpen] = useState(false);
+    const [started, setStarted] = useState(() => new URLSearchParams(window.location.search).has('skipintro'));
+    const [sleepFx, setSleepFx] = useState(null);
+    const [hurtFx, setHurtFx] = useState(null);
+    const [journalSeen, setJournalSeen] = useState(0);
     const worldRef = useRef(null);
     const fitnessAtTravelStart = useRef(null);
+    const lastFitness = useRef(gameState.fitness);
 
     // ============ WORLD GENERATION ============
     useEffect(() => {
@@ -86,7 +87,7 @@ const BigAlHexGame = () => {
             return () => clearTimeout(id);
         }
         return undefined;
-    }, [gameState.player, gameState.moveNumber]);
+    }, [gameState.player]);
 
     // Creatures keep living between your moves
     const hasCreatures = gameState.creatures.size > 0;
@@ -111,12 +112,21 @@ const BigAlHexGame = () => {
         window.forceBehaviorUpdate = () => dispatch({ type: 'PROCESS_CREATURE_BEHAVIORS' });
         window.bigAl = { state: gameState, dispatch };
         window.spawnCreature = (species, hexKey, size) => dispatch({ type: 'DEBUG_SPAWN', species, hexKey, size });
+        // jump to the nearest cell of a terrain (e.g. teleport('galleryforest')), optionally setting the turn
+        window.teleport = (terrain, turn) => {
+            const here = gameState.cells.get(gameState.player);
+            const target = [...gameState.cells.values()].filter((c) => c.terrain === terrain)
+                .sort((a, b) => Math.hypot(a.x - here.x, a.z - here.z) - Math.hypot(b.x - here.x, b.z - here.z))[0];
+            if (target) dispatch({ type: 'DEBUG_TELEPORT', key: target.key, turn });
+            return target?.key;
+        };
         return () => {
             delete window.listCreatures;
             delete window.showBehaviorLog;
             delete window.forceBehaviorUpdate;
             delete window.bigAl;
             delete window.spawnCreature;
+            delete window.teleport;
         };
     }, [gameState]);
 
@@ -196,26 +206,58 @@ const BigAlHexGame = () => {
         return findPath(gameState.cells, gameState.player, h.key, gameState.weight) || [];
     }, [travelPath, gameState.hoveredHex, gameState.player, gameState.cells, gameState.weight, gameState.gameOver]);
 
-    // ============ HUD INFO ============
-    const timeInfo = getTimeOfDay(gameState.moveNumber);
-    const sky = SKIES[phaseIndex(gameState.moveNumber)];
-
-    const ecosystemInfo = useMemo(() => {
-        const totalCreatures = Array.from(gameState.creatures.values()).reduce((total, c) => total + c.length, 0);
-        return {
-            totalCreatures,
-            activityLevel: totalCreatures === 0 ? 'silent' : totalCreatures < 5 ? 'quiet' : totalCreatures < 15 ? 'active' : 'bustling'
+    // ============ HOTKEYS ============
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.target && ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+            if (!started || gameState.gameOver) return;
+            const k = e.key.toLowerCase();
+            if (k === 'j') {
+                setJournalOpen((o) => !o);
+                return;
+            }
+            if (journalOpen) return;
+            if (/^[1-5]$/.test(k) && actionHotkeys(gameState, dispatch, k)) setTravelPath([]);
         };
-    }, [gameState.creatures]);
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [gameState, started, journalOpen]);
+
+    // ============ SCREEN EFFECTS ============
+    useEffect(() => {
+        const a = gameState.lastPlayerAction;
+        if (a?.type === 'sleep') setSleepFx(a.id);
+    }, [gameState.lastPlayerAction]);
+    useEffect(() => {
+        if (gameState.fitness < lastFitness.current - 0.5) setHurtFx(`${gameState.moveNumber}-${gameState.fitness}`);
+        lastFitness.current = gameState.fitness;
+    }, [gameState.fitness, gameState.moveNumber]);
+    useEffect(() => {
+        if (!sleepFx) return undefined;
+        const id = setTimeout(() => setSleepFx(null), 2300);
+        return () => clearTimeout(id);
+    }, [sleepFx]);
+
+    const journalCount = Object.keys(gameState.journal.species).length + Object.keys(gameState.journal.landmarks).length;
+    const openJournal = () => {
+        setJournalOpen(true);
+        setJournalSeen(journalCount);
+    };
 
     const hoveredCreatures = gameState.hoveredHex && gameState.cells.get(gameState.hoveredHex.key)?.inSight
         ? gameState.creatures.get(gameState.hoveredHex.key)
         : null;
+    const camera = {
+        rotate: (d) => worldRef.current?.rotate(d),
+        zoom: (f) => worldRef.current?.zoom(f),
+        center: () => worldRef.current?.center(),
+        look: (x, z) => worldRef.current?.lookAt(x, z)
+    };
 
     return (
         <div
-            className="w-full h-screen relative overflow-hidden transition-[background] duration-1000"
-            style={{ background: sky, userSelect: 'none' }}
+            className="w-full h-screen relative overflow-hidden"
+            style={{ userSelect: 'none', background: '#0d100c' }}
             onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
         >
             {/* 3D world */}
@@ -228,50 +270,41 @@ const BigAlHexGame = () => {
                 onHexHover={handleHexHover}
             />
 
-            {/* soft vignette to frame the diorama */}
-            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.35) 100%)' }} />
-
-            <StatusPanel gameState={gameState} />
-            <CreaturesPanel gameState={gameState} dispatch={dispatch} />
-            <CreatureActivityPanel gameState={gameState} />
-
-            {/* Thought bubble */}
-            {!gameState.gameOver && gameState.currentThought && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none" style={{ maxWidth: '36rem' }}>
-                    <div className="thought-bubble px-4 py-2 rounded-2xl text-sm italic text-amber-50 bg-black bg-opacity-70 border border-amber-500 shadow-lg">
-                        💭 {gameState.currentThought}
-                        {travelPath.length > 0 && <span className="not-italic text-amber-300"> · travelling ({travelPath.length} more)</span>}
-                    </div>
+            {sleepFx && (
+                <div key={sleepFx} className="sleep-overlay flex items-center justify-center">
+                    <span className="panel-title text-[40px] text-[#c8d0ff] opacity-80 anim-bob">z z z</span>
                 </div>
             )}
+            {hurtFx && <div key={hurtFx} className="hurt-flash" />}
 
-            {/* Camera controls */}
-            <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 text-white text-xs p-3 rounded-xl border border-amber-600 space-y-2" style={{ width: '14rem' }}>
-                <div className="flex gap-1">
-                    {[
-                        ['⟲', 'Rotate left (Q)', () => worldRef.current?.rotate(-1)],
-                        ['⟳', 'Rotate right (E)', () => worldRef.current?.rotate(1)],
-                        ['＋', 'Zoom in (+)', () => worldRef.current?.zoom(1.25)],
-                        ['－', 'Zoom out (-)', () => worldRef.current?.zoom(0.8)],
-                        ['🎯', 'Center on Big Al (C)', () => worldRef.current?.center()]
-                    ].map(([label, title, fn]) => (
-                        <button key={title} title={title} onClick={fn}
-                            className="flex-1 bg-amber-700 hover:bg-amber-600 active:scale-95 rounded-md py-1 text-base transition">
-                            {label}
-                        </button>
-                    ))}
-                </div>
-                <div className="text-gray-300 leading-snug">
-                    Click a neighbouring area to move · click further to travel · drag / WASD to pan · wheel to zoom
-                </div>
-                <div className="pt-1 border-t border-amber-700 text-gray-400">
-                    {timeInfo.isNight ? '🌙' : '☀️'} Ecosystem: {ecosystemInfo.totalCreatures} creatures ({ecosystemInfo.activityLevel})
-                </div>
-            </div>
+            {started && (
+                <>
+                    <div className="absolute top-4 left-4 pointer-events-auto"><StatusPanel gameState={gameState} /></div>
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none">
+                        <div className="pointer-events-auto"><TimeWidget gameState={gameState} /></div>
+                        <NotificationSystem gameState={gameState} dispatch={dispatch} />
+                    </div>
+                    <div className="absolute top-4 right-4"><CreaturesPanel gameState={gameState} dispatch={dispatch} /></div>
+                    <div className="absolute bottom-4 left-4 hidden md:block"><Minimap gameState={gameState} camera={camera} onLook={camera.look} /></div>
+                    <div className="absolute bottom-4 right-4 hidden xl:block"><EventLog gameState={gameState} /></div>
 
-            <HoverTooltip hex={gameState.hoveredHex} mousePos={mousePos} creatures={hoveredCreatures} />
-            <DeathScreen gameState={gameState} dispatch={dispatch} />
-            <NotificationSystem gameState={gameState} dispatch={dispatch} />
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2.5">
+                        {!gameState.gameOver && gameState.currentThought && (
+                            <div className="panel px-4 py-2 max-w-[560px] text-center pointer-events-none anim-fade" key={gameState.currentThought}>
+                                <span className="italic text-[14px] text-ink">{gameState.currentThought}</span>
+                                {travelPath.length > 0 && <span className="text-[12px] ml-2" style={{ color: 'var(--accent)' }}>Travelling, {travelPath.length} to go</span>}
+                                {gameState.dashArmed && <span className="text-[12px] ml-2 font-semibold" style={{ color: 'var(--accent)' }}><Icon name="dash" size={12} className="inline -mt-0.5" /> Dash ready</span>}
+                            </div>
+                        )}
+                        <ActionBar gameState={gameState} dispatch={dispatch} onJournal={openJournal} journalNew={journalCount > journalSeen} />
+                    </div>
+
+                    {!journalOpen && <HoverTooltip hex={gameState.hoveredHex} mousePos={mousePos} creatures={hoveredCreatures} gameState={gameState} pathLength={previewPath.length} />}
+                    {journalOpen && <Journal gameState={gameState} onClose={() => setJournalOpen(false)} />}
+                    <DeathScreen gameState={gameState} dispatch={dispatch} />
+                </>
+            )}
+            {!started && <IntroOverlay onStart={() => setStarted(true)} />}
         </div>
     );
 };

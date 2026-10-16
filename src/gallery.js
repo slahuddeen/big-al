@@ -1,4 +1,5 @@
 // Dev-only gallery of every creature model and terrain tile (open /gallery.html)
+// ?pose=graze|browse|call|crouch|rest|sniff previews the behaviour poses
 import * as THREE from 'three';
 import { createMaterials, sharedUniforms } from './three/materials.js';
 import { buildCreatureModel, buildBigAl, SPECIES_MODELS } from './three/creatures3d.js';
@@ -124,7 +125,9 @@ const loop = () => {
     camera.lookAt(window.__center);
     for (const it of items) {
         const moving = params.get('walk') ? 1 : 0;
-        animateModel(it.model, t, { phase: t * 8, moving, jaw: params.get('jaw') ? 1 : 0 });
+        // ?pose=graze|browse|call|crouch|rest|sniff holds that pose (1 = full)
+        const pose = params.get('pose');
+        animateModel(it.model, t, { phase: t * 8, moving, jaw: params.get('jaw') ? 1 : 0, ...(pose ? { [pose]: Number(params.get('amount') ?? 1) } : {}) });
     }
     renderer.render(scene, camera);
     requestAnimationFrame(loop);

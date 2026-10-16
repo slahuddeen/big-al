@@ -1,296 +1,183 @@
 import React from 'react';
 import { SPECIES_DATA } from '../data/species.js';
-import { calculateFiercenessRatio, calculateAgilityRatio, calculateSuccessChance, calculateEnergyGain } from '../utils/combatUtils.js';
+import { TERRAIN_TYPES } from '../data/terrain.js';
+import { previewAttack } from '../utils/combatUtils.js';
+import { ABILITIES, ATTACK_MODS, abilityUnlocked, cooldownLeft, inCover } from '../game/abilities.js';
+import { creatureThreat, playerFierceness, playerMisty, hatchetTarget } from '../game/gameState.js';
+import { POI_TYPES } from '../game/pois.js';
+import { formatWeight, ageLabel } from '../utils/format.js';
 import CreaturePortrait from './CreaturePortrait.jsx';
+import Icon from './Icon.jsx';
 
-const CreaturesPanel = ({ gameState, dispatch }) => {
-    const playerKey = gameState.player;
-    const creatures = gameState.creatures.get(playerKey) || [];
-    const carcasses = (gameState.carcasses && gameState.carcasses.get(playerKey)) || [];
+const THREAT = {
+    easy: { label: 'Easy prey', color: 'var(--good)' },
+    fair: { label: 'Fair fight', color: 'var(--warn)' },
+    dangerous: { label: 'Dangerous', color: 'var(--bad)' },
+    meagre: { label: 'Barely a snack', color: 'var(--muted)' }
+};
 
-    if ((creatures.length === 0 && carcasses.length === 0) || gameState.gameOver) return null;
+const oddsColor = (p) => (p >= 70 ? 'var(--good)' : p >= 40 ? 'var(--warn)' : 'var(--bad)');
+const POI_ICONS = { eggs: 'egg', sauropodcarcass: 'bone', wallow: 'mud', lookout: 'mountain', bonebed: 'bone', waterfall: 'waterfall', volcano: 'volcano', seashore: 'wave' };
 
-    // NEW: Calculate energy gain preview using the safe function
-    const calculateEnergyPreview = (speciesData, creatureSize) => {
-        try {
-            return calculateEnergyGain(speciesData, creatureSize, gameState.weight, gameState.level);
-        } catch (error) {
-            console.error("Error in energy preview:", error);
-            return 5; // Safe fallback
-        }
-    };
+const AttackButton = ({ label, icon, odds, disabled, reason, onClick, primary }) => (
+    <button
+        type="button"
+        disabled={disabled}
+        title={reason || undefined}
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        className={`btn ${primary ? 'btn-primary' : ''} flex-1 min-w-0 !px-2 !py-1.5`}
+    >
+        <Icon name={icon} size={14} />
+        <span className="truncate">{label}</span>
+        {odds !== null && !disabled && <span className="pixel text-[12px]" style={primary ? undefined : { color: oddsColor(odds) }}>{odds}%</span>}
+    </button>
+);
 
-    // NEW: Get creature weight in kg with appropriate formatting
-    const getCreatureWeight = (speciesData, creatureSize) => {
-        const weightKg = (speciesData.weight || 1) * creatureSize;
+const CreatureCard = ({ creature, gameState, dispatch }) => {
+    const sd = SPECIES_DATA[creature.species];
+    if (!sd) return null;
+    const base = previewAttack(gameState, creature, ATTACK_MODS.normal, 'normal');
+    const weight = sd.weight * creature.size;
+    const threat = base.success >= 70 ? (base.energyGain < 5 ? 'meagre' : 'easy') : base.success >= 40 ? 'fair' : 'dangerous';
+    const attack = (style) => dispatch({ type: 'ATTACK_CREATURE', creatureId: creature.id, style });
+    const misty = playerMisty(gameState);
 
-        if (weightKg < 0.001) {
-            return `${Math.round(weightKg * 1000000)}mg`;
-        } else if (weightKg < 1) {
-            return `${Math.round(weightKg * 1000)}g`;
-        } else if (weightKg < 1000) {
-            return `${weightKg.toFixed(1)}kg`;
-        } else {
-            return `${(weightKg / 1000).toFixed(1)}t`;
-        }
-    };
+    // alternative attacks from Big Al's abilities
+    const styles = ['pounce', 'ambush', 'hatchet']
+        .filter((id) => abilityUnlocked(gameState, id))
+        .map((id) => {
+            const cd = cooldownLeft(gameState, id);
+            let reason = cd > 0 ? `Ready in ${cd} turn${cd > 1 ? 's' : ''}` : null;
+            if (!reason && id === 'ambush' && !inCover(gameState, misty)) reason = 'Needs cover: forest, ferns, marsh or mist';
+            if (!reason && id === 'hatchet' && !hatchetTarget(gameState, creature)) reason = 'Only worth it on big animals';
+            if (id === 'pounce' && weight > gameState.weight * 2) return null; // no use against big things
+            const odds = previewAttack(gameState, creature, ATTACK_MODS[id], id).success;
+            return { id, reason, odds };
+        })
+        .filter(Boolean);
 
     return (
-        <div
-            className="absolute top-4 right-4 w-80 bg-black bg-opacity-90 backdrop-blur-md rounded-xl border-2 border-amber-600 text-white flex flex-col transition-all duration-500 ease-out panel-enter overflow-hidden"
-            style={{
-                zIndex: 50000,
-                maxHeight: creatures.length > 2 ? '85vh' : 'auto'
-            }}
-        >
-            {/* Header */}
-            <div className="p-3 border-b border-amber-600 gradient-overlay flex-shrink-0">
-                <h3 className="font-bold text-center text-xl text-amber-400">
-                    🎯 Creatures Present
-                </h3>
-                <div className="text-center text-sm text-gray-400">
-                    {creatures.length} creature{creatures.length !== 1 ? 's' : ''} detected{carcasses.length > 0 ? ` · ${carcasses.length} carcass${carcasses.length !== 1 ? 'es' : ''}` : ''}
+        <div className={`card threat-${threat} anim-slide-left`}>
+            <div className="flex gap-3 p-2.5 pb-2">
+                <div className="w-[84px] h-[62px] rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: 'radial-gradient(100% 90% at 50% 100%, rgba(255,244,220,0.12), rgba(0,0,0,0.25))' }}>
+                    <CreaturePortrait species={creature.species} size={80} height={58} />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="font-bold text-[14.5px] leading-tight truncate">{creature.species}</div>
+                        <span className="pixel text-[18px] leading-none" style={{ color: oddsColor(base.success) }} title="Chance a normal attack succeeds">{base.success}%</span>
+                    </div>
+                    <div className="mt-1 flex gap-1 flex-wrap">
+                        <span className="chip" style={{ color: THREAT[threat].color, borderColor: 'currentColor' }}>{THREAT[threat].label}</span>
+                        <span className="chip">{ageLabel(creature.size)} · {formatWeight(weight)}</span>
+                        <span className="chip" title="Energy if you catch it"><Icon name="meat" size={11} />+{base.energyGain}</span>
+                    </div>
+                    {creature.wounded && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                            <span className="text-[11px] font-semibold" style={{ color: 'var(--bad)' }}>Bleeding</span>
+                            <div className="meter flex-1" style={{ height: 5 }}><i style={{ width: `${Math.max(0, creature.health)}%`, background: 'var(--bad)' }} /></div>
+                        </div>
+                    )}
                 </div>
             </div>
+            <div className="px-2.5 pb-2.5 flex gap-1.5">
+                <AttackButton label="Attack" icon="claw" odds={null} primary={threat !== 'dangerous'} onClick={() => attack('normal')} />
+                {styles.map((s) => (
+                    <AttackButton key={s.id} label={ABILITIES[s.id].name.replace(' Bite', '')} icon={s.id} odds={s.odds} disabled={!!s.reason} reason={s.reason || ABILITIES[s.id].desc} onClick={() => attack(s.id)} />
+                ))}
+            </div>
+        </div>
+    );
+};
 
-            {/* Scrollable Creatures List - Only scroll if more than 2 creatures */}
-            <div className={`flex-1 p-3 space-y-3 ${creatures.length > 2 ? 'overflow-y-auto creatures-panel-scroll' : ''}`}>
-                {creatures.map((creature) => {
-                    const speciesData = SPECIES_DATA[creature.species];
+const CarcassCard = ({ carcass, gameState, dispatch }) => {
+    const age = gameState.moveNumber - carcass.turn;
+    return (
+        <div className="card anim-slide-left" style={{ borderColor: 'rgba(200,90,80,0.4)' }}>
+            <div className="flex gap-3 p-2.5 items-center">
+                <div className="w-[70px] h-[48px] rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(0,0,0,0.25)' }}>
+                    <CreaturePortrait species={carcass.species} size={64} height={44} dead />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="font-bold text-[13.5px] truncate">{carcass.species} carcass</div>
+                    <div className="text-[11.5px] text-ink-muted">{age <= 2 ? 'Fresh kill' : age <= 8 ? 'Getting ripe' : 'Rotting'}{carcass.portions > 1 ? ` · ${carcass.portions} meals left` : ''}</div>
+                </div>
+                <button type="button" className="btn btn-primary" onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SCAVENGE', carcassId: carcass.id }); }}>
+                    <Icon name="meat" size={14} />Feed
+                </button>
+            </div>
+        </div>
+    );
+};
 
-                    // Add validation for creature data
-                    if (!speciesData) {
-                        console.error(`Missing species data for: ${creature.species}`);
-                        return null;
-                    }
+const PoiCard = ({ poi, dispatch }) => {
+    const def = POI_TYPES[poi.type];
+    const usable = def.action && poi.portions > 0;
+    return (
+        <div className="card anim-slide-left" style={{ borderColor: 'rgba(244,183,64,0.35)' }}>
+            <div className="flex gap-3 p-2.5 items-center">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(244,183,64,0.12)', color: 'var(--accent)' }}>
+                    <Icon name={POI_ICONS[poi.type]} size={22} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="font-bold text-[13.5px]">{def.name}</div>
+                    <div className="text-[11.5px] text-ink-muted leading-snug">{def.action && poi.portions === 0 ? 'Nothing left here.' : def.desc}</div>
+                </div>
+                {usable && (
+                    <button type="button" className="btn btn-primary shrink-0" onClick={(e) => { e.stopPropagation(); dispatch({ type: 'USE_POI' }); }}>
+                        {def.action}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
 
-                    // Deterministic preview (no dice roll) so the numbers don't flicker
-                    const fiercenessRatio = calculateFiercenessRatio(gameState.weight, gameState.fitness, speciesData, creature.size, 1, false);
-                    const agilityRatio = calculateAgilityRatio(gameState.weight, speciesData, false);
-                    const successChance = calculateSuccessChance(gameState.weight, gameState.fitness, speciesData, creature.size);
+// Everything on Big Al's area, plus a glance at what's next door
+const CreaturesPanel = ({ gameState, dispatch }) => {
+    if (gameState.gameOver) return null;
+    const playerKey = gameState.player;
+    const here = gameState.cells.get(playerKey);
+    const creatures = gameState.creatures.get(playerKey) || [];
+    const carcasses = gameState.carcasses.get(playerKey) || [];
+    const poi = gameState.pois.get(playerKey);
+    const pf = playerFierceness(gameState);
+    const nearby = [];
+    for (const n of here?.neighbors || []) {
+        if (!gameState.cells.get(n)?.inSight) continue;
+        for (const c of gameState.creatures.get(n) || []) nearby.push(c);
+    }
+    const dangerNear = nearby.filter((c) => creatureThreat(c) > pf);
+    if (!creatures.length && !carcasses.length && !poi && !dangerNear.length) return null;
 
-                    // Validate calculated values
-                    if (isNaN(fiercenessRatio) || isNaN(agilityRatio) || isNaN(successChance)) {
-                        console.error("NaN detected in combat calculations:", {
-                            creature: creature.species,
-                            fiercenessRatio,
-                            agilityRatio,
-                            successChance,
-                            playerWeight: gameState.weight,
-                            playerFitness: gameState.fitness,
-                            speciesData
-                        });
-                        return null; // Skip rendering this creature
-                    }
-
-                    // NEW: Energy and prey suitability calculations
-                    const energyGain = calculateEnergyPreview(speciesData, creature.size);
-                    const creatureWeight = getCreatureWeight(speciesData, creature.size);
-                    const preyWeight = (speciesData.weight || 1) * creature.size;
-                    const sizeRatio = preyWeight / gameState.weight;
-
-                    // Enhanced threat level for styling with prey suitability
-                    const getThreatLevel = () => {
-                        if (successChance >= 70) {
-                            // Check if prey is too small to be satisfying
-                            if (energyGain < 5) return 'unsatisfying';
-                            return 'safe';
-                        }
-                        if (successChance >= 40) return 'moderate';
-                        return 'dangerous';
-                    };
-
-                    const threatLevel = getThreatLevel();
-                    const threatColors = {
-                        safe: {
-                            border: 'border-green-500 border-glow-green',
-                            bg: 'bg-green-900 bg-opacity-20',
-                            text: 'text-green-400',
-                            button: 'bg-green-600 hover:bg-green-700 attack-button'
-                        },
-                        unsatisfying: {
-                            border: 'border-gray-500 border-glow-gray',
-                            bg: 'bg-gray-900 bg-opacity-20',
-                            text: 'text-gray-400',
-                            button: 'bg-gray-600 hover:bg-gray-700 attack-button'
-                        },
-                        moderate: {
-                            border: 'border-yellow-500 border-glow-yellow',
-                            bg: 'bg-yellow-900 bg-opacity-20',
-                            text: 'text-yellow-400',
-                            button: 'bg-yellow-600 hover:bg-yellow-700 attack-button'
-                        },
-                        dangerous: {
-                            border: 'border-red-500 border-glow-red danger-pulse',
-                            bg: 'bg-red-900 bg-opacity-20',
-                            text: 'text-red-400',
-                            button: 'bg-red-600 hover:bg-red-700 attack-button'
-                        }
-                    };
-
-                    const colors = threatColors[threatLevel];
-
-                    return (
-                        <div
-                            key={creature.id}
-                            className={`rounded-xl border-2 ${colors.border} ${colors.bg} overflow-hidden creature-card`}
-                        >
-                            {/* Large Creature Image Section */}
-                            <div className="relative h-32 bg-gradient-to-b from-transparent via-transparent to-black bg-opacity-50 flex items-center justify-center gradient-overlay">
-                                <CreaturePortrait
-                                    species={creature.species}
-                                    size={150}
-                                    className="creature-image-hover"
-                                    style={{ filter: 'drop-shadow(2px 4px 4px rgba(0,0,0,0.6))' }}
-                                />
-
-                                {/* Success Chance Overlay */}
-                                <div className={`absolute top-2 right-2 px-2 py-1 rounded-lg font-bold text-sm ${colors.bg} ${colors.border} border backdrop-blur-sm`}>
-                                    <div className={`${colors.text} text-lg font-bold`}>
-                                        {successChance}%
-                                    </div>
-                                    <div className="text-xs text-gray-300">
-                                        success
-                                    </div>
-                                </div>
-
-                                {/* Weight Indicator */}
-                                <div className="absolute top-2 left-2 px-2 py-1 bg-blue-900 bg-opacity-80 rounded-lg backdrop-blur-sm border border-blue-600">
-                                    <div className="text-xs font-bold text-blue-300">
-                                        {creatureWeight}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Creature Info */}
-                            <div className="p-3">
-                                {/* Name */}
-                                <h4 className="font-bold text-lg text-center mb-3 text-white">
-                                    {creature.species}
-                                </h4>
-
-                                {/* Compact Stats Grid - Now including Energy */}
-                                <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
-                                    <div className="bg-green-900 bg-opacity-40 rounded-md p-2 border border-green-700">
-                                        <div className="text-gray-400">Nutrition</div>
-                                        <div className="text-green-400 font-bold text-sm">
-                                            {Math.round(speciesData.nutrition * creature.size)}
-                                        </div>
-                                    </div>
-                                    <div className="bg-red-900 bg-opacity-40 rounded-md p-2 border border-red-700">
-                                        <div className="text-gray-400">Danger</div>
-                                        <div className="text-red-400 font-bold text-sm">
-                                            {Math.round(speciesData.danger * creature.size)}
-                                        </div>
-                                    </div>
-                                    <div className="bg-purple-900 bg-opacity-40 rounded-md p-2 border border-purple-700">
-                                        <div className="text-gray-400">Energy</div>
-                                        <div className={`font-bold text-sm ${energyGain < 5 ? 'text-gray-400' : energyGain < 15 ? 'text-yellow-400' : 'text-green-400'}`}>
-                                            +{energyGain}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* NEW: Prey suitability warning */}
-                                {threatLevel === 'unsatisfying' && (
-                                    <div className="mb-3 p-2 bg-gray-800 bg-opacity-60 rounded border border-gray-600">
-                                        <div className="text-xs text-gray-300 text-center">
-                                            ⚠️ Too small to be satisfying
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Enhanced agility warning for tiny prey */}
-                                {sizeRatio < 0.01 && gameState.weight > 50 && (
-                                    <div className="mb-3 p-2 bg-orange-800 bg-opacity-60 rounded border border-orange-600">
-                                        <div className="text-xs text-orange-300 text-center">
-                                            🏃 Very hard to catch!
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Compact Stats Bars */}
-                                <div className="space-y-1 mb-3">
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-gray-400">Fierceness</span>
-                                        <span className={`font-bold ${fiercenessRatio < 1 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {fiercenessRatio.toFixed(1)}x
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-gray-700 rounded-full h-1">
-                                        <div
-                                            className={`h-1 rounded-full stat-bar-fill ${fiercenessRatio < 1 ? 'bg-green-500' : 'bg-red-500'}`}
-                                            style={{ width: `${Math.min(100, (1 / Math.max(0.1, fiercenessRatio)) * 100)}%` }}
-                                        />
-                                    </div>
-
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-gray-400">Agility</span>
-                                        <span className={`font-bold ${agilityRatio < 1 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {agilityRatio.toFixed(1)}x
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-gray-700 rounded-full h-1">
-                                        <div
-                                            className={`h-1 rounded-full stat-bar-fill ${agilityRatio < 1 ? 'bg-green-500' : 'bg-red-500'}`}
-                                            style={{ width: `${Math.min(100, (1 / Math.max(0.1, agilityRatio)) * 100)}%` }}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Attack Button */}
-                                <button
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        dispatch({ type: 'ATTACK_CREATURE', creatureId: creature.id });
-                                    }}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    className={`w-full ${colors.button} text-white py-2 px-4 rounded-lg text-sm font-bold transition-all duration-200 transform hover:scale-105 active:scale-95`}
-                                    style={{
-                                        zIndex: 55000,
-                                        pointerEvents: 'all',
-                                        position: 'relative'
-                                    }}
-                                >
-                                    ⚔️ Attack
-                                </button>
-
-                                {/* Description - only show if there aren't too many creatures */}
-                                {creatures.length <= 2 && (
-                                    <div className="mt-2 text-xs text-gray-400 italic text-center">
-                                        {speciesData.description}
-                                    </div>
-                                )}
-                            </div>
+    return (
+        <div className="panel w-[340px] max-w-[calc(100vw-32px)] max-h-[calc(100vh-300px)] flex flex-col anim-slide-left" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="px-3 pt-2.5 pb-2 flex items-center justify-between border-b border-[color:var(--line)]">
+                <div>
+                    <div className="label">Your area</div>
+                    <div className="panel-title text-[16px] leading-tight">{TERRAIN_TYPES[here.terrain].name}</div>
+                </div>
+                {creatures.length > 0 && <span className="chip"><Icon name="paw" size={12} />{creatures.length} here</span>}
+            </div>
+            <div className="p-2.5 space-y-2 overflow-y-auto scroll-thin">
+                {poi && <PoiCard poi={poi} dispatch={dispatch} />}
+                {creatures.map((c) => <CreatureCard key={c.id} creature={c} gameState={gameState} dispatch={dispatch} />)}
+                {carcasses.map((c) => <CarcassCard key={c.id} carcass={c} gameState={gameState} dispatch={dispatch} />)}
+                {dangerNear.length > 0 && (
+                    <div className="rounded-xl px-2.5 py-2" style={{ background: 'rgba(239,95,85,0.08)', border: '1px solid rgba(239,95,85,0.3)' }}>
+                        <div className="flex items-center gap-1.5 text-[12px] font-bold" style={{ color: 'var(--bad)' }}>
+                            <Icon name="warn" size={14} />Danger next door
                         </div>
-                    );
-                })}
-
-                {/* NEW: carcasses left by other predators can be scavenged safely */}
-                {carcasses.map((carcass) => {
-                    const speciesData = SPECIES_DATA[carcass.species];
-                    if (!speciesData) return null;
-                    const age = gameState.moveNumber - carcass.turn;
-                    return (
-                        <div key={carcass.id} className="rounded-xl border-2 border-rose-700 bg-rose-950 bg-opacity-40 p-3 flex items-center gap-3">
-                            <div className="relative">
-                                <CreaturePortrait species={carcass.species} size={72} style={{ filter: 'grayscale(0.7) brightness(0.7)', transform: 'rotate(160deg) scaleX(-1)' }} />
-                                <span className="absolute -bottom-1 -right-1 text-lg">🦴</span>
-                            </div>
-                            <div className="flex-1">
-                                <div className="font-bold text-rose-200">{carcass.species} carcass</div>
-                                <div className="text-xs text-gray-400 mb-2">{age <= 2 ? 'Fresh kill' : age <= 8 ? 'Getting ripe' : 'Rotting'} · no fight needed</div>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SCAVENGE', carcassId: carcass.id }); }}
-                                    className="w-full bg-rose-700 hover:bg-rose-600 text-white py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95"
-                                >
-                                    🍖 Scavenge
-                                </button>
-                            </div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                            {[...new Set(dangerNear.map((c) => c.species))].slice(0, 6).map((sp) => {
+                                const n = dangerNear.filter((c) => c.species === sp).length;
+                                return <span key={sp} className="chip !pl-1"><CreaturePortrait species={sp} size={26} height={18} />{sp}{n > 1 ? ` ×${n}` : ''}</span>;
+                            })}
                         </div>
-                    );
-                })}
+                        <div className="text-[11px] text-ink-muted mt-1">Aggressive animals will charge into your area to attack.</div>
+                    </div>
+                )}
             </div>
         </div>
     );

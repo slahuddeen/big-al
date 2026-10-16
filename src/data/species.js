@@ -182,6 +182,13 @@ export const SPECIES_DATA = {
         size: 0.5, weight: 25, injury: "claws and bites viciously",
         minimumAge: 0.1, behaviorType: "pack_predator"
     },
+    "Stokesosaurus": {
+        emoji: "🦖",
+        nutrition: 45, danger: 40, aggression: 0.6, difficulty: 0.5,
+        description: "Lightly built early tyrannosaur - a quick, feathered mid-sized hunter",
+        size: 0.7, weight: 70, injury: "snaps at you with a narrow, toothy snout",
+        minimumAge: 0.3, behaviorType: "rival_predator"
+    },
     "Juvenile Allosaurus": {
         emoji: "🦖",
         nutrition: 25, danger: 90, aggression: 0.55, difficulty: 0.65,
@@ -284,6 +291,7 @@ export const HABITAT_SPECIES = {
         'Ornitholestes': 0.08, 'Juvenile Allosaurus': 0.05,
     },
     'forest': {
+        'Stokesosaurus': 0.06,
         // Balanced spawn rates
         'Dragonfly': 0.2, 'Centipede': 0.25, 'Cricket': 0.18, 'Mammal': 0.2,
         'Scorpion': 0.12, 'Lizard': 0.15, 'Compsognathus': 0.15, 'Coelurus': 0.1,
@@ -292,6 +300,7 @@ export const HABITAT_SPECIES = {
         'Ornitholestes': 0.08, 'Juvenile Allosaurus': 0.06, 'Torvosaurus': 0.08
     },
     'openwoods': {
+        'Stokesosaurus': 0.07,
         // Forest edge species - moderate
         'Dragonfly': 0.18, 'Cricket': 0.2, 'Mammal': 0.15,
         'Lizard': 0.12, 'Turtle': 0.1, 'Compsognathus': 0.12, 'Coelurus': 0.08,
@@ -433,6 +442,7 @@ export const HABITAT_SPECIES = {
         'Mesadactylus': 0.12, 'Ceratosaurus': 0.06
     },
     'youngforest': {
+        'Stokesosaurus': 0.06,
         'Cricket': 0.2, 'Katydid': 0.12, 'Mammal': 0.2, 'Lizard': 0.15, 'Compsognathus': 0.15,
         'Coelurus': 0.1, 'Dryosaurus': 0.15, 'Othnielia': 0.15, 'Camptosaurus': 0.1, 'Ornitholestes': 0.08
     },
@@ -441,6 +451,7 @@ export const HABITAT_SPECIES = {
         'Camptosaurus': 0.15, 'Dryosaurus': 0.12, 'Stegosaurus': 0.1, 'Coelurus': 0.08
     },
     'forestedge': {
+        'Stokesosaurus': 0.06,
         'Dragonfly': 0.15, 'Cricket': 0.18, 'Katydid': 0.15, 'Mammal': 0.15, 'Lizard': 0.12,
         'Compsognathus': 0.12, 'Ornitholestes': 0.08, 'Dryosaurus': 0.15, 'Othnielia': 0.15,
         'Camptosaurus': 0.12, 'Stegosaurus': 0.08, 'Torvosaurus': 0.06, 'Male Allosaurus': 0.05
@@ -450,6 +461,7 @@ export const HABITAT_SPECIES = {
         'Snake': 0.12, 'Compsognathus': 0.12, 'Hesperornithoides': 0.1
     },
     'fernprairie': {
+        'Stokesosaurus': 0.05,
         'Cricket': 0.2, 'Katydid': 0.15, 'Dragonfly': 0.12, 'Mammal': 0.12, 'Lizard': 0.12,
         'Compsognathus': 0.12, 'Dryosaurus': 0.15, 'Othnielia': 0.15, 'Camptosaurus': 0.15,
         'Stegosaurus': 0.12, 'Diplodocus': 0.1, 'Camarasaurus': 0.08, 'Male Allosaurus': 0.06,
@@ -478,9 +490,10 @@ export const HABITAT_SPECIES = {
         'Mesadactylus': 0.18, 'Harpactognathus': 0.12, 'Kepodactylus': 0.1, 'Coelurus': 0.06
     },
     'galleryforest': {
-        'Dragonfly': 0.2, 'Frog': 0.15, 'Centipede': 0.15, 'Mammal': 0.15, 'Turtle': 0.1,
-        'Compsognathus': 0.12, 'Othnielia': 0.12, 'Dryosaurus': 0.12, 'Harpactognathus': 0.12,
-        'Crocodile': 0.06, 'Torvosaurus': 0.06
+        'Stokesosaurus': 0.07,
+        'Dragonfly': 0.25, 'Frog': 0.18, 'Centipede': 0.15, 'Mammal': 0.15, 'Turtle': 0.12, 'Fish': 0.1,
+        'Compsognathus': 0.12, 'Othnielia': 0.14, 'Dryosaurus': 0.14, 'Camptosaurus': 0.1, 'Harpactognathus': 0.12,
+        'Rhamphorhynchus': 0.08, 'Hesperornithoides': 0.08, 'Stegosaurus': 0.06, 'Crocodile': 0.07, 'Torvosaurus': 0.06
     },
     'sea': {},
 
@@ -489,4 +502,44 @@ export const HABITAT_SPECIES = {
         'Dragonfly': 0.2, 'Cricket': 0.15, 'Centipede': 0.18, 'Scorpion': 0.1,
         'Compsognathus': 0.25, 'Ornitholestes': 0.3, 'Mesadactylus': 0.15  // Nest raiders
     }
+};
+
+// Herds, packs and swarms: how many turn up together [min, max]
+export const GROUP_SIZE = {
+    Dragonfly: [1, 3], Frog: [1, 2], Fish: [1, 3], Katydid: [1, 2], Cricket: [1, 2],
+    Compsognathus: [2, 4], Ornitholestes: [1, 3], Hesperornithoides: [1, 2],
+    Dryosaurus: [2, 4], Othnielia: [2, 4], Camptosaurus: [1, 3],
+    Stegosaurus: [1, 2], Kentrosaurus: [1, 2], Tuojiangosaurus: [1, 2],
+    Diplodocus: [1, 3], Camarasaurus: [1, 3], Brachiosaurus: [1, 2],
+    Mesadactylus: [1, 3], Rhamphorhynchus: [1, 3]
+};
+
+// When each animal is about: 'day', 'night', 'twilight' (dawn and dusk) or both
+export const ACTIVITY = {
+    Mammal: 'night', Scorpion: 'night', Centipede: 'night', Frog: 'night', Cricket: 'night', Katydid: 'night',
+    Hesperornithoides: 'twilight', Coelurus: 'twilight', Torvosaurus: 'twilight', 'Male Allosaurus': 'twilight',
+    'Female Allosaurus': 'twilight', Saurophaganax: 'twilight', Crocodile: 'night',
+    Dragonfly: 'day', Lizard: 'day', Snake: 'day', Mesadactylus: 'twilight', Harpactognathus: 'day',
+    Kepodactylus: 'day', Rhamphorhynchus: 'day', Stegosaurus: 'day', Diplodocus: 'day', Brachiosaurus: 'day',
+    Camarasaurus: 'day', Camptosaurus: 'day', Dryosaurus: 'day', Othnielia: 'day'
+};
+
+// Spawn multiplier for the time of day (phase 0 morning .. 4 before dawn)
+export const activityFactor = (species, phase) => {
+    const a = ACTIVITY[species];
+    const night = phase >= 3;
+    const twilight = phase === 0 || phase === 2 || phase === 4;
+    if (a === 'night') return night ? 1.6 : 0.5;
+    if (a === 'day') return night ? 0.25 : 1.15;
+    if (a === 'twilight') return twilight ? 1.6 : night ? 0.8 : 0.8;
+    return 1;
+};
+
+// Short field-guide notes for the journal
+export const dietOf = (species) => {
+    const t = SPECIES_DATA[species]?.behaviorType;
+    if (['herbivore', 'dangerous_herbivore', 'giant_herbivore'].includes(t)) return 'Plant eater';
+    if (['Dragonfly', 'Centipede', 'Cricket', 'Katydid', 'Scorpion'].includes(species)) return 'Invertebrate';
+    if (['pack_predator', 'rival_predator', 'apex_predator', 'ambush_predator', 'aerial_predator'].includes(t)) return 'Predator';
+    return 'Small animal';
 };

@@ -13,13 +13,18 @@ export const BEHAVIOR_RANDOMNESS = 0.2;
 export const ENERGY_PER_BODYWEIGHT = 10;
 export const ROAMING_RATE = 0.5;
 
+// One turn of the day/night cycle each
+export const PHASE_NAMES = ['Morning', 'Midday', 'Evening', 'Night', 'Before dawn'];
+
 export const getTimeOfDay = (turnNumber) => {
     const cyclePosition = turnNumber % TOTAL_CYCLE;
     return {
         isNight: cyclePosition >= DAY_LENGTH,
         isDay: cyclePosition < DAY_LENGTH,
         turnInCycle: cyclePosition,
-        cycleNumber: Math.floor(turnNumber / TOTAL_CYCLE)
+        cycleNumber: Math.floor(turnNumber / TOTAL_CYCLE),
+        day: Math.floor(turnNumber / TOTAL_CYCLE) + 1,
+        phaseName: PHASE_NAMES[cyclePosition]
     };
 };
 

@@ -8,6 +8,12 @@
 import * as THREE from 'three';
 import { MeshBuilder, loft, blob, cone, limb, slab, rngFor, vary, shade, mix, col } from './lowpoly.js';
 import { levelHeight, SEA_WATER_Y, SEA_FLOOR_Y } from '../world/worldGen.js';
+import { createNoise2D } from '../world/noise.js';
+
+// world-space noise so ground patches flow across cell borders
+const patchNoise = createNoise2D(911);
+const detailNoise = createNoise2D(3571);
+const bumpNoise = createNoise2D(1777);
 
 const BASE_Y = -1.8;
 const BEVEL = 0.06;
@@ -61,6 +67,28 @@ const STYLE = {
     nest: { top: ['#b8693a', '#ad5f33', '#c47644'], lip: '#8f4c2a' }
 };
 const styleOf = (t) => STYLE[t] || STYLE.plains;
+
+// Patch colours mixed into each biome's ground: [dark/worn patch, lush/light patch]
+const PATCHES = {
+    plains: ['#a89a48', '#94b844'], fernprairie: ['#7aa034', '#b2d85a'], katydidmeadow: ['#4e8030', '#7cb84c'],
+    fernsavanna: ['#b8863a', '#e8c35e'], savanna: ['#c09a46', '#e8cc6a'], steppe: ['#a8b048', '#cadc70'],
+    scrubland: ['#7e9a3a', '#b0cc5a'], termitemounds: ['#a86a3a', '#d8a066'], floodplain: ['#6aa83a', '#a8e05e'],
+    sauropodgrounds: ['#8e7e44', '#c2c060'], forest: ['#5a5228', '#3c7a2a'], youngforest: ['#5e7a2e', '#6eb042'],
+    denseforest: ['#4a4224', '#2e6224'], oldgrowth: ['#56482a', '#2f6a2c'], jungle: ['#3a5a24', '#2e8a30'],
+    openwoods: ['#7a7a34', '#8cbc48'], ginkgogrove: ['#8a8a3a', '#7cbc48'], forestedge: ['#6a7a30', '#8cb444'],
+    galleryforest: ['#4a5226', '#2f7a34'], deadforest: ['#6a5a4a', '#9a8a74'], deadfall: ['#5a5a28', '#7a8a3a'],
+    hills: ['#6e9a38', '#a2d05a'], rocky: ['#7a7064', '#a49a8c'], boulderfield: ['#768070', '#a2ac9c'],
+    desert: ['#d8ae58', '#f6dc90'], badlands: ['#b0602e', '#e09a58'], mesa: ['#b8703a', '#e8a462'],
+    marsh: ['#3e5a2a', '#6a8a3a'], riverbank: ['#6e6838', '#a4a058'], river: ['#5e9a34', '#92c44c'],
+    stream: ['#68a438', '#9ccc50'], waterhole: ['#6a9a38', '#9cc850'], dryriverbed: ['#b49a6c', '#e0caa0'],
+    beach: ['#e0c478', '#fae8a8'], nest: ['#9a5a30', '#c88050']
+};
+// How bumpy the ground is (world units)
+const RELIEF = {
+    hills: 0.045, rocky: 0.035, boulderfield: 0.035, desert: 0.035, badlands: 0.03, mesa: 0.02, mountains: 0.03,
+    marsh: 0.006, floodplain: 0.008, riverbank: 0.006, waterhole: 0, lake: 0, sea: 0, nest: 0, quicksand: 0, beach: 0.012,
+    river: 0.008, stream: 0.008, volcanic: 0.02, lavafield: 0.012
+};
 
 // ---------- heights ----------
 export const cellSurfaceY = (cell) => {
@@ -362,6 +390,120 @@ const termiteMound = (mb, x, z, y, h, rand) => {
     }
 };
 
+// Broad-crowned riverside tree: leaning trunk, buttress roots, layered canopy and hanging vines
+const galleryTree = (mb, x, z, y, h, rand, lean = [0, 0]) => {
+    const tx = x + lean[0] * h;
+    const tz = z + lean[1] * h;
+    loft(mb, [
+        { p: [x, y - 0.03, z], r: 0.05 * h },
+        { p: [x + lean[0] * h * 0.25, y + h * 0.25, z + lean[1] * h * 0.25], r: 0.034 * h },
+        { p: [x + lean[0] * h * 0.65, y + h * 0.55, z + lean[1] * h * 0.65], r: 0.028 * h },
+        { p: [tx, y + h * 0.78, tz], r: 0.02 * h }
+    ], { sides: 5, color: '#5e4630', ridgeColor: '#76583a', rand, jitter: 0.15 });
+    for (let k = 0; k < 3; k++) {
+        const a = rand() * Math.PI * 2;
+        limb(mb, [x, y + h * 0.1, z], [x + Math.cos(a) * h * 0.13, y - 0.01, z + Math.sin(a) * h * 0.13], 0.02 * h, 0.008 * h, '#5a4230', { sides: 4 });
+    }
+    withSway(mb, y, h, () => {
+        const greens = ['#2c6428', '#33702e', '#3d7c34', '#4a8a3a'];
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 + rand() * 0.6;
+            const r = i === 0 ? 0 : h * (0.16 + rand() * 0.08);
+            const cy = y + h * (0.8 + rand() * 0.12) + (i === 0 ? h * 0.08 : 0);
+            const c = greens[Math.floor(rand() * greens.length)];
+            blob(mb, [tx + Math.cos(a) * r, cy, tz + Math.sin(a) * r], h * (0.15 + rand() * 0.06), c, {
+                scale: [1.25, 0.6, 1.25], jitter: 0.4, rand, colorFn: (ly) => (ly > 0.3 ? shade(c, 1.18) : shade(c, 0.85))
+            });
+        }
+        // vines hanging from the crown
+        for (let i = 0; i < 4; i++) {
+            const a = rand() * Math.PI * 2;
+            const r = h * (0.12 + rand() * 0.14);
+            const vx = tx + Math.cos(a) * r;
+            const vz = tz + Math.sin(a) * r;
+            const top = y + h * 0.78;
+            limb(mb, [vx, top, vz], [vx + (rand() - 0.5) * 0.04, top - h * (0.25 + rand() * 0.3), vz + (rand() - 0.5) * 0.04], 0.006, 0.004, '#4a6a2a', { sides: 3 });
+        }
+    });
+};
+
+// ---------- ground clutter (litter, moss, footprints, cracks) ----------
+const flake = (mb, x, z, y, s, color, rand) => {
+    const a = rand() * Math.PI * 2;
+    mb.tri([x + Math.cos(a) * s, y, z + Math.sin(a) * s], [x + Math.cos(a + 2.3) * s * 0.6, y, z + Math.sin(a + 2.3) * s * 0.6], [x + Math.cos(a + 3.9) * s * 0.7, y, z + Math.sin(a + 3.9) * s * 0.7], color, [0, 1, 0], true);
+};
+const theropodPrint = (mb, x, z, y, s, a, color) => {
+    for (const da of [-0.5, 0, 0.5]) {
+        const ax = Math.cos(a + da);
+        const az = Math.sin(a + da);
+        const px = -az;
+        const pz = ax;
+        const len = s * (da === 0 ? 1.15 : 0.9);
+        mb.tri([x + px * s * 0.12, y, z + pz * s * 0.12], [x + ax * len, y, z + az * len], [x - px * s * 0.12, y, z - pz * s * 0.12], color, [0, 1, 0], true);
+    }
+};
+const roundPrint = (mb, x, z, y, r, rand) => {
+    const pts = [];
+    for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * Math.PI * 2;
+        pts.push([x + Math.cos(a) * r * (0.85 + rand() * 0.25), y, z + Math.sin(a) * r * (0.85 + rand() * 0.25)]);
+    }
+    for (let k = 0; k < 7; k++) {
+        mb.tri([x, y, z], pts[k], pts[(k + 1) % 7], '#6a5a34', [0, 1, 0], true);
+        const o = pts[k];
+        const o2 = pts[(k + 1) % 7];
+        mb.quad(o, o2, [x + (o2[0] - x) * 1.25, y, z + (o2[2] - z) * 1.25], [x + (o[0] - x) * 1.25, y, z + (o[2] - z) * 1.25], '#a8985a', [0, 1, 0], true);
+    }
+};
+const dung = (mb, x, z, y, rand) => {
+    for (let i = 0; i < 3; i++) blob(mb, [x + (rand() - 0.5) * 0.06, y + 0.012, z + (rand() - 0.5) * 0.06], 0.022 + rand() * 0.01, '#5a4a2a', { scale: [1.2, 0.7, 1], rand, jitter: 0.3 });
+};
+const cracks = (mb, x, z, y, s, rand, color) => {
+    let px = x;
+    let pz = z;
+    let a = rand() * Math.PI * 2;
+    for (let k = 0; k < 4; k++) {
+        a += (rand() - 0.5) * 1.4;
+        const nx = px + Math.cos(a) * s * 0.3;
+        const nz = pz + Math.sin(a) * s * 0.3;
+        const w = s * 0.018;
+        mb.quad([px - Math.sin(a) * w, y, pz + Math.cos(a) * w], [nx - Math.sin(a) * w, y, nz + Math.cos(a) * w], [nx + Math.sin(a) * w, y, nz - Math.cos(a) * w], [px + Math.sin(a) * w, y, pz - Math.cos(a) * w], color, [0, 1, 0], true);
+        px = nx;
+        pz = nz;
+    }
+};
+
+const FOREST_FLOOR = new Set(['forest', 'denseforest', 'oldgrowth', 'jungle', 'youngforest', 'galleryforest', 'openwoods', 'ginkgogrove', 'forestedge', 'deadfall']);
+const OPEN_GROUND = new Set(['plains', 'fernprairie', 'katydidmeadow', 'fernsavanna', 'savanna', 'steppe', 'scrubland', 'floodplain', 'hills', 'termitemounds']);
+const groundDetail = (terrain, D) => {
+    const { g, rand, y, scatter } = D;
+    const lift = y + 0.026;
+    if (FOREST_FLOOR.has(terrain)) {
+        // needle and leaf litter, moss
+        const litter = terrain === 'ginkgogrove' ? ['#c8b040', '#a89030', '#8a7a2a'] : ['#6a5228', '#7a6030', '#5a4a26', '#8a6a34'];
+        for (const [x, z] of scatter(16, { minR: 0, margin: 0.08, minDist: 0.06, keepCentre: false, register: false })) flake(g, x, z, lift, 0.035 + rand() * 0.03, litter[Math.floor(rand() * litter.length)], rand);
+        for (const [x, z] of scatter(2, { minR: 0.25, minDist: 0.3, register: false })) disc(g, x, z, lift - 0.004, 0.09 + rand() * 0.06, rand() > 0.5 ? '#3e7a2a' : '#4a8a30', 7, rand);
+    } else if (OPEN_GROUND.has(terrain)) {
+        for (const [x, z] of scatter(6, { minR: 0, margin: 0.08, minDist: 0.08, keepCentre: false, register: false })) flake(g, x, z, lift, 0.03 + rand() * 0.02, rand() > 0.5 ? '#c0b060' : '#8a9a3a', rand);
+        if (rand() < 0.35) {
+            // a line of theropod tracks crossing the cell
+            const a = rand() * Math.PI * 2;
+            for (let k = -2; k <= 2; k++) theropodPrint(g, Math.cos(a) * k * 0.18 + Math.sin(a) * (k % 2) * 0.05, Math.sin(a) * k * 0.18 - Math.cos(a) * (k % 2) * 0.05, lift, 0.05, a, '#6a5e30');
+        }
+    }
+    if (terrain === 'sauropodgrounds') {
+        for (const [x, z] of scatter(7, { minR: 0, margin: 0.1, minDist: 0.18, keepCentre: false, register: false })) roundPrint(g, x, z, lift, 0.06 + rand() * 0.025, rand);
+        for (const [x, z] of scatter(2, { minR: 0.3, minDist: 0.3, register: false })) dung(g, x, z, y, rand);
+    }
+    if (['desert', 'badlands', 'dryriverbed', 'quicksand'].includes(terrain) || (terrain === 'floodplain' && rand() < 0.5)) {
+        const c = terrain === 'badlands' ? '#9a4a22' : terrain === 'floodplain' ? '#5a6a2a' : '#a88a52';
+        for (const [x, z] of scatter(4, { minR: 0.1, minDist: 0.2, keepCentre: false, register: false })) cracks(g, x, z, lift, 0.5, rand, c);
+    }
+    if (['marsh', 'riverbank', 'waterhole'].includes(terrain)) {
+        for (const [x, z] of scatter(3, { minR: 0.3, minDist: 0.2, register: false })) disc(g, x, z, lift - 0.006, 0.07 + rand() * 0.05, '#5a7a2a', 6, rand);
+    }
+};
+
 // ---------- ribbons (rivers / trails / dry channels) ----------
 const ribbonFrame = (pts) => pts.map((p, i) => {
     const a = pts[Math.max(0, i - 1)];
@@ -383,7 +525,7 @@ const waterRibbon = (mb, pts, y, widthMul, colorC, colorE, kind, sOffset = 0) =>
         const L = (P) => [P.x + P.nx * P.w * widthMul * 0.5, y, P.z + P.nz * P.w * widthMul * 0.5];
         const R = (P) => [P.x - P.nx * P.w * widthMul * 0.5, y, P.z - P.nz * P.w * widthMul * 0.5];
         const C = (P) => [P.x, y, P.z];
-        const wd = (P, e) => [P.s + sOffset, e, kind];
+        const wd = (P, e) => [P.s + sOffset, e * 0.85, kind];
         mb.triV(L(A), L(B), C(B), [colorE, colorE, colorC], [wd(A, 1), wd(B, 1), wd(B, 0)], [0, 1, 0], true);
         mb.triV(L(A), C(B), C(A), [colorE, colorC, colorC], [wd(A, 1), wd(B, 0), wd(A, 0)], [0, 1, 0], true);
         mb.triV(C(A), C(B), R(B), [colorC, colorC, colorE], [wd(A, 0), wd(B, 0), wd(B, 1)], [0, 1, 0], true);
@@ -493,11 +635,36 @@ export const buildCell = (cell, world, { detail = true } = {}) => {
         g.quad([outer[i][0], wallTop, outer[i][1]], [outer[j][0], wallTop, outer[j][1]], [inner[j][0], y, inner[j][1]], [inner[i][0], y, inner[i][1]], tint(style.lip), centre3);
     }
 
-    // ---------- top surface with colours blended toward neighbouring biomes ----------
+    // ---------- waterways in local coordinates (rivers, dry channels, trails) ----------
+    const localWays = (cell.waterways || []).map((ww) => ({ ...ww, pts: ww.pts.map((p) => ({ ...p, x: p.x - cx, z: p.z - cz })) }));
+    const onWater = (x, z) => localWays.some((ww) => ww.kind !== 'trail' && ww.pts.some((p) => Math.hypot(p.x - x, p.z - z) < p.w * 0.9 + 0.12));
+    const nearWay = (x, z) => localWays.some((ww) => ww.pts.some((p) => Math.hypot(p.x - x, p.z - z) < p.w * 1.1 + 0.2));
+
+    // ---------- top surface: noise patches + gentle relief, edges blended toward neighbouring biomes ----------
     const neighbourColour = (i) => {
         const n = neighbour(i);
         if (!n || n.terrain === 'sea' || n.terrain === 'mountains' || Math.abs(n.level - cell.level) > 1) return null;
         return col(styleOf(n.terrain).top[0]);
+    };
+    const patch = PATCHES[terrain];
+    const patchDark = patch ? tint(patch[0]) : shade(topCols[0], 0.85);
+    const patchLight = patch ? tint(patch[1]) : shade(topCols[0], 1.12);
+    const relief = (RELIEF[terrain] ?? 0.018) * (detail ? 1 : 0.6);
+    const groundColour = (x, z, cc) => {
+        const wx = cx + x;
+        const wz = cz + z;
+        const n = patchNoise(wx * 0.55, wz * 0.55) + patchNoise(wx * 1.3 + 5, wz * 1.3 - 3) * 0.5;
+        const out = cc.clone();
+        if (n < -0.18) out.lerp(patchDark, Math.min(0.75, (-n - 0.18) * 1.6));
+        else if (n > 0.18) out.lerp(patchLight, Math.min(0.7, (n - 0.18) * 1.5));
+        const d = detailNoise(wx * 3.2, wz * 3.2);
+        return out.offsetHSL(0, 0, d * 0.035);
+    };
+    const groundY = (x, z, edge = false) => {
+        if (edge || relief === 0 || nearWay(x, z)) return y;
+        const wx = cx + x;
+        const wz = cz + z;
+        return y + Math.max(0, bumpNoise(wx * 1.15, wz * 1.15) * 0.6 + bumpNoise(wx * 2.7, wz * 2.7) * 0.4 + 0.15) * relief;
     };
     const base = topCols[0];
     const ring = [];
@@ -505,27 +672,45 @@ export const buildCell = (cell, world, { detail = true } = {}) => {
         const j = (i + 1) % inner.length;
         const prevN = neighbourColour((i - 1 + inner.length) % inner.length);
         const thisN = neighbourColour(i);
-        let cc = vary(topCols[Math.floor(rand() * topCols.length)], rand, 0.03);
+        let cc = groundColour(inner[i][0], inner[i][1], vary(topCols[Math.floor(rand() * topCols.length)], rand, 0.03));
         const blends = [prevN, thisN].filter(Boolean);
         if (blends.length) cc = cc.lerp(blends.reduce((a, b) => a.clone().lerp(b, 0.5)), 0.3);
         ring.push({ p: inner[i], c: cc });
-        let mc = vary(base, rand, 0.03);
+        const mp = [(inner[i][0] + inner[j][0]) / 2, (inner[i][1] + inner[j][1]) / 2];
+        let mc = groundColour(mp[0], mp[1], vary(base, rand, 0.03));
         if (thisN) mc = mc.lerp(thisN, 0.38);
-        ring.push({ p: [(inner[i][0] + inner[j][0]) / 2, (inner[i][1] + inner[j][1]) / 2], c: mc });
+        ring.push({ p: mp, c: mc });
     }
-    const mid = ring.map((r) => ({ p: [r.p[0] * 0.55, r.p[1] * 0.55], c: vary(topCols[Math.floor(rand() * topCols.length)], rand, 0.04) }));
-    const centreC = vary(topCols[Math.floor(rand() * topCols.length)], rand, 0.03);
-    for (let i = 0; i < ring.length; i++) {
-        const j = (i + 1) % ring.length;
-        g.triV([0, y, 0], [mid[i].p[0], y, mid[i].p[1]], [mid[j].p[0], y, mid[j].p[1]], [centreC, mid[i].c, mid[j].c], null, [0, 1, 0], true);
-        g.triV([mid[i].p[0], y, mid[i].p[1]], [ring[i].p[0], y, ring[i].p[1]], [ring[j].p[0], y, ring[j].p[1]], [mid[i].c, ring[i].c, ring[j].c], null, [0, 1, 0], true);
-        g.triV([mid[i].p[0], y, mid[i].p[1]], [ring[j].p[0], y, ring[j].p[1]], [mid[j].p[0], y, mid[j].p[1]], [mid[i].c, ring[j].c, mid[j].c], null, [0, 1, 0], true);
+    // concentric rings toward the centre, each a little bumpy
+    const rings = [ring.map((r) => ({ ...r, y }))];
+    for (const k of [0.76, 0.52, 0.28]) {
+        rings.push(ring.map((r) => {
+            const p = [r.p[0] * k, r.p[1] * k];
+            return { p, y: groundY(p[0], p[1]), c: groundColour(p[0], p[1], vary(topCols[Math.floor(rand() * topCols.length)], rand, 0.035)) };
+        }));
+    }
+    const centreC = groundColour(0, 0, vary(topCols[Math.floor(rand() * topCols.length)], rand, 0.03));
+    const centreY = groundY(0, 0);
+    const V = (r) => [r.p[0], r.y, r.p[1]];
+    for (let ri = 0; ri < rings.length - 1; ri++) {
+        const A = rings[ri];
+        const B = rings[ri + 1];
+        for (let i = 0; i < A.length; i++) {
+            const j = (i + 1) % A.length;
+            g.triV(V(B[i]), V(A[i]), V(A[j]), [B[i].c, A[i].c, A[j].c], null, [0, 1, 0], true);
+            g.triV(V(B[i]), V(A[j]), V(B[j]), [B[i].c, A[j].c, B[j].c], null, [0, 1, 0], true);
+        }
+    }
+    const last = rings[rings.length - 1];
+    for (let i = 0; i < last.length; i++) {
+        const j = (i + 1) % last.length;
+        g.triV([0, centreY, 0], V(last[i]), V(last[j]), [centreC, last[i].c, last[j].c], null, [0, 1, 0], true);
     }
 
     // ---------- placement helpers ----------
     const maxR = Math.max(...inner.map(([x, z]) => Math.hypot(x, z)));
     const placed = [];
-    const scatter = (count, { minR = 0.42, margin = 0.1, minDist = 0.22, keepCentre = true } = {}) => {
+    const scatter = (count, { minR = 0.42, margin = 0.1, minDist = 0.22, keepCentre = true, register = true } = {}) => {
         const out = [];
         let tries = 0;
         const n = Math.max(0, Math.round(count));
@@ -538,27 +723,27 @@ export const buildCell = (cell, world, { detail = true } = {}) => {
             if (keepCentre && r < minR) continue;
             if (insideDist(inner, sign, x, z) < margin) continue;
             if (onWater(x, z)) continue;
-            if ([...placed, ...out].some((p) => Math.hypot(p[0] - x, p[1] - z) < minDist)) continue;
+            if ([...(register ? placed : []), ...out].some((p) => Math.hypot(p[0] - x, p[1] - z) < minDist)) continue;
             out.push([x, z]);
         }
-        placed.push(...out);
+        if (register) placed.push(...out);
         return out;
     };
     const many = (n) => (detail ? n * density : n * density * 0.35);
     const small = (n) => (detail ? n * density : 0);
 
     // ---------- waterways (rivers, dry channels, trails) ----------
-    const localWays = (cell.waterways || []).map((ww) => ({ ...ww, pts: ww.pts.map((p) => ({ ...p, x: p.x - cx, z: p.z - cz })) }));
-    const onWater = (x, z) => localWays.some((ww) => ww.kind !== 'trail' && ww.pts.some((p) => Math.hypot(p.x - x, p.z - z) < p.w * 0.9 + 0.12));
     const isWaterCell = terrain === 'sea' || terrain === 'lake';
     if (!isWaterCell) {
         for (const ww of localWays) {
             if (ww.kind === 'river') {
-                const deep = '#2a86c0';
-                const light = '#62c6e8';
-                flatRibbon(g, ww.pts, y + 0.006, 1.7, '#6e5a30', rand); // muddy banks
-                flatRibbon(g, ww.pts, y + 0.009, 1.25, '#8a7a4a', null);
-                waterRibbon(w, ww.pts, y + 0.022, 1, deep, light, 1);
+                // same water as the lakes: deep centre, lighter shallows
+                const deep = '#2a8cc4';
+                const light = '#5ccbe6';
+                const wide = terrain === 'river' ? 1.3 : 1.1;
+                flatRibbon(g, ww.pts, y + 0.006, 1.75 * wide, '#6e5a30', rand); // muddy banks
+                flatRibbon(g, ww.pts, y + 0.009, 1.3 * wide, '#8a7a4a', null);
+                waterRibbon(w, ww.pts, y + 0.022, wide, deep, light, 1);
                 const first = ww.pts[0];
                 if (ww.start) {
                     // spring: a small pool among mossy stones
@@ -662,7 +847,25 @@ export const buildCell = (cell, world, { detail = true } = {}) => {
     }
 
     // ---------- biome decoration ----------
-    const D = { g, w, l, rand, y, variant, density, scatter, many, small };
+    // direction (local) toward the nearest river or lake next door, for trees that lean over the water
+    let waterDir = null;
+    if (world) {
+        let best = Infinity;
+        for (const nid of cell.neighborIds || []) {
+            const n = world.cells[nid];
+            if (!n || !['river', 'stream', 'lake'].includes(n.terrain)) continue;
+            const d = Math.hypot(n.x - cx, n.z - cz);
+            if (d < best) {
+                best = d;
+                waterDir = [(n.x - cx) / d, (n.z - cz) / d];
+            }
+        }
+        const own = localWays.find((ww) => ww.kind === 'river');
+        if (!waterDir && own) waterDir = 'own';
+    }
+    const gallerySide = world && (cell.neighborIds || []).some((nid) => ['galleryforest', 'forest', 'jungle', 'denseforest'].includes(world.cells[nid]?.terrain));
+    const D = { g, w, l, rand, y, variant, density, scatter, many, small, waterDir, localWays, gallerySide, detail };
+    if (detail && !isWaterCell) groundDetail(terrain, D);
     decorate(terrain, D, cell, smoke, pools);
 
     return {
@@ -733,12 +936,27 @@ const decorate = (terrain, D, cell, smoke, pools) => {
             each(scatter(small(4), { minR: 0.5, minDist: 0.2 }), (x, z) => tuft(g, x, z, y, 0.14, rand, '#b5b04e'));
             each(scatter(many(1), { minR: 0.6 }), (x, z) => (variant > 0.5 ? cycad(g, x, z, y, 0.4, rand) : bones(g, x, z, y, rand)));
             break;
-        case 'forest':
         case 'galleryforest': {
+            // tall broad-crowned trees leaning out toward the water, vines, ferns and horsetails below
+            const wd = Array.isArray(D.waterDir) ? D.waterDir : null;
+            const pts = scatter(many(6), { minR: 0.36, minDist: 0.34 });
+            each(pts, (x, z, i) => {
+                const facing = wd ? x * wd[0] + z * wd[1] : 0;
+                const lean = wd && facing > -0.1 ? [wd[0] * (0.12 + rand() * 0.12), wd[1] * (0.12 + rand() * 0.12)] : [(rand() - 0.5) * 0.08, (rand() - 0.5) * 0.08];
+                if (i % 3 === 2) treeFern(g, x, z, y, 0.6 + rand() * 0.25, rand);
+                else galleryTree(g, x, z, y, 1.05 + rand() * 0.4, rand, lean);
+            });
+            each(scatter(small(5), { minR: 0.2, minDist: 0.18 }), (x, z) => fern(g, x, z, y, 0.22, rand, '#2f7a2c'));
+            const wetSide = wd ? scatter(small(3), { minR: 0.5, minDist: 0.2 }).filter(([x, z]) => x * wd[0] + z * wd[1] > 0.2) : [];
+            each(wetSide, (x, z) => horsetails(g, x, z, y, 0.3, rand));
+            if (variant > 0.55) each(scatter(1, { minR: 0.4 }), (x, z) => log(g, x, z, y, 0.6, 0.06, rand, '#4a3a22'));
+            if (detail(D) && variant < 0.4) each(scatter(1, { minR: 0.3 }), (x, z) => mushrooms(g, x, z, y, rand));
+            break;
+        }
+        case 'forest': {
             const pts = scatter(many(5), { minR: 0.42, minDist: 0.32 });
             each(pts, (x, z, i) => {
-                if (terrain === 'galleryforest' && i % 2) ginkgo(g, x, z, y, 0.7 + rand() * 0.2, rand);
-                else if (i === 0 && variant > 0.4) araucaria(g, x, z, y, 1.05 + rand() * 0.3, rand);
+                if (i === 0 && variant > 0.4) araucaria(g, x, z, y, 1.05 + rand() * 0.3, rand);
                 else conifer(g, x, z, y, 0.75 + rand() * 0.35, rand);
             });
             each(scatter(small(4), { minR: 0.25, minDist: 0.2 }), (x, z) => fern(g, x, z, y, 0.18, rand));
@@ -808,7 +1026,19 @@ const decorate = (terrain, D, cell, smoke, pools) => {
         case 'stream':
             each(scatter(many(3), { minR: 0.35, minDist: 0.25 }), (x, z, i) => (i % 2 ? horsetails(g, x, z, y, 0.26, rand) : rock(g, x, z, y, 0.12, rand, '#8a857c', '#6a9a34')));
             each(scatter(small(4), { minR: 0.2 }), (x, z) => tuft(g, x, z, y, 0.13, rand, '#8ab840'));
-            if (variant > 0.6) each(scatter(1, { minR: 0.5 }), (x, z) => (variant > 0.8 ? ginkgo(g, x, z, y, 0.7, rand) : conifer(g, x, z, y, 0.7, rand)));
+            if (D.gallerySide) {
+                // the gallery forest spills down to the water and leans over it
+                const way = D.localWays.find((ww) => ww.kind === 'river');
+                each(scatter(many(2), { minR: 0.45, minDist: 0.4 }), (x, z) => {
+                    let lean = [0, 0];
+                    if (way) {
+                        const near = way.pts.reduce((a, p) => (Math.hypot(p.x - x, p.z - z) < Math.hypot(a.x - x, a.z - z) ? p : a));
+                        const d = Math.hypot(near.x - x, near.z - z) || 1;
+                        lean = [((near.x - x) / d) * 0.2, ((near.z - z) / d) * 0.2];
+                    }
+                    galleryTree(g, x, z, y, 0.95 + rand() * 0.3, rand, lean);
+                });
+            } else if (variant > 0.6) each(scatter(1, { minR: 0.5 }), (x, z) => (variant > 0.8 ? ginkgo(g, x, z, y, 0.7, rand) : conifer(g, x, z, y, 0.7, rand)));
             break;
         case 'dryriverbed':
             each(scatter(many(3), { minR: 0.3, minDist: 0.2 }), (x, z) => rock(g, x, z, y, 0.09, rand, '#a59c8c'));

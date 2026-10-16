@@ -19,6 +19,19 @@ Ive added a few things to it and changed a few things too:
 
 •	Wildlife lives in every tile you can see: predators hunt other animals and leave carcasses you can scavenge
 
+•	Animals behave like animals: herds graze and keep together, sauropods browse high in the trees, hunters sniff the ground, stalk you low and charge into your area to attack, small things dart about, and everything calls, looks around and reacts when you arrive. Big animals shake the ground as they walk
+
+•	Survival is more than eating: keep your health, energy and water up. Hot, dry ground makes you thirsty; drink at rivers, lakes, waterholes and marshes (watch for crocodiles). Sleep to heal, safest in thick cover, best of all in a mud wallow
+
+•	You learn new abilities as you grow: Sniff (find animals and carcasses out of sight), Pounce, Dash (break away from a fight), Ambush (strike from cover), Roar (scatter smaller animals) and the adult Allosaurus Hatchet Bite (wound big prey and follow its blood trail until it collapses). Passive traits change as you grow too
+
+•	Exploration: a field journal records every species, habitat and landmark you find. Look for egg clutches, fallen sauropods, mud wallows, lookouts (see further), bone beds, waterfalls and the volcanoes. A minimap shows everything you have discovered
+
+•	Time of day matters: night and morning mist shorten your sight, but mist also hides you from predators. Some animals come out at night, others at dawn and dusk
+
+•	Gallery forests line the rivers, with trees leaning out over the water. Rivers use the same water as the lakes and the sea. Mist settles over swamps at night and dawn, and over some forests in the early morning
+
+•	The UI uses the pixel art for every animal, and creatures on the map have thick dark outlines so they stand out. The camera is soft: a tilt-shift focus with slightly boosted colour at the edges of the screen
 
 Im still developing these features:
 •	A pack hunting system
@@ -40,11 +53,14 @@ https://www.jenniferedwards.co.uk/portfolio/#bigalgame
 | Action | How |
 | --- | --- |
 | Move | Click a highlighted neighbouring area |
-| Travel | Click any explored area further away – Big Al walks there over safe ground and stops if danger appears |
+| Travel | Click any explored area further away. Big Al walks there over safe ground and stops if danger appears |
 | Pan | Drag, or WASD / arrow keys |
+| Orbit and tilt | Right-drag (or Shift-drag, or middle-drag), or Q / E to rotate |
 | Zoom | Mouse wheel, or + / - |
-| Rotate | Q / E (or the ⟲ ⟳ buttons) |
-| Re-centre on Big Al | C (R also resets rotation and zoom) |
+| Re-centre on Big Al | C (V resets rotation, tilt and zoom) |
+| Actions | 1 Sleep, 2 Drink, 3 Sniff, 4 Dash, 5 Roar |
+| Field journal | J |
+| Look somewhere | Click the minimap |
 
 ## Development
 
@@ -55,7 +71,10 @@ npm run build
 ```
 
 * `src/world/` generates the map: `worldGen.js` (Voronoi cells, terraced elevation, rivers, lakes, sea, biomes, trails) and `cellGraph.js` (neighbours and distances on the cell graph).
-* `src/three/` holds the 3D engine: `lowpoly.js` (edge-loop lofting, extrusion and jittered blobs), `cells3d.js` (one builder per biome, rivers and waterfalls), `materials.js` (wind sway and water shaders), `creatures3d.js` (rigged models for every species and Big Al), `animation.js` (procedural gaits) and `WorldRenderer.js` (scene, camera, lighting, picking, effects). Game rules stay in `src/game/gameState.js`.
+* `src/three/` holds the 3D engine: `lowpoly.js` (edge-loop lofting, extrusion and jittered blobs), `cells3d.js` (one builder per biome, ground detail, rivers and waterfalls), `materials.js` (wind sway and water shaders), `creatures3d.js` (rigged models for every species and Big Al), `animation.js` (procedural gaits and behaviour poses), `outline.js` (inverted-hull creature outlines), `mist.js`, `pois3d.js` (landmark models), `postfx.js` (sky, tilt-shift soft focus and edge vibrance) and `WorldRenderer.js` (scene, camera, lighting, picking, creature behaviour, effects).
+* Game rules live in `src/game/`: `gameState.js` (the reducer), `abilities.js` (growth abilities and passives), `environment.js` (mist, water, thirst and shelter rules) and `pois.js` (points of interest).
+* UI pictures come from `public/assets/sprites`, trimmed web-sized copies of the pixel art in `public/assets/dinos` (mapped in `src/data/sprites.js`). Species without art fall back to a rendered portrait of their 3D model.
 * Add `?seed=1234` to the URL to replay the same map.
-* Open `/gallery.html` on the dev server to inspect every creature and biome (`?view=terrain`, `?only=Stegosaurus,Diplodocus`, `&walk=1`, `&yaw=0&az=1.57` for side profiles).
-* In the browser console during `npm run dev`: `spawnCreature('Diplodocus')` drops a creature on Big Al's tile, `listCreatures()` lists everything alive.
+* Open `/gallery.html` on the dev server to inspect every creature and biome (`?view=terrain`, `?only=Stegosaurus,Diplodocus`, `&walk=1`, `&yaw=0&az=1.57` for side profiles, `&pose=graze|browse|call|crouch|rest|sniff` for behaviour poses).
+* Add `?skipintro` to the URL to skip the title card.
+* In the browser console during `npm run dev`: `spawnCreature('Diplodocus')` drops a creature on Big Al's tile, `teleport('galleryforest', 0)` jumps to the nearest cell of a habitat (optionally setting the turn, 0 = morning), `listCreatures()` lists everything alive.

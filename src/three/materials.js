@@ -35,7 +35,8 @@ const addWater = (material, key) => {
                 '#include <begin_vertex>',
                 `#include <begin_vertex>
                 vec4 wvWorld = modelMatrix * vec4(transformed, 1.0);
-                float still = 1.0 - step(0.5, wdata.z);
+                // lakes, sea and rivers share the same gentle swell (rivers a little less)
+                float still = (1.0 - step(0.5, wdata.z)) + step(0.5, wdata.z) * (1.0 - step(1.5, wdata.z)) * 0.6;
                 transformed.y += (sin(uTime * 1.7 + wvWorld.x * 3.0 + wvWorld.z * 1.9) * 0.012
                                + cos(uTime * 1.2 + wvWorld.z * 2.7) * 0.008) * still;
                 vWData = wdata;
@@ -53,7 +54,8 @@ const addWater = (material, key) => {
                     if (kind > 1.5) {
                         streak = smoothstep(0.2, 1.0, sin(vWPos.y * 16.0 + uTime * 11.0 + wp.x * 23.0 + wp.y * 17.0));
                     } else if (kind > 0.5) {
-                        streak = smoothstep(0.55, 1.0, sin(vWData.x * 6.0 - uTime * 3.2 + sin(wp.x * 3.1 + wp.y * 2.3) * 2.2)) * (0.4 + 0.6 * vWData.y);
+                        // rivers look like the lakes, with just a hint of current
+                        streak = smoothstep(0.6, 1.0, sin(vWData.x * 5.0 - uTime * 2.6 + sin(wp.x * 3.1 + wp.y * 2.3) * 2.2)) * 0.35;
                     }
                     vec3 wc = diffuseColor.rgb + vec3(0.05, 0.08, 0.09) * ripple;
                     wc = mix(wc, vec3(0.86, 0.96, 1.0), streak * 0.45);
@@ -75,14 +77,14 @@ const addWater = (material, key) => {
 
 export const createMaterials = () => {
     const terrain = addSway(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 'terrain-lit');
-    const terrainFog = addSway(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, color: '#6c7590' }), 'terrain-fog');
+    const terrainFog = addSway(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, color: '#7a7e88' }), 'terrain-fog');
     const water = addWater(new THREE.MeshPhongMaterial({
         vertexColors: true, transparent: true, opacity: 0.82, depthWrite: false,
         shininess: 120, specular: '#e8f8ff'
     }), 'water-lit');
     const waterFog = addWater(new THREE.MeshPhongMaterial({
         vertexColors: true, transparent: true, opacity: 0.82, depthWrite: false,
-        shininess: 30, specular: '#333844', color: '#6c7590'
+        shininess: 30, specular: '#333844', color: '#7a7e88'
     }), 'water-fog');
     const lava = new THREE.MeshBasicMaterial({ vertexColors: true });
     const lavaFog = new THREE.MeshBasicMaterial({ vertexColors: true, color: '#8a5a50' });

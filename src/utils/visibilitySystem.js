@@ -25,7 +25,8 @@ const hasLineOfSight = (world, cells, from, to) => {
     return true;
 };
 
-export const calculateVisibility = (playerKey, cells, worldSeed) => {
+// opts.rangeBonus: + for lookouts, - for night and mist (sight never drops below 1)
+export const calculateVisibility = (playerKey, cells, worldSeed, opts = {}) => {
     const world = getWorld(worldSeed);
     const newCells = new Map(cells);
 
@@ -41,7 +42,7 @@ export const calculateVisibility = (playerKey, cells, worldSeed) => {
 
     // High ground lets you see further
     const lowerNeighbours = here.neighbors.filter((n) => newCells.get(n).level < here.level).length;
-    const range = (TERRAIN_TYPES[here.terrain]?.visibility || 2) + (lowerNeighbours >= 3 ? 1 : 0);
+    const range = Math.max(1, (TERRAIN_TYPES[here.terrain]?.visibility || 2) + (lowerNeighbours >= 3 ? 1 : 0) + (opts.rangeBonus || 0));
 
     for (const [key, d] of bfsDistances(newCells, playerKey, range)) {
         if (d === 0) continue;

@@ -6,13 +6,17 @@ export default {
     ],
     theme: {
         extend: {
-            colors: {
-                stone: {
-                    800: '#292524',
-                }
+            fontFamily: {
+                pixel: ['"Pixelify Sans"', 'ui-monospace', 'monospace'],
+                sans: ['Figtree', 'system-ui', 'sans-serif']
             },
-            animation: {
-                'bounce': 'bounce 1s infinite',
+            colors: {
+                ink: { DEFAULT: '#f3ead8', muted: '#b5ab97', dim: '#7d7566' },
+                amber: { glow: '#f4b740' },
+                health: '#e5584f',
+                food: '#f0a43a',
+                water: '#4fb3e8',
+                grow: '#b88cf0'
             }
         },
     },
