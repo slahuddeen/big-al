@@ -1,86 +1,31 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { eventStyle } from './eventStyles.js';
+import CreaturePortrait from './CreaturePortrait.jsx';
+import Icon from './Icon.jsx';
 
+// Short-lived toasts for the latest events
 const NotificationSystem = ({ gameState, dispatch }) => {
-    // Auto-dismiss notifications after a timeout
     useEffect(() => {
-        const interval = setInterval(() => {
-            dispatch({ type: 'AUTO_DISMISS_NOTIFICATIONS' });
-        }, 1000);
-
+        const interval = setInterval(() => dispatch({ type: 'AUTO_DISMISS_NOTIFICATIONS' }), 1000);
         return () => clearInterval(interval);
     }, [dispatch]);
 
-    if (!gameState.notifications || gameState.notifications.length === 0) {
-        return null;
-    }
-
-    const getNotificationStyle = (type) => {
-        switch (type) {
-            case 'combat':
-                return 'bg-red-900 border-red-600 text-red-100';
-            case 'injury':
-                return 'bg-orange-900 border-orange-600 text-orange-100';
-            case 'death':
-                return 'bg-black border-red-500 text-red-200';
-            case 'success':
-                return 'bg-green-900 border-green-600 text-green-100';
-            case 'warning':
-                return 'bg-yellow-900 border-yellow-600 text-yellow-100';
-            default:
-                return 'bg-blue-900 border-blue-600 text-blue-100';
-        }
-    };
-
-    const getNotificationIcon = (type) => {
-        switch (type) {
-            case 'combat':
-                return '⚔️';
-            case 'injury':
-                return '🩸';
-            case 'death':
-                return '💀';
-            case 'success':
-                return '✅';
-            case 'warning':
-                return '⚠️';
-            default:
-                return 'ℹ️';
-        }
-    };
-
+    if (!gameState.notifications?.length) return null;
     return (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 space-y-2 pointer-events-none">
-            {gameState.notifications.map((notification, index) => (
-                <div
-                    key={notification.id}
-                    className={`
-                        ${getNotificationStyle(notification.type)}
-                        border-2 rounded-lg p-3 max-w-md shadow-lg
-                        animate-in slide-in-from-top duration-300
-                        pointer-events-auto
-                    `}
-                    style={{
-                        animation: `slideInFromTop 0.3s ease-out ${index * 0.1}s both`
-                    }}
-                >
-                    <div className="flex items-start gap-2">
-                        <span className="text-lg mt-0.5 flex-shrink-0">
-                            {getNotificationIcon(notification.type)}
-                        </span>
-                        <div className="flex-1">
-                            <p className="text-sm font-medium">
-                                {notification.message}
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => dispatch({ type: 'DISMISS_NOTIFICATION', id: notification.id })}
-                            className="text-gray-400 hover:text-white transition-colors ml-2 flex-shrink-0"
-                        >
-                            ×
+        <div className="flex flex-col items-center gap-1.5 pointer-events-none">
+            {gameState.notifications.map((n) => {
+                const st = eventStyle(n.type);
+                return (
+                    <div key={n.id} className="panel pointer-events-auto flex items-center gap-2.5 pl-2.5 pr-1.5 py-1.5 max-w-[460px] anim-slide-down"
+                        style={{ borderColor: `${st.color}55`, boxShadow: `0 8px 24px rgba(0,0,0,0.35), inset 3px 0 0 ${st.color}` }}>
+                        {n.species ? <CreaturePortrait species={n.species} size={34} height={24} /> : <Icon name={st.icon} size={16} style={{ color: st.color, flexShrink: 0 }} />}
+                        <p className="text-[13px] font-medium leading-snug flex-1">{n.message}</p>
+                        <button type="button" onClick={() => dispatch({ type: 'DISMISS_NOTIFICATION', id: n.id })} className="text-ink-dim hover:text-ink p-1">
+                            <Icon name="close" size={12} />
                         </button>
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 };

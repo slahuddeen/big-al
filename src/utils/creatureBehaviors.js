@@ -1,5 +1,5 @@
-﻿// ==================== ENHANCED CREATURE BEHAVIOR SYSTEM ====================
-import { getHexNeighbors, hexDistance } from '../utils/hexMath.js';
+// ==================== ENHANCED CREATURE BEHAVIOR SYSTEM ====================
+import { neighborsOf, distanceToPlayer } from '../world/cellGraph.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA } from '../data/species.js'; // FIXED: Moved to top
 
@@ -9,7 +9,7 @@ export const BEHAVIOR_TICK_CHANCE = 0.7; // 70% chance per turn to execute behav
 // Cooldown system constants
 const CREATURE_COOLDOWN_TURNS = 2; // Creatures can only act every 2 turns
 
-// Enhanced creature behavioral AI system with cooldowns
+// Enhanced creature behavioral AI system with cooldowns (currentHex is a cell key)
 export const executeCreatureBehavior = (creature, currentHex, gameState, dispatch) => {
     // ENHANCED: Check if creature has acted recently (cooldown system)
     const turnsSinceLastBehavior = gameState.moveNumber - (creature.lastBehaviorTurn || 0);
@@ -26,8 +26,7 @@ export const executeCreatureBehavior = (creature, currentHex, gameState, dispatc
     // ENHANCED: Update last behavior turn
     creature.lastBehaviorTurn = gameState.moveNumber;
 
-    const playerPos = gameState.player;
-    const playerDistance = hexDistance(currentHex, playerPos);
+    const playerDistance = distanceToPlayer(gameState, currentHex);
 
     switch (speciesData.behaviorType) {
         case 'pack_predator':
@@ -114,7 +113,7 @@ const handleAmbushPredator = (creature, currentHex, gameState, playerDistance, d
 
     // Stay near water or preferred terrain
     if (Math.random() < 0.8) {
-        return stayNearPreferredTerrain(creature, currentHex, gameState, ['river', 'marsh', 'waterhole', 'lake']);
+        return stayNearPreferredTerrain(creature, currentHex, gameState, ['river', 'stream', 'marsh', 'waterhole', 'lake']);
     }
 
     return { action: 'wait' }; // Ambush predators often wait
@@ -175,7 +174,10 @@ const handleHerbivore = (creature, currentHex, gameState, playerDistance, dispat
         }
     }
 
-    // Herbivore behaviors: graze, migrate to better food
+    // Herbivore behaviors: graze, migrate to better food. Sauropods head for their routes and water.
+    if (isGiant && Math.random() < 0.5) {
+        return stayNearPreferredTerrain(creature, currentHex, gameState, ['sauropodgrounds', 'waterhole', 'lake', 'floodplain', 'fernprairie']);
+    }
     if (Math.random() < 0.4) {
         return migrateToFood(creature, currentHex, gameState);
     }
@@ -299,10 +301,10 @@ const handlePassive = (creature, currentHex, gameState, playerDistance, dispatch
 
 const countPackMembers = (species, centerHex, gameState) => {
     let count = 1; // Self
-    const neighbors = getHexNeighbors(centerHex);
+    const neighbors = neighborsOf(gameState.cells, centerHex);
 
     for (const neighbor of neighbors) {
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
+        const neighborKey = neighbor;
         const creatures = gameState.creatures.get(neighborKey) || [];
         count += creatures.filter(c => c.species === species).length;
     }
@@ -311,17 +313,16 @@ const countPackMembers = (species, centerHex, gameState) => {
 };
 
 const moveTowardsPlayer = (creature, currentHex, gameState) => {
-    const playerPos = gameState.player;
-    const neighbors = getHexNeighbors(currentHex);
+    const neighbors = neighborsOf(gameState.cells, currentHex);
 
     // Find neighbor closest to player
     let bestHex = null;
     let bestDistance = Infinity;
 
     for (const neighbor of neighbors) {
-        const distance = hexDistance(neighbor, playerPos);
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const neighborHex = gameState.hexes.get(neighborKey);
+        const distance = distanceToPlayer(gameState, neighbor);
+        const neighborKey = neighbor;
+        const neighborHex = gameState.cells.get(neighborKey);
 
         if (neighborHex && TERRAIN_TYPES[neighborHex.terrain].passable && distance < bestDistance) {
             bestDistance = distance;
@@ -341,17 +342,16 @@ const moveTowardsPlayer = (creature, currentHex, gameState) => {
 };
 
 const fleeFromPlayer = (creature, currentHex, gameState) => {
-    const playerPos = gameState.player;
-    const neighbors = getHexNeighbors(currentHex);
+    const neighbors = neighborsOf(gameState.cells, currentHex);
 
     // Find neighbor farthest from player
     let bestHex = null;
     let bestDistance = -1;
 
     for (const neighbor of neighbors) {
-        const distance = hexDistance(neighbor, playerPos);
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const neighborHex = gameState.hexes.get(neighborKey);
+        const distance = distanceToPlayer(gameState, neighbor);
+        const neighborKey = neighbor;
+        const neighborHex = gameState.cells.get(neighborKey);
 
         if (neighborHex && TERRAIN_TYPES[neighborHex.terrain].passable && distance > bestDistance) {
             bestDistance = distance;
@@ -371,10 +371,10 @@ const fleeFromPlayer = (creature, currentHex, gameState) => {
 };
 
 const roamRandomly = (creature, currentHex, gameState) => {
-    const neighbors = getHexNeighbors(currentHex);
+    const neighbors = neighborsOf(gameState.cells, currentHex);
     const validMoves = neighbors.filter(neighbor => {
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const neighborHex = gameState.hexes.get(neighborKey);
+        const neighborKey = neighbor;
+        const neighborHex = gameState.cells.get(neighborKey);
         return neighborHex && TERRAIN_TYPES[neighborHex.terrain].passable;
     });
 
@@ -390,10 +390,10 @@ const roamRandomly = (creature, currentHex, gameState) => {
 };
 
 const stayNearPreferredTerrain = (creature, currentHex, gameState, preferredTerrains) => {
-    const neighbors = getHexNeighbors(currentHex);
+    const neighbors = neighborsOf(gameState.cells, currentHex);
     const preferredMoves = neighbors.filter(neighbor => {
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const neighborHex = gameState.hexes.get(neighborKey);
+        const neighborKey = neighbor;
+        const neighborHex = gameState.cells.get(neighborKey);
         return neighborHex &&
             TERRAIN_TYPES[neighborHex.terrain].passable &&
             preferredTerrains.includes(neighborHex.terrain);
@@ -412,32 +412,37 @@ const stayNearPreferredTerrain = (creature, currentHex, gameState, preferredTerr
 
 const migrateToFood = (creature, currentHex, gameState) => {
     // Herbivores prefer forest edges, plains, and savannas for food
-    const foodTerrains = ['plains', 'savanna', 'openwoods', 'riverbank'];
+    const foodTerrains = ['plains', 'savanna', 'openwoods', 'riverbank', 'fernprairie', 'katydidmeadow', 'floodplain', 'forestedge', 'fernsavanna', 'ginkgogrove'];
     return stayNearPreferredTerrain(creature, currentHex, gameState, foodTerrains);
 };
 
 const soarToHighGround = (creature, currentHex, gameState) => {
-    const highTerrains = ['hills', 'mountains', 'mesa', 'rocky'];
+    const highTerrains = ['hills', 'mountains', 'mesa', 'rocky', 'boulderfield'];
     return stayNearPreferredTerrain(creature, currentHex, gameState, highTerrains);
 };
 
+const PREY_BEHAVIORS = ['passive', 'skittish', 'defensive'];
+
 const huntFromAbove = (creature, currentHex, gameState) => {
-    // Look for prey in nearby hexes
-    const neighbors = getHexNeighbors(currentHex);
-    for (const neighbor of neighbors) {
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const creatures = gameState.creatures.get(neighborKey) || [];
+    // Look for prey on this hex and the neighbouring ones
+    const hunterWeight = SPECIES_DATA[creature.species].weight * (creature.size || 1);
+    const candidates = [currentHex, ...neighborsOf(gameState.cells, currentHex)];
+    for (const hex of candidates) {
+        const hexKey = hex;
+        const creatures = gameState.creatures.get(hexKey) || [];
         const prey = creatures.find(c => {
+            if (c.id === creature.id) return false;
             const preyData = SPECIES_DATA[c.species];
-            return preyData && preyData.behaviorType === 'passive' &&
-                preyData.weight < SPECIES_DATA[creature.species].weight;
+            return preyData && PREY_BEHAVIORS.includes(preyData.behaviorType) &&
+                preyData.weight * (c.size || 1) < hunterWeight * 0.5;
         });
 
         if (prey) {
             return {
                 action: 'hunt_from_above',
-                target: neighbor,
-                message: `The ${creature.species} spots prey from above!`
+                target: hex,
+                preyId: prey.id,
+                message: `The ${creature.species} spots a ${prey.species}!`
             };
         }
     }
@@ -445,86 +450,103 @@ const huntFromAbove = (creature, currentHex, gameState) => {
     return roamRandomly(creature, currentHex, gameState);
 };
 
+const sizeOf = (c) => (SPECIES_DATA[c.species]?.weight ?? 1) * (c.size ?? 1);
+const passableKey = (gameState, key) => {
+    const hex = gameState.cells.get(key);
+    return hex && TERRAIN_TYPES[hex.terrain].passable && hex.terrain !== 'quicksand';
+};
+const isPredator = (c) => ['pack_predator', 'rival_predator', 'apex_predator', 'ambush_predator', 'aerial_predator', 'territorial'].includes(SPECIES_DATA[c.species]?.behaviorType);
+
+// Ground predators stalk prey on their own cell or next door and may catch it
 const huntPrey = (creature, currentHex, gameState) => {
-    // Similar to huntFromAbove but for ground predators
-    return huntFromAbove(creature, currentHex, gameState);
+    const hunterWeight = sizeOf(creature);
+    const candidates = [currentHex, ...neighborsOf(gameState.cells, currentHex)];
+    let best = null;
+    for (const hex of candidates) {
+        if (!passableKey(gameState, hex)) continue;
+        for (const c of gameState.creatures.get(hex) || []) {
+            if (c.id === creature.id || c.species === creature.species) continue;
+            const w = sizeOf(c);
+            // worth chasing: smaller than half the hunter, but not a mere insect
+            if (w > hunterWeight * 0.5 || w < hunterWeight * 0.005) continue;
+            const score = w * (hex === currentHex ? 1.5 : 1) * (c.wounded ? 3 : 1);
+            if (!best || score > best.score) best = { hex, c, score };
+        }
+    }
+    if (best) {
+        return {
+            action: 'hunt_prey',
+            target: best.hex,
+            preyId: best.c.id,
+            message: best.hex === currentHex ? null : `The ${creature.species} goes after a ${best.c.species}!`
+        };
+    }
+    return patrolHuntingGrounds(creature, currentHex, gameState);
 };
 
+// Bigger predators drive smaller ones away from their patch
 const huntCompetitors = (creature, currentHex, gameState) => {
-    // Look for smaller predators to drive away
-    const neighbors = getHexNeighbors(currentHex);
-    for (const neighbor of neighbors) {
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const creatures = gameState.creatures.get(neighborKey) || [];
-        const competitor = creatures.find(c => {
-            const compData = SPECIES_DATA[c.species];
-            return compData &&
-                ['pack_predator', 'rival_predator'].includes(compData.behaviorType) &&
-                compData.weight < SPECIES_DATA[creature.species].weight;
-        });
-
-        if (competitor) {
+    const myWeight = sizeOf(creature);
+    for (const hex of [currentHex, ...neighborsOf(gameState.cells, currentHex)]) {
+        if (!passableKey(gameState, hex)) continue;
+        const rival = (gameState.creatures.get(hex) || []).find((c) =>
+            c.id !== creature.id && isPredator(c) && c.species !== creature.species && sizeOf(c) < myWeight * 0.6);
+        if (rival) {
             return {
                 action: 'chase_competitor',
-                target: neighbor,
-                message: `The ${creature.species} drives away competition!`
+                target: hex,
+                rivalId: rival.id,
+                message: `The ${creature.species} drives off a ${rival.species}!`
             };
         }
     }
-
-    return roamRandomly(creature, currentHex, gameState);
+    return patrolHuntingGrounds(creature, currentHex, gameState);
 };
 
+// Territorial animals stay within a cell or two of home
 const patrolTerritory = (creature, currentHex, gameState) => {
-    // Move in a pattern around the current area
+    if (!creature.home) creature.home = currentHex;
+    const neighbors = neighborsOf(gameState.cells, currentHex).filter((n) => passableKey(gameState, n));
+    if (currentHex !== creature.home && !neighbors.includes(creature.home)) {
+        // strayed too far: head back
+        const homeHex = gameState.cells.get(creature.home);
+        const back = neighbors.map((n) => ({ n, d: homeHex ? Math.hypot(gameState.cells.get(n).x - homeHex.x, gameState.cells.get(n).z - homeHex.z) : 0 })).sort((a, b) => a.d - b.d)[0];
+        if (back) return { action: 'roam', target: back.n };
+    }
+    const nearHome = neighbors.filter((n) => n === creature.home || neighborsOf(gameState.cells, n).includes(creature.home));
+    if (nearHome.length && Math.random() < 0.35) return { action: 'roam', target: nearHome[Math.floor(Math.random() * nearHome.length)] };
+    return { action: 'patrol' };
+};
+
+// Predators drift toward wherever prey is thickest
+const patrolHuntingGrounds = (creature, currentHex, gameState) => {
+    const myWeight = sizeOf(creature);
+    let best = null;
+    for (const n of neighborsOf(gameState.cells, currentHex)) {
+        if (!passableKey(gameState, n)) continue;
+        const prey = (gameState.creatures.get(n) || []).filter((c) => !isPredator(c) && sizeOf(c) < myWeight * 0.6).length;
+        if (prey && (!best || prey > best.prey)) best = { n, prey };
+    }
+    if (best && Math.random() < 0.6) return { action: 'roam', target: best.n };
     return roamRandomly(creature, currentHex, gameState);
 };
 
-const patrolHuntingGrounds = (creature, currentHex, gameState) => {
-    // Similar to patrol territory but looking for hunting opportunities
-    return patrolTerritory(creature, currentHex, gameState);
-};
-
+// Skittish animals bolt from anything bigger that shares their cell
 const nervousMovement = (creature, currentHex, gameState) => {
-    // Quick, erratic movements
-    if (Math.random() < 0.7) {
-        return roamRandomly(creature, currentHex, gameState);
+    const threat = (gameState.creatures.get(currentHex) || []).some((c) => c.id !== creature.id && isPredator(c) && sizeOf(c) > sizeOf(creature) * 2);
+    if (threat) {
+        const away = neighborsOf(gameState.cells, currentHex).filter((n) => passableKey(gameState, n) && !(gameState.creatures.get(n) || []).some(isPredator));
+        if (away.length) return { action: 'flee', target: away[Math.floor(Math.random() * away.length)] };
     }
+    if (Math.random() < 0.7) return roamRandomly(creature, currentHex, gameState);
     return { action: 'nervous_wait' };
 };
 
+// Defensive animals edge away from big predators but otherwise stay put
 const cautiousMovement = (creature, currentHex, gameState) => {
-    // Slow, careful movement
-    if (Math.random() < 0.3) {
-        return roamRandomly(creature, currentHex, gameState);
-    }
+    const big = (gameState.creatures.get(currentHex) || []).some((c) => c.id !== creature.id && isPredator(c) && sizeOf(c) > sizeOf(creature) * 3);
+    if (big || Math.random() < 0.2) return roamRandomly(creature, currentHex, gameState);
     return { action: 'cautious_wait' };
-};
-
-// ENHANCED: Testing function for behavior debugging
-export const testCreatureBehavior = (creatureSpecies, playerDistance = 1) => {
-    const testCreature = {
-        id: 'test-creature',
-        species: creatureSpecies,
-        size: 1.0,
-        lastBehaviorTurn: 0
-    };
-
-    const testGameState = {
-        player: { q: 0, r: 0 },
-        moveNumber: 1,
-        weight: 150,
-        level: 2,
-        creatures: new Map(),
-        hexes: new Map()
-    };
-
-    const testHex = { q: playerDistance, r: 0 };
-
-    const behavior = executeCreatureBehavior(testCreature, testHex, testGameState);
-    console.log(`🧪 ${creatureSpecies} behavior test:`, behavior);
-
-    return behavior;
 };
 
 // Export behavior types for reference

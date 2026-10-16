@@ -1,6 +1,8 @@
 ﻿// ==================== ENHANCED COMBAT SYSTEM WITH IMPROVED HATCHLING SCALING ====================
 import { BEHAVIOR_RANDOMNESS } from '../game/gameConstants.js';
 
+const HATCHLING_WEIGHT = 1; // kg - Big Al's hatching weight
+
 // Helper function to ensure valid numbers
 const safeNumber = (value, fallback = 1) => {
     if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
@@ -16,9 +18,10 @@ const safeLog10 = (value) => {
     return Math.log10(safeValue);
 };
 
-export const calculateFiercenessRatio = (playerWeight, playerFitness, speciesData, speciesSize, packSize = 1) => {
+// `random` adds the combat dice roll; previews pass false so the odds shown don't flicker
+export const calculateFiercenessRatio = (playerWeight, playerFitness, speciesData, speciesSize, packSize = 1, random = true) => {
     // Validate inputs
-    const safePlayerWeight = safeNumber(playerWeight, 0.3); // Updated baseline to 300g
+    const safePlayerWeight = safeNumber(playerWeight, 1); // hatchling baseline (1kg)
     const safePlayerFitness = safeNumber(playerFitness, 100);
     const safeSpeciesSize = safeNumber(speciesSize, 1);
     const safePackSize = Math.max(1, safeNumber(packSize, 1));
@@ -26,7 +29,7 @@ export const calculateFiercenessRatio = (playerWeight, playerFitness, speciesDat
     // Validate species data
     const safeDanger = safeNumber(speciesData?.danger, 0);
 
-    const chance = safeNumber((Math.random() * 2 - 1) * BEHAVIOR_RANDOMNESS + 1, 1);
+    const chance = random ? safeNumber((Math.random() * 2 - 1) * BEHAVIOR_RANDOMNESS + 1, 1) : 1;
     const playerFierceness = safePlayerWeight * (safeLog10(Math.max(1, safePlayerFitness)) / 2);
     const speciesDanger = safeDanger * (safeSpeciesSize / safePackSize) * chance;
 
@@ -34,29 +37,29 @@ export const calculateFiercenessRatio = (playerWeight, playerFitness, speciesDat
     return safeNumber(ratio, 0.1);
 };
 
-export const calculateAgilityRatio = (playerWeight, speciesData) => {
+export const calculateAgilityRatio = (playerWeight, speciesData, random = true) => {
     // Validate inputs
-    const safePlayerWeight = safeNumber(playerWeight, 0.3); // Updated baseline to 300g
+    const safePlayerWeight = safeNumber(playerWeight, 1); // hatchling baseline (1kg)
 
     // Validate species data
     const safeDifficulty = safeNumber(speciesData?.difficulty, 0.5);
     const safeSpeciesWeight = safeNumber(speciesData?.weight, 1);
 
-    const chance = safeNumber((Math.random() * 2 - 1) * BEHAVIOR_RANDOMNESS + 1, 1);
+    const chance = random ? safeNumber((Math.random() * 2 - 1) * BEHAVIOR_RANDOMNESS + 1, 1) : 1;
 
-    // Enhanced agility calculation starting from 300g baseline
-    const logWeight = safeLog10(safePlayerWeight) - safeLog10(0.3); // Start from 300g hatchling weight
+    // Agility falls off with size, starting from the 1kg hatchling
+    const logWeight = safeLog10(safePlayerWeight) - safeLog10(HATCHLING_WEIGHT);
     const normalizedLogWeight = Math.max(0, Math.min(10, logWeight));
 
-    // Enhanced agility curve - 300g hatchlings are still quite agile
+    // Agility curve - hatchlings are very agile
     const rawPlayerAgility = 1 - Math.pow((normalizedLogWeight / 4.5), 1.6); // Slightly gentler curve
     const playerAgility = Math.max(0.02, Math.min(1, rawPlayerAgility));
 
-    // Enhanced size penalty system - more realistic for 300g hatchling
+    // Enhanced size penalty system - relative to the hatchling
     let sizePenalty = 1;
     const sizeRatio = safeSpeciesWeight / safePlayerWeight;
 
-    if (sizeRatio < 0.0005) { // Absolutely tiny prey vs 300g predator  
+    if (sizeRatio < 0.0005) { // Absolutely tiny prey vs a hatchling  
         sizePenalty = 4; // Still hard but not impossible
     } else if (sizeRatio < 0.005) { // Very small prey like dragonflies
         sizePenalty = 2.5; // Reasonable challenge for hatchling
@@ -78,7 +81,7 @@ export const calculateInjuries = (fiercenessRatio) => {
 export const calculateSuccessChance = (playerWeight, playerFitness, speciesData, creatureSize) => {
     try {
         // Validate all inputs first
-        const safePlayerWeight = safeNumber(playerWeight, 0.3); // Updated baseline to 300g
+        const safePlayerWeight = safeNumber(playerWeight, 1); // hatchling baseline (1kg)
         const safePlayerFitness = safeNumber(playerFitness, 100);
         const safeCreatureSize = safeNumber(creatureSize, 1);
 
@@ -87,8 +90,8 @@ export const calculateSuccessChance = (playerWeight, playerFitness, speciesData,
             return 50;
         }
 
-        const fiercenessRatio = calculateFiercenessRatio(safePlayerWeight, safePlayerFitness, speciesData, safeCreatureSize);
-        const agilityRatio = calculateAgilityRatio(safePlayerWeight, speciesData);
+        const fiercenessRatio = calculateFiercenessRatio(safePlayerWeight, safePlayerFitness, speciesData, safeCreatureSize, 1, false);
+        const agilityRatio = calculateAgilityRatio(safePlayerWeight, speciesData, false);
 
         // Validate calculated ratios
         const safeFiercenessRatio = safeNumber(fiercenessRatio, 0.5);
@@ -112,7 +115,7 @@ export const calculateSuccessChance = (playerWeight, playerFitness, speciesData,
         const preyWeight = (speciesData.weight || 1) * safeCreatureSize;
         const sizeRatio = preyWeight / safePlayerWeight;
 
-        if (safePlayerWeight <= 1.0 && sizeRatio >= 0.001 && sizeRatio <= 0.1) {
+        if (safePlayerWeight <= 2.0 && sizeRatio >= 0.001 && sizeRatio <= 0.1) {
             successChance += 15; // Bonus for hunting appropriately-sized prey as hatchling
         }
 
@@ -131,7 +134,7 @@ export const calculateEnergyGain = (speciesData, creatureSize, playerWeight, pla
     try {
         // Validate inputs
         const safeCreatureSize = safeNumber(creatureSize, 1);
-        const safePlayerWeight = safeNumber(playerWeight, 0.3); // Updated baseline to 300g
+        const safePlayerWeight = safeNumber(playerWeight, 1); // hatchling baseline (1kg)
         const safePlayerLevel = Math.max(1, Math.min(4, safeNumber(playerLevel, 1)));
 
         if (!speciesData) {
@@ -144,9 +147,9 @@ export const calculateEnergyGain = (speciesData, creatureSize, playerWeight, pla
 
         const baseNutrition = safeNutrition * safeCreatureSize;
 
-        // MAJOR IMPROVEMENT: Better efficiency calculation for 300g hatchling
+        // Smaller predators extract more from each meal
         // Smaller predators are MORE efficient at extracting energy from appropriate prey
-        const efficiencyMultiplier = Math.max(0.2, Math.pow(0.3 / Math.max(0.3, safePlayerWeight), 0.25)); // Much gentler scaling
+        const efficiencyMultiplier = Math.max(0.2, Math.pow(HATCHLING_WEIGHT / Math.max(HATCHLING_WEIGHT, safePlayerWeight), 0.25)); // Much gentler scaling
 
         // Enhanced prey suitability calculation
         const preyWeight = safeSpeciesWeight * safeCreatureSize;
@@ -196,9 +199,46 @@ export const calculateEnergyGain = (speciesData, creatureSize, playerWeight, pla
     }
 };
 
+// Chance an animal bolts before you can close in
+export const escapeChance = (speciesName, speciesData, creatureSize, playerWeight, playerLevel) => {
+    const escapeBaseChance = {
+        Dragonfly: 0.2, Cricket: 0.15, Centipede: 0.05, Mammal: 0.1, Scorpion: 0.08, Frog: 0.12, Lizard: 0.15,
+        Mesadactylus: 0.25, Harpactognathus: 0.18, Kepodactylus: 0.08, Compsognathus: 0.12, Coelurus: 0.15, Hesperornithoides: 0.18
+    };
+    let baseEscape = escapeBaseChance[speciesName] || 0.08;
+    const sizeRatio = (speciesData.weight * creatureSize) / playerWeight;
+    if (sizeRatio < 0.01) baseEscape += 0.15;
+    else if (sizeRatio < 0.1) baseEscape += 0.08;
+    if (playerLevel === 1) baseEscape += 0.1;
+    return Math.min(0.5, baseEscape);
+};
+
+// Deterministic odds for the encounter cards, matching ATTACK_CREATURE.
+// mods: [fierceness, agility, escape] multipliers for the attack style.
+export const previewAttack = (state, creature, mods = [1, 1, 1], style = 'normal') => {
+    const sd = SPECIES_DATA[creature.species];
+    if (!sd) return { success: 0, fierceness: 9, agility: 9, energyGain: 0 };
+    const woundMul = creature.wounded ? Math.max(0.15, (creature.health ?? 100) / 100) : 1;
+    const fierceness = calculateFiercenessRatio(state.weight, state.fitness, sd, creature.size, 1, false) * mods[0] * woundMul;
+    const agility = calculateAgilityRatio(state.weight, sd, false) * mods[1] * (creature.wounded ? 0.6 : 1);
+    const energyGain = calculateEnergyGain(sd, creature.size, state.weight, state.level);
+    let success;
+    if (style === 'hatchet') {
+        success = fierceness >= 2.5 ? 8 : Math.max(15, Math.min(92, 100 - agility * 45));
+    } else {
+        if (fierceness >= 1) success = Math.max(8, 35 - fierceness * 12);
+        else if (agility >= 1) success = Math.max(25, 85 - agility * 20);
+        else success = Math.max(75, 96 - fierceness * 8 - agility * 8);
+        const sizeRatio = (sd.weight * creature.size) / state.weight;
+        if (state.weight <= 2.0 && sizeRatio >= 0.001 && sizeRatio <= 0.1) success += 15;
+        success *= 1 - escapeChance(creature.species, sd, creature.size, state.weight, state.level) * mods[2] * 0.6;
+    }
+    return { success: Math.round(Math.max(5, Math.min(96, success))), fierceness, agility, energyGain };
+};
+
 // Enhanced debug function
 export const debugCombatCalculations = (playerWeight, playerFitness, speciesData, creatureSize) => {
-    console.group("🔧 Enhanced Combat Debug (300g baseline)");
+    console.group("🔧 Combat Debug");
     console.log("Player Weight:", playerWeight);
     console.log("Player Fitness:", playerFitness);
     console.log("Species Data:", speciesData);
