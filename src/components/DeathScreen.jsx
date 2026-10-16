@@ -8,37 +8,37 @@ const DeathScreen = ({ gameState, dispatch }) => {
         switch (gameState.deathReason) {
             case 'starved':
                 if (gameState.level === 1) {
-                    return "Your 300-gram hatchling body couldn't survive without constant nourishment. The Jurassic world is unforgiving to the smallest predators.";
+                    return "Your 1kg hatchling body couldn't survive without constant nourishment. The Jurassic world is unforgiving to the smallest predators.";
                 }
                 return "You collapse from exhaustion and hunger. The unforgiving Jurassic world claims another predator.";
 
             case 'drowned':
                 if (gameState.level === 1) {
-                    return "The river's current was far too strong for your tiny 300g body. Even at this size, water is deadly.";
+                    return "The river's current was far too strong for your tiny 1kg body. Even at this size, water is deadly.";
                 }
                 return "The river's current proves too strong. You are swept away into the depths.";
 
             case 'sank':
                 if (gameState.level === 1) {
-                    return "The quicksand quickly swallows your small 300g form. You were still too light to escape its grip.";
+                    return "The quicksand quickly swallows your small 1kg form. You were still too light to escape its grip.";
                 }
                 return "The quicksand pulls you down. Your struggles only make it worse.";
 
             case 'injuries':
                 if (gameState.level === 1) {
-                    return "Your fragile 300g hatchling body couldn't withstand the injuries. You were still too young for such dangers.";
+                    return "Your fragile 1kg hatchling body couldn't withstand the injuries. You were still too young for such dangers.";
                 }
                 return "Your wounds prove fatal. You fought bravely, but this world shows no mercy.";
 
             case 'combat':
                 if (gameState.level === 1) {
-                    return "A predator found you alone and vulnerable. Your tiny 300g body couldn't survive the encounter.";
+                    return "A predator found you alone and vulnerable. Your tiny 1kg body couldn't survive the encounter.";
                 }
                 return "A stronger predator has bested you. Your reign ends here.";
 
             default:
                 if (gameState.level === 1) {
-                    return "Your short life ends before it truly began. The Jurassic world is especially cruel to 300g hatchlings.";
+                    return "Your short life ends before it truly began. The Jurassic world is especially cruel to 1kg hatchlings.";
                 }
                 return "Your journey ends here. The Jurassic world is not for the weak.";
         }
@@ -60,12 +60,12 @@ const DeathScreen = ({ gameState, dispatch }) => {
 
     const getRestartButtonText = () => {
         if (gameState.level === 1) {
-            return '🥚 Hatch Again (300g)';
+            return '🥚 Hatch Again (1kg)';
         }
         return '🔄 Try Again';
     };
 
-    // Enhanced weight display formatting for 300g baseline
+    // Enhanced weight display formatting for 1kg baseline
     const formatWeight = (weight) => {
         if (weight < 1) {
             return `${Math.round(weight * 1000)}g`;
@@ -76,7 +76,7 @@ const DeathScreen = ({ gameState, dispatch }) => {
         }
     };
 
-    // Enhanced survival achievements with 300g scaling
+    // Enhanced survival achievements with 1kg scaling
     const getSurvivalAchievements = () => {
         const achievements = [];
 
@@ -92,7 +92,7 @@ const DeathScreen = ({ gameState, dispatch }) => {
         if (gameState.moveNumber >= 50) {
             achievements.push("⏰ Long survivor (50+ turns)");
         }
-        if (gameState.weight >= 1.0) { // Adjusted for 300g start
+        if (gameState.weight >= 1.0) { // Adjusted for 1kg start
             achievements.push("💪 Grew to 1kg+");
         }
         if (gameState.weight >= 15.0) { // Juvenile milestone
@@ -149,12 +149,12 @@ const DeathScreen = ({ gameState, dispatch }) => {
                     </div>
                 )}
 
-                {/* Enhanced hatchling death advice for 300g scaling */}
+                {/* Enhanced hatchling death advice for 1kg scaling */}
                 {gameState.level === 1 && (
                     <div className="bg-blue-900 bg-opacity-50 p-3 rounded mb-4 border border-blue-600">
-                        <h3 className="text-blue-300 font-bold mb-1">💡 300g Hatchling Survival Tips</h3>
+                        <h3 className="text-blue-300 font-bold mb-1">💡 1kg Hatchling Survival Tips</h3>
                         <div className="text-xs text-blue-200 space-y-1">
-                            <div>• Hunt dragonflies, centipedes, and crickets - perfect prey for 300g!</div>
+                            <div>• Hunt dragonflies, centipedes, and crickets - perfect prey for 1kg!</div>
                             <div>• Dense forests have the highest bug concentrations</div>
                             <div>• Avoid rivers (you're still too small!) and dangerous terrain</div>
                             <div>• Small mammals are excellent nutrition if you can catch them</div>
@@ -172,7 +172,7 @@ const DeathScreen = ({ gameState, dispatch }) => {
 
                 {gameState.level === 1 && (
                     <p className="text-xs text-gray-400 mt-3">
-                        The circle of life continues... A new 300g hatchling awaits
+                        The circle of life continues... A new 1kg hatchling awaits
                     </p>
                 )}
             </div>

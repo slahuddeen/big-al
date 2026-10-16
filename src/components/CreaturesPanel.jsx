@@ -4,7 +4,7 @@ import { calculateFiercenessRatio, calculateAgilityRatio, calculateSuccessChance
 import CreaturePortrait from './CreaturePortrait.jsx';
 
 const CreaturesPanel = ({ gameState, dispatch }) => {
-    const playerKey = `${gameState.player.q},${gameState.player.r}`;
+    const playerKey = gameState.player;
     const creatures = gameState.creatures.get(playerKey) || [];
     const carcasses = (gameState.carcasses && gameState.carcasses.get(playerKey)) || [];
 

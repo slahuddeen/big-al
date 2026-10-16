@@ -67,17 +67,45 @@ export const frameFor = (axis, upHint = new THREE.Vector3(0, 1, 0), prevSide = n
 
 // ---------- Mesh builder ----------
 export class MeshBuilder {
-    constructor() {
+    // withWater: also record a per-vertex `wdata` attribute (flow, edge/foam, kind) for the water shader
+    constructor(withWater = false) {
         this.positions = [];
         this.colors = [];
         this.sways = [];
         this.swayFn = null;
+        this.wdata = withWater ? [] : null;
+        this.water = [0, 0, 0];
     }
 
-    _push(v, c) {
+    _push(v, c, w = null) {
         this.positions.push(v.x, v.y, v.z);
         this.colors.push(c.r, c.g, c.b);
         this.sways.push(this.swayFn ? this.swayFn(v) : 0);
+        if (this.wdata) {
+            const d = w || this.water;
+            this.wdata.push(d[0], d[1], d[2]);
+        }
+    }
+
+    // Triangle with a colour (and optional water data) per vertex
+    triV(a, b, c, colors, waters = null, hint = null, hintIsDir = false) {
+        a = v3(a); b = v3(b); c = v3(c);
+        _ab.subVectors(b, a);
+        _ac.subVectors(c, a);
+        _n.crossVectors(_ab, _ac);
+        if (_n.lengthSq() < 1e-14) return;
+        let order = [0, 1, 2];
+        if (hint) {
+            let d;
+            if (hintIsDir) d = v3(hint);
+            else {
+                _cen.copy(a).add(b).add(c).multiplyScalar(1 / 3);
+                d = _cen.clone().sub(v3(hint));
+            }
+            if (_n.dot(d) < 0) order = [0, 2, 1];
+        }
+        const P = [a, b, c];
+        for (const i of order) this._push(P[i], col(colors[i]), waters ? waters[i] : null);
     }
 
     // Adds a triangle. `hint` orients the face: if hintIsDir the face normal will
@@ -127,6 +155,7 @@ export class MeshBuilder {
         g.setAttribute('position', new THREE.Float32BufferAttribute(this.positions, 3));
         g.setAttribute('color', new THREE.Float32BufferAttribute(this.colors, 3));
         g.setAttribute('sway', new THREE.Float32BufferAttribute(this.sways, 1));
+        if (this.wdata) g.setAttribute('wdata', new THREE.Float32BufferAttribute(this.wdata, 3));
         g.computeVertexNormals();
         g.computeBoundingSphere();
         g.computeBoundingBox();

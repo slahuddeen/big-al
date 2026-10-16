@@ -1,6 +1,6 @@
 ﻿// ==================== BIG AL: ISOMETRIC 3D WORLD ====================
 import React, { useReducer, useEffect, useCallback, useState, useMemo, useRef } from 'react';
-import { hexDistance, getHexNeighbors } from './utils/hexMath.js';
+import { areNeighbors } from './world/cellGraph.js';
 import { TERRAIN_TYPES } from './data/terrain.js';
 import { SPECIES_DATA } from './data/species.js';
 import { getTimeOfDay } from './game/gameConstants.js';
@@ -16,9 +16,8 @@ import NotificationSystem from './components/NotificationSystem.jsx';
 import DeathScreen from './components/DeathScreen.jsx';
 import HoverTooltip from './components/HoverTooltip.jsx';
 
-const GENERATION_RADIUS = 8;
 const TRAVEL_STEP_MS = 650;
-const MAX_PATH = 24;
+const MAX_PATH = 40;
 
 // Sky behind the (transparent) 3D canvas for each turn of the day/night cycle
 const SKIES = [
@@ -29,8 +28,6 @@ const SKIES = [
     'radial-gradient(ellipse at 40% 0%, #6a4a9a 0%, #2c2456 50%, #120e2a 100%)' // pre-dawn
 ];
 
-const keyOf = (h) => `${h.q},${h.r}`;
-
 const isWalkable = (hex, weight) => {
     if (!hex || !hex.discovered) return false;
     const t = TERRAIN_TYPES[hex.terrain];
@@ -39,32 +36,25 @@ const isWalkable = (hex, weight) => {
     return true;
 };
 
-// Breadth-first path over discovered, safe terrain
-const findPath = (hexes, from, to, weight) => {
-    const goalKey = keyOf(to);
-    if (!isWalkable(hexes.get(goalKey), weight)) return null;
-    const startKey = keyOf(from);
+// Breadth-first path over discovered, safe terrain (cell keys)
+const findPath = (cells, startKey, goalKey, weight) => {
+    if (!isWalkable(cells.get(goalKey), weight)) return null;
     const prev = new Map([[startKey, null]]);
-    const queue = [from];
+    const queue = [startKey];
     while (queue.length) {
-        const cur = queue.shift();
-        const ck = keyOf(cur);
+        const ck = queue.shift();
         if (ck === goalKey) break;
-        for (const n of getHexNeighbors(cur)) {
-            const nk = keyOf(n);
-            if (prev.has(nk) || !isWalkable(hexes.get(nk), weight)) continue;
-            if (hexDistance(n, from) > MAX_PATH) continue;
+        for (const nk of cells.get(ck).neighbors) {
+            if (prev.has(nk) || !isWalkable(cells.get(nk), weight)) continue;
             prev.set(nk, ck);
-            queue.push(n);
+            queue.push(nk);
         }
+        if (prev.size > 4000) break;
     }
     if (!prev.has(goalKey)) return null;
     const path = [];
-    for (let k = goalKey; k && k !== startKey; k = prev.get(k)) {
-        const [q, r] = k.split(',').map(Number);
-        path.unshift({ q, r });
-    }
-    return path.length ? path : null;
+    for (let k = goalKey; k && k !== startKey; k = prev.get(k)) path.unshift(k);
+    return path.length && path.length <= MAX_PATH ? path : null;
 };
 
 const BigAlHexGame = () => {
@@ -77,32 +67,17 @@ const BigAlHexGame = () => {
     // ============ WORLD GENERATION ============
     useEffect(() => {
         if (!gameState.mapGenerated) {
-            dispatch({ type: 'GENERATE_TERRAIN_FEATURES' });
+            const seed = Number(new URLSearchParams(window.location.search).get('seed')) || undefined;
+            dispatch({ type: 'GENERATE_WORLD', seed });
         }
     }, [gameState.mapGenerated]);
 
-    useEffect(() => {
-        if (!gameState.linearFeatures.length) return;
-        const coords = [];
-        for (let dq = -GENERATION_RADIUS; dq <= GENERATION_RADIUS; dq++) {
-            for (let dr = -GENERATION_RADIUS; dr <= GENERATION_RADIUS; dr++) {
-                if (Math.abs(dq + dr) > GENERATION_RADIUS) continue;
-                const q = gameState.player.q + dq;
-                const r = gameState.player.r + dr;
-                if (!gameState.hexes.has(`${q},${r}`)) coords.push({ q, r });
-            }
-        }
-        // Generate closest hexes first so neighbour-based rules flow outward
-        coords.sort((a, b) => hexDistance(a, gameState.player) - hexDistance(b, gameState.player));
-        if (coords.length) dispatch({ type: 'GENERATE_HEXES', coords });
-        // IMPORTANT: Don't remove old hexes! Keep all discovered hexes forever
-    }, [gameState.player.q, gameState.player.r, gameState.linearFeatures]);
-
     // Update visibility (and fill the visible area with wildlife) when the player moves
     useEffect(() => {
+        if (!gameState.player) return;
         dispatch({ type: 'UPDATE_VISIBILITY' });
-        if (gameState.hexes.size > 0) dispatch({ type: 'POPULATE_NEARBY' });
-    }, [gameState.player.q, gameState.player.r, gameState.hexes.size]);
+        dispatch({ type: 'POPULATE_NEARBY' });
+    }, [gameState.player, gameState.worldSeed]);
 
     // Spawn creatures on your tile when moving to a new location
     useEffect(() => {
@@ -111,7 +86,7 @@ const BigAlHexGame = () => {
             return () => clearTimeout(id);
         }
         return undefined;
-    }, [gameState.player.q, gameState.player.r, gameState.moveNumber]);
+    }, [gameState.player, gameState.moveNumber]);
 
     // Creatures keep living between your moves
     const hasCreatures = gameState.creatures.size > 0;
@@ -148,43 +123,44 @@ const BigAlHexGame = () => {
     // ============ MOVEMENT ============
     const movableHexes = useMemo(() => {
         if (gameState.gameOver) return [];
-        return getHexNeighbors(gameState.player).filter(n => {
-            const hex = gameState.hexes.get(keyOf(n));
-            return hex && hex.discovered && TERRAIN_TYPES[hex.terrain].passable;
+        const here = gameState.cells.get(gameState.player);
+        if (!here) return [];
+        return here.neighbors.filter(n => {
+            const cell = gameState.cells.get(n);
+            return cell && cell.discovered && TERRAIN_TYPES[cell.terrain].passable;
         });
-    }, [gameState.player, gameState.hexes, gameState.gameOver]);
+    }, [gameState.player, gameState.cells, gameState.gameOver]);
 
     const handleHexClick = useCallback((key) => {
-        const hex = gameState.hexes.get(key);
+        const hex = gameState.cells.get(key);
         if (!hex || gameState.gameOver) return;
-        const distance = hexDistance(gameState.player, hex);
         const terrain = TERRAIN_TYPES[hex.terrain];
 
-        if (distance === 0) {
+        if (key === gameState.player) {
             setTravelPath([]);
             dispatch({ type: 'SELECT_HEX', hex });
-        } else if (distance === 1 && hex.discovered && terrain.passable) {
+        } else if (areNeighbors(gameState.cells, gameState.player, key) && hex.discovered && terrain.passable) {
             setTravelPath([]);
-            dispatch({ type: 'MOVE_PLAYER', target: { q: hex.q, r: hex.r } });
+            dispatch({ type: 'MOVE_PLAYER', target: key });
         } else {
             // NEW: click a far-away tile to walk there over safe, explored ground
-            const path = hex.discovered ? findPath(gameState.hexes, gameState.player, hex, gameState.weight) : null;
+            const path = hex.discovered ? findPath(gameState.cells, gameState.player, key, gameState.weight) : null;
             if (path) {
                 fitnessAtTravelStart.current = gameState.fitness;
                 setTravelPath(path);
             }
             dispatch({ type: 'SELECT_HEX', hex });
         }
-    }, [gameState.hexes, gameState.player, gameState.gameOver, gameState.weight, gameState.fitness]);
+    }, [gameState.cells, gameState.player, gameState.gameOver, gameState.weight, gameState.fitness]);
 
     const handleHexHover = useCallback((key) => {
         if (!key) {
             dispatch({ type: 'CLEAR_HOVER' });
             return;
         }
-        const hex = gameState.hexes.get(key);
+        const hex = gameState.cells.get(key);
         if (hex) dispatch({ type: 'HOVER_HEX', hex });
-    }, [gameState.hexes]);
+    }, [gameState.cells]);
 
     // Auto-travel along the chosen path, one step at a time. Stops when
     // something dangerous shows up, when hurt, or when getting hungry.
@@ -195,14 +171,14 @@ const BigAlHexGame = () => {
             return undefined;
         }
         const id = setTimeout(() => {
-            const here = gameState.creatures.get(keyOf(gameState.player)) || [];
+            const here = gameState.creatures.get(gameState.player) || [];
             const danger = here.some(c => {
                 const sd = SPECIES_DATA[c.species];
                 return sd && calculateFiercenessRatio(gameState.weight, gameState.fitness, sd, c.size, 1, false) >= 1;
             });
             const hurt = fitnessAtTravelStart.current !== null && gameState.fitness < fitnessAtTravelStart.current - 5;
             const next = travelPath[0];
-            if (danger || hurt || gameState.energy < 20 || hexDistance(next, gameState.player) !== 1) {
+            if (danger || hurt || gameState.energy < 20 || !areNeighbors(gameState.cells, gameState.player, next)) {
                 setTravelPath([]);
                 return;
             }
@@ -216,9 +192,9 @@ const BigAlHexGame = () => {
     const previewPath = useMemo(() => {
         if (travelPath.length) return travelPath;
         const h = gameState.hoveredHex;
-        if (!h || gameState.gameOver || hexDistance(h, gameState.player) <= 1) return [];
-        return findPath(gameState.hexes, gameState.player, h, gameState.weight) || [];
-    }, [travelPath, gameState.hoveredHex, gameState.player, gameState.hexes, gameState.weight, gameState.gameOver]);
+        if (!h || gameState.gameOver || h.key === gameState.player || areNeighbors(gameState.cells, gameState.player, h.key)) return [];
+        return findPath(gameState.cells, gameState.player, h.key, gameState.weight) || [];
+    }, [travelPath, gameState.hoveredHex, gameState.player, gameState.cells, gameState.weight, gameState.gameOver]);
 
     // ============ HUD INFO ============
     const timeInfo = getTimeOfDay(gameState.moveNumber);
@@ -232,8 +208,8 @@ const BigAlHexGame = () => {
         };
     }, [gameState.creatures]);
 
-    const hoveredCreatures = gameState.hoveredHex && gameState.hexes.get(keyOf(gameState.hoveredHex))?.inSight
-        ? gameState.creatures.get(keyOf(gameState.hoveredHex))
+    const hoveredCreatures = gameState.hoveredHex && gameState.cells.get(gameState.hoveredHex.key)?.inSight
+        ? gameState.creatures.get(gameState.hoveredHex.key)
         : null;
 
     return (
@@ -286,7 +262,7 @@ const BigAlHexGame = () => {
                     ))}
                 </div>
                 <div className="text-gray-300 leading-snug">
-                    Click a tile to move · click further to travel · drag / WASD to pan · wheel to zoom
+                    Click a neighbouring area to move · click further to travel · drag / WASD to pan · wheel to zoom
                 </div>
                 <div className="pt-1 border-t border-amber-700 text-gray-400">
                     {timeInfo.isNight ? '🌙' : '☀️'} Ecosystem: {ecosystemInfo.totalCreatures} creatures ({ecosystemInfo.activityLevel})

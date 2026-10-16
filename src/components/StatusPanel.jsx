@@ -36,9 +36,10 @@ const StatusPanel = ({ gameState }) => {
 
     // Calculate discovery statistics
     const getDiscoveryStats = () => {
-        const totalHexes = gameState.hexes.size;
-        const discoveredHexes = Array.from(gameState.hexes.values()).filter(hex => hex.discovered).length;
-        const exploredHexes = Array.from(gameState.hexes.values()).filter(hex => hex.visited).length;
+        const land = Array.from(gameState.cells.values()).filter(cell => cell.terrain !== 'sea');
+        const totalHexes = land.length;
+        const discoveredHexes = land.filter(cell => cell.discovered).length;
+        const exploredHexes = land.filter(cell => cell.visited).length;
 
         return {
             total: totalHexes,

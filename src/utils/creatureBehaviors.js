@@ -1,5 +1,5 @@
 ﻿// ==================== ENHANCED CREATURE BEHAVIOR SYSTEM ====================
-import { getHexNeighbors, hexDistance } from '../utils/hexMath.js';
+import { neighborsOf, distanceToPlayer } from '../world/cellGraph.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA } from '../data/species.js'; // FIXED: Moved to top
 
@@ -9,7 +9,7 @@ export const BEHAVIOR_TICK_CHANCE = 0.7; // 70% chance per turn to execute behav
 // Cooldown system constants
 const CREATURE_COOLDOWN_TURNS = 2; // Creatures can only act every 2 turns
 
-// Enhanced creature behavioral AI system with cooldowns
+// Enhanced creature behavioral AI system with cooldowns (currentHex is a cell key)
 export const executeCreatureBehavior = (creature, currentHex, gameState, dispatch) => {
     // ENHANCED: Check if creature has acted recently (cooldown system)
     const turnsSinceLastBehavior = gameState.moveNumber - (creature.lastBehaviorTurn || 0);
@@ -26,8 +26,7 @@ export const executeCreatureBehavior = (creature, currentHex, gameState, dispatc
     // ENHANCED: Update last behavior turn
     creature.lastBehaviorTurn = gameState.moveNumber;
 
-    const playerPos = gameState.player;
-    const playerDistance = hexDistance(currentHex, playerPos);
+    const playerDistance = distanceToPlayer(gameState, currentHex);
 
     switch (speciesData.behaviorType) {
         case 'pack_predator':
@@ -114,7 +113,7 @@ const handleAmbushPredator = (creature, currentHex, gameState, playerDistance, d
 
     // Stay near water or preferred terrain
     if (Math.random() < 0.8) {
-        return stayNearPreferredTerrain(creature, currentHex, gameState, ['river', 'marsh', 'waterhole', 'lake']);
+        return stayNearPreferredTerrain(creature, currentHex, gameState, ['river', 'stream', 'marsh', 'waterhole', 'lake']);
     }
 
     return { action: 'wait' }; // Ambush predators often wait
@@ -299,10 +298,10 @@ const handlePassive = (creature, currentHex, gameState, playerDistance, dispatch
 
 const countPackMembers = (species, centerHex, gameState) => {
     let count = 1; // Self
-    const neighbors = getHexNeighbors(centerHex);
+    const neighbors = neighborsOf(gameState.cells, centerHex);
 
     for (const neighbor of neighbors) {
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
+        const neighborKey = neighbor;
         const creatures = gameState.creatures.get(neighborKey) || [];
         count += creatures.filter(c => c.species === species).length;
     }
@@ -311,17 +310,16 @@ const countPackMembers = (species, centerHex, gameState) => {
 };
 
 const moveTowardsPlayer = (creature, currentHex, gameState) => {
-    const playerPos = gameState.player;
-    const neighbors = getHexNeighbors(currentHex);
+    const neighbors = neighborsOf(gameState.cells, currentHex);
 
     // Find neighbor closest to player
     let bestHex = null;
     let bestDistance = Infinity;
 
     for (const neighbor of neighbors) {
-        const distance = hexDistance(neighbor, playerPos);
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const neighborHex = gameState.hexes.get(neighborKey);
+        const distance = distanceToPlayer(gameState, neighbor);
+        const neighborKey = neighbor;
+        const neighborHex = gameState.cells.get(neighborKey);
 
         if (neighborHex && TERRAIN_TYPES[neighborHex.terrain].passable && distance < bestDistance) {
             bestDistance = distance;
@@ -341,17 +339,16 @@ const moveTowardsPlayer = (creature, currentHex, gameState) => {
 };
 
 const fleeFromPlayer = (creature, currentHex, gameState) => {
-    const playerPos = gameState.player;
-    const neighbors = getHexNeighbors(currentHex);
+    const neighbors = neighborsOf(gameState.cells, currentHex);
 
     // Find neighbor farthest from player
     let bestHex = null;
     let bestDistance = -1;
 
     for (const neighbor of neighbors) {
-        const distance = hexDistance(neighbor, playerPos);
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const neighborHex = gameState.hexes.get(neighborKey);
+        const distance = distanceToPlayer(gameState, neighbor);
+        const neighborKey = neighbor;
+        const neighborHex = gameState.cells.get(neighborKey);
 
         if (neighborHex && TERRAIN_TYPES[neighborHex.terrain].passable && distance > bestDistance) {
             bestDistance = distance;
@@ -371,10 +368,10 @@ const fleeFromPlayer = (creature, currentHex, gameState) => {
 };
 
 const roamRandomly = (creature, currentHex, gameState) => {
-    const neighbors = getHexNeighbors(currentHex);
+    const neighbors = neighborsOf(gameState.cells, currentHex);
     const validMoves = neighbors.filter(neighbor => {
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const neighborHex = gameState.hexes.get(neighborKey);
+        const neighborKey = neighbor;
+        const neighborHex = gameState.cells.get(neighborKey);
         return neighborHex && TERRAIN_TYPES[neighborHex.terrain].passable;
     });
 
@@ -390,10 +387,10 @@ const roamRandomly = (creature, currentHex, gameState) => {
 };
 
 const stayNearPreferredTerrain = (creature, currentHex, gameState, preferredTerrains) => {
-    const neighbors = getHexNeighbors(currentHex);
+    const neighbors = neighborsOf(gameState.cells, currentHex);
     const preferredMoves = neighbors.filter(neighbor => {
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const neighborHex = gameState.hexes.get(neighborKey);
+        const neighborKey = neighbor;
+        const neighborHex = gameState.cells.get(neighborKey);
         return neighborHex &&
             TERRAIN_TYPES[neighborHex.terrain].passable &&
             preferredTerrains.includes(neighborHex.terrain);
@@ -412,12 +409,12 @@ const stayNearPreferredTerrain = (creature, currentHex, gameState, preferredTerr
 
 const migrateToFood = (creature, currentHex, gameState) => {
     // Herbivores prefer forest edges, plains, and savannas for food
-    const foodTerrains = ['plains', 'savanna', 'openwoods', 'riverbank'];
+    const foodTerrains = ['plains', 'savanna', 'openwoods', 'riverbank', 'fernprairie', 'katydidmeadow', 'floodplain', 'forestedge', 'fernsavanna', 'ginkgogrove'];
     return stayNearPreferredTerrain(creature, currentHex, gameState, foodTerrains);
 };
 
 const soarToHighGround = (creature, currentHex, gameState) => {
-    const highTerrains = ['hills', 'mountains', 'mesa', 'rocky'];
+    const highTerrains = ['hills', 'mountains', 'mesa', 'rocky', 'boulderfield'];
     return stayNearPreferredTerrain(creature, currentHex, gameState, highTerrains);
 };
 
@@ -426,9 +423,9 @@ const PREY_BEHAVIORS = ['passive', 'skittish', 'defensive'];
 const huntFromAbove = (creature, currentHex, gameState) => {
     // Look for prey on this hex and the neighbouring ones
     const hunterWeight = SPECIES_DATA[creature.species].weight * (creature.size || 1);
-    const candidates = [currentHex, ...getHexNeighbors(currentHex)];
+    const candidates = [currentHex, ...neighborsOf(gameState.cells, currentHex)];
     for (const hex of candidates) {
-        const hexKey = `${hex.q},${hex.r}`;
+        const hexKey = hex;
         const creatures = gameState.creatures.get(hexKey) || [];
         const prey = creatures.find(c => {
             if (c.id === creature.id) return false;
@@ -457,9 +454,9 @@ const huntPrey = (creature, currentHex, gameState) => {
 
 const huntCompetitors = (creature, currentHex, gameState) => {
     // Look for smaller predators to drive away
-    const neighbors = getHexNeighbors(currentHex);
+    const neighbors = neighborsOf(gameState.cells, currentHex);
     for (const neighbor of neighbors) {
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
+        const neighborKey = neighbor;
         const creatures = gameState.creatures.get(neighborKey) || [];
         const competitor = creatures.find(c => {
             const compData = SPECIES_DATA[c.species];
@@ -504,32 +501,6 @@ const cautiousMovement = (creature, currentHex, gameState) => {
         return roamRandomly(creature, currentHex, gameState);
     }
     return { action: 'cautious_wait' };
-};
-
-// ENHANCED: Testing function for behavior debugging
-export const testCreatureBehavior = (creatureSpecies, playerDistance = 1) => {
-    const testCreature = {
-        id: 'test-creature',
-        species: creatureSpecies,
-        size: 1.0,
-        lastBehaviorTurn: 0
-    };
-
-    const testGameState = {
-        player: { q: 0, r: 0 },
-        moveNumber: 1,
-        weight: 150,
-        level: 2,
-        creatures: new Map(),
-        hexes: new Map()
-    };
-
-    const testHex = { q: playerDistance, r: 0 };
-
-    const behavior = executeCreatureBehavior(testCreature, testHex, testGameState);
-    console.log(`🧪 ${creatureSpecies} behavior test:`, behavior);
-
-    return behavior;
 };
 
 // Export behavior types for reference

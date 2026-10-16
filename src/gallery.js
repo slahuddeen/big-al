@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { createMaterials, sharedUniforms } from './three/materials.js';
 import { buildCreatureModel, buildBigAl, SPECIES_MODELS } from './three/creatures3d.js';
-import { buildTile } from './three/terrain3d.js';
+import { buildCell } from './three/cells3d.js';
 import { animateModel } from './three/animation.js';
 import { TERRAIN_TYPES } from './data/terrain.js';
 
@@ -38,7 +38,7 @@ if (view === 'creatures') {
         const x = (i % cols) * 1.5;
         const z = Math.floor(i / cols) * 1.5;
         model.root.position.set(x, 0, z);
-        model.root.rotation.y = -0.5;
+        model.root.rotation.y = Number(params.get('yaw') ?? -0.5);
         scene.add(model.root);
         items.push({ model, name, x, z });
         const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.04, 6), new THREE.MeshLambertMaterial({ color: '#8fbf3f' }));
@@ -57,14 +57,32 @@ if (view === 'creatures') {
     const terrains = only ? only.split(',') : Object.keys(TERRAIN_TYPES);
     const cols = Math.ceil(Math.sqrt(terrains.length));
     terrains.forEach((t, i) => {
-        const tile = buildTile(t, i, 3, ['river', null, 'lake', 'river', 'sauropodgrounds', 'dryriverbed']);
+        const cx = (i % cols) * 2.3;
+        const cz = Math.floor(i / cols) * 2.3;
+        // an irregular 7-sided sample cell
+        const poly = Array.from({ length: 7 }, (_, k) => {
+            const a = (k / 7) * Math.PI * 2 + 0.2;
+            const r = 1.0 + Math.sin(k * 2.3 + i) * 0.12;
+            return [cx + Math.cos(a) * r, cz + Math.sin(a) * r];
+        });
+        const waterways = [];
+        if (['river', 'stream', 'dryriverbed', 'sauropodgrounds'].includes(t)) {
+            const kind = t === 'dryriverbed' ? 'dry' : t === 'sauropodgrounds' ? 'trail' : 'river';
+            const pts = Array.from({ length: 18 }, (_, k) => {
+                const u = k / 17;
+                return { x: cx - 1 + u * 2, z: cz + Math.sin(u * Math.PI * 2) * 0.3, w: t === 'river' ? 0.45 : t === 'stream' ? 0.22 : 0.4, s: u * 2 };
+            });
+            waterways.push({ kind, pts, start: t === 'stream' });
+        }
+        const cell = { id: i, x: cx, z: cz, poly, edges: poly.map(() => ({ n: null })), level: 2, terrain: t, waterways, inradius: 0.85 };
+        const tile = buildCell(cell, null, { detail: true });
         const g = new THREE.Group();
         const ground = new THREE.Mesh(tile.ground, mats.terrain);
         ground.castShadow = ground.receiveShadow = true;
         g.add(ground);
         if (tile.water) g.add(new THREE.Mesh(tile.water, mats.water));
         if (tile.lava) g.add(new THREE.Mesh(tile.lava, mats.lava));
-        g.position.set((i % cols) * 2.3, 0, Math.floor(i / cols) * 2.3);
+        g.position.set(cx, 0, cz);
         scene.add(g);
     });
     const c = ((cols - 1) * 2.3) / 2;

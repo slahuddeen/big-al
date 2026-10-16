@@ -1,72 +1,60 @@
-// ==================== ENHANCED VISIBILITY SYSTEM WITH DISCOVERY ====================
-import { getHexesInLine } from './hexMath.js';
+// ==================== VISIBILITY ON THE CELL GRAPH ====================
 import { TERRAIN_TYPES } from '../data/terrain.js';
+import { bfsDistances } from '../world/cellGraph.js';
+import { getWorld } from '../world/worldGen.js';
 
-export const calculateVisibility = (playerPos, hexes) => {
-    const newHexes = new Map(hexes);
+// Line of sight between two cell centres: blocked by sight-blocking terrain
+// (dense forest, mountains, mesas) or by ground that rises above both ends.
+const hasLineOfSight = (world, cells, from, to) => {
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    const len = Math.hypot(dx, dz);
+    const steps = Math.ceil(len / 0.6);
+    const top = Math.max(from.level, to.level);
+    let hint = Number(from.key);
+    for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        const c = world.cellAt(from.x + dx * t, from.z + dz * t, hint);
+        if (!c) continue;
+        hint = c.id;
+        if (c.key === from.key || c.key === to.key) continue;
+        const cell = cells.get(c.key);
+        if (TERRAIN_TYPES[cell.terrain]?.blocksLOS) return false;
+        if (cell.level > top + 1) return false;
+    }
+    return true;
+};
 
-    const playerKey = `${playerPos.q},${playerPos.r}`;
-    const playerHex = hexes.get(playerKey);
-    const baseVisibility = playerHex ? TERRAIN_TYPES[playerHex.terrain].visibility : 2;
+export const calculateVisibility = (playerKey, cells, worldSeed) => {
+    const world = getWorld(worldSeed);
+    const newCells = new Map(cells);
 
-    // Reset current visibility for all hexes
-    for (const hex of newHexes.values()) {
-        hex.visible = false;
-        hex.inRange = false;
-        hex.inSight = false; // in range AND in line of sight this turn
-        // Keep discovered state - once discovered, always discovered
+    for (const cell of newCells.values()) {
+        cell.visible = false;
+        cell.inRange = false;
+        cell.inSight = false; // in range AND in line of sight this turn
     }
 
-    // Player hex is always visible and discovered
-    if (newHexes.has(playerKey)) {
-        const playerHex = newHexes.get(playerKey);
-        playerHex.visible = true;
-        playerHex.visited = true;
-        playerHex.discovered = true; // New discovery state
-        playerHex.inRange = true;
-        playerHex.inSight = true;
-    }
+    const here = newCells.get(playerKey);
+    if (!here) return newCells;
+    here.visible = here.visited = here.discovered = here.inRange = here.inSight = true;
 
-    // Calculate current visibility range
-    for (let dq = -baseVisibility; dq <= baseVisibility; dq++) {
-        for (let dr = -baseVisibility; dr <= baseVisibility; dr++) {
-            if (Math.abs(dq + dr) <= baseVisibility && (dq !== 0 || dr !== 0)) {
-                const targetHex = { q: playerPos.q + dq, r: playerPos.r + dr };
-                const targetKey = `${targetHex.q},${targetHex.r}`;
+    // High ground lets you see further
+    const lowerNeighbours = here.neighbors.filter((n) => newCells.get(n).level < here.level).length;
+    const range = (TERRAIN_TYPES[here.terrain]?.visibility || 2) + (lowerNeighbours >= 3 ? 1 : 0);
 
-                if (newHexes.has(targetKey)) {
-                    const hex = newHexes.get(targetKey);
-                    hex.inRange = true;
-
-                    // Check line of sight
-                    const lineHexes = getHexesInLine(playerPos, targetHex);
-                    let hasLOS = true;
-
-                    for (let i = 1; i < lineHexes.length - 1; i++) {
-                        const checkKey = `${lineHexes[i].q},${lineHexes[i].r}`;
-                        const checkHex = newHexes.get(checkKey);
-                        if (checkHex && TERRAIN_TYPES[checkHex.terrain].blocksLOS) {
-                            hasLOS = false;
-                            break;
-                        }
-                    }
-
-                    if (hasLOS) {
-                        hex.visible = true;
-                        hex.inSight = true;
-                        hex.discovered = true; // Mark as discovered when first seen
-                    }
-                }
-            }
+    for (const [key, d] of bfsDistances(newCells, playerKey, range)) {
+        if (d === 0) continue;
+        const cell = newCells.get(key);
+        cell.inRange = true;
+        if (d === 1 || hasLineOfSight(world, newCells, here, cell)) {
+            cell.visible = cell.discovered = cell.inSight = true;
         }
     }
 
-    // Make all discovered hexes visible (persistent discovery)
-    for (const hex of newHexes.values()) {
-        if (hex.discovered) {
-            hex.visible = true;
-        }
+    // Persistent discovery
+    for (const cell of newCells.values()) {
+        if (cell.discovered) cell.visible = true;
     }
-
-    return newHexes;
+    return newCells;
 };

@@ -4,15 +4,16 @@
 // The game logic stays in the reducer; this class only *shows* it.
 import * as THREE from 'three';
 import { createMaterials, sharedUniforms } from './materials.js';
-import { buildTile, tileSignature, buildHexRing } from './terrain3d.js';
+import { buildCell, buildOutline, cellSurfaceY, randomPointInCell } from './cells3d.js';
 import { buildCreatureModel, buildBigAl } from './creatures3d.js';
 import { animateModel } from './animation.js';
-import { hexToWorld, worldToHex, MeshBuilder, blob, limb, loft, mulberry32, hashString } from './lowpoly.js';
-import { HEX_DIRECTIONS } from '../utils/hexMath.js';
+import { MeshBuilder, blob, limb, loft, mulberry32, hashString } from './lowpoly.js';
+import { getWorld } from '../world/worldGen.js';
 import { SPECIES_DATA } from '../data/species.js';
 import { getTimeOfDay, DAY_LENGTH } from '../game/gameConstants.js';
 
-const keyOf = (q, r) => `${q},${r}`;
+const DETAIL_RADIUS = 13; // cells closer than this to the camera target get full decoration
+const PLAYER_CELL_GROW = 0.18; // Big Al's cell swells into a little stage so animals fit around him
 const ELEV = 0.64;
 const CAM_DIST = 40;
 const BASE_HALF_H = 3.6;
@@ -91,6 +92,10 @@ export class WorldRenderer {
 
         // ---- world state mirrors ----
         this.tiles = new Map();
+        this.outlines = new Map();
+        this.world = null;
+        this.worldSeed = null;
+        this.lodTimer = 0;
         this.tileMeshes = [];
         this.creatures = new Map();
         this.carcasses = new Map();
@@ -135,9 +140,11 @@ export class WorldRenderer {
 
     // ==================== PUBLIC API ====================
     update(state, extra = {}) {
+        if (!state.worldSeed || !state.player) return;
+        if (this.worldSeed !== state.worldSeed) this.resetWorld(state.worldSeed);
         const prev = this.state;
         this.state = state;
-        if (!prev || prev.hexes !== state.hexes || this.tiles.size === 0) this.syncTiles(state.hexes);
+        if (!prev || prev.cells !== state.cells || this.tiles.size === 0) this.syncTiles(state.cells);
         this.syncEvents(state);
         this.syncCreatures(state);
         this.syncCarcasses(state);
@@ -148,11 +155,35 @@ export class WorldRenderer {
         if (!prev || prev.moveNumber !== state.moveNumber || this.light.phase < 0) this.light.phase = phaseIndex(state.moveNumber);
     }
 
-    // Screen position (CSS px) of a hex centre - handy for tests and UI anchors
-    projectHex(q, r) {
-        const t = this.tiles.get(keyOf(q, r));
-        const w = hexToWorld(q, r);
-        const v = new THREE.Vector3(w.x, t ? t.surfaceY + t.group.position.y : 0.3, w.z).project(this.camera);
+    // New game / new map: drop everything that belonged to the old world
+    resetWorld(seed) {
+        for (const tile of [...this.tiles.values()]) this.removeTile(tile);
+        for (const v of this.creatures.values()) {
+            this.actorGroup.remove(v.model.root);
+            v.model.mat.dispose();
+        }
+        this.creatures.clear();
+        for (const vis of this.carcasses.values()) {
+            this.actorGroup.remove(vis.mesh);
+            vis.mesh.geometry.dispose();
+        }
+        this.carcasses.clear();
+        this.pendingDeaths.clear();
+        this.world = getWorld(seed);
+        this.worldSeed = seed;
+        this.state = null;
+        if (this.player) {
+            this.actorGroup.remove(this.player.model.root);
+            this.player.model.mat.dispose();
+            this.player = null;
+        }
+    }
+
+    // Screen position (CSS px) of a cell centre - handy for tests and UI anchors
+    projectCell(key) {
+        const t = this.tiles.get(key);
+        const c = this.world.byKey.get(key);
+        const v = new THREE.Vector3(c.x, t ? t.surfaceY + t.group.position.y : 0.3, c.z).project(this.camera);
         const rect = this.renderer.domElement.getBoundingClientRect();
         return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height };
     }
@@ -166,7 +197,7 @@ export class WorldRenderer {
     }
 
     zoomBy(f) {
-        this.cam.zoomGoal = Math.max(0.45, Math.min(2.4, this.cam.zoomGoal * f));
+        this.cam.zoomGoal = Math.max(0.4, Math.min(2.4, this.cam.zoomGoal * f));
     }
 
     resetView() {
@@ -187,74 +218,102 @@ export class WorldRenderer {
                 else o.material?.dispose?.();
             }
         });
+        for (const g of this.outlines.values()) g.dispose();
         this.renderer.dispose();
         this.renderer.domElement.remove();
     }
 
     // ==================== TILES ====================
-    syncTiles(hexes) {
-        const seen = new Set();
-        for (const [key, hex] of hexes) {
-            if (!hex.discovered) continue;
-            seen.add(key);
-            const neighbours = HEX_DIRECTIONS.map((d) => hexes.get(keyOf(hex.q + d.q, hex.r + d.r))?.terrain ?? null);
-            const sig = tileSignature(hex.terrain, neighbours);
+    syncTiles(cells) {
+        for (const [key, cell] of cells) {
+            if (!cell.discovered) continue;
             let tile = this.tiles.get(key);
-            if (!tile || tile.sig !== sig) {
-                const isNew = !tile;
-                if (tile) this.removeTile(tile);
-                tile = this.createTile(hex, neighbours, sig, isNew);
-            }
-            const lit = !!hex.inSight;
+            if (!tile) tile = this.createTile(key);
+            const lit = !!cell.inSight;
             if (tile.lit !== lit) this.setTileLit(tile, lit);
-        }
-        for (const [key, tile] of this.tiles) {
-            if (!seen.has(key)) this.removeTile(tile);
         }
     }
 
-    createTile(hex, neighbours, sig, isNew) {
-        const key = keyOf(hex.q, hex.r);
-        const data = buildTile(hex.terrain, hex.q, hex.r, neighbours);
+    wantsDetail(x, z) {
+        const t = this.cam.target;
+        return Math.hypot(x - t.x, z - t.z) < DETAIL_RADIUS / Math.min(1, this.cam.zoom);
+    }
+
+    createTile(key) {
+        const wc = this.world.byKey.get(key);
         const group = new THREE.Group();
-        const w = hexToWorld(hex.q, hex.r);
-        group.position.set(w.x, 0, w.z);
-        const ground = new THREE.Mesh(data.ground, this.mats.terrain);
-        ground.castShadow = true;
-        ground.receiveShadow = true;
-        ground.userData.hexKey = key;
-        group.add(ground);
-        let water = null;
-        let lava = null;
-        if (data.water) {
-            water = new THREE.Mesh(data.water, this.mats.water);
-            water.receiveShadow = true;
-            water.userData.hexKey = key;
-            group.add(water);
-        }
-        if (data.lava) {
-            lava = new THREE.Mesh(data.lava, this.mats.lava);
-            group.add(lava);
-        }
+        group.position.set(wc.x, -1, wc.z);
         this.tileGroup.add(group);
-        this.tileMeshes.push(ground);
         const tile = {
-            key, q: hex.q, r: hex.r, terrain: hex.terrain, sig, group, ground, water, lava,
-            x: w.x, z: w.z, surfaceY: data.surfaceY, waterY: data.waterY, pools: data.pools, smoke: data.smoke,
-            lit: null, appear: isNew ? 0 : 1
+            key, terrain: wc.terrain, group, x: wc.x, z: wc.z, lit: null, appear: 0, focus: 0,
+            ground: null, water: null, lava: null, detail: null
         };
-        if (isNew) group.position.y = -1;
+        this.buildTileMeshes(tile, this.wantsDetail(wc.x, wc.z));
         this.tiles.set(key, tile);
         return tile;
     }
 
+    // (Re)build a tile's meshes at the given level of detail
+    buildTileMeshes(tile, detail) {
+        const wc = this.world.byKey.get(tile.key);
+        const data = buildCell(wc, this.world, { detail });
+        this.clearTileMeshes(tile);
+        const ground = new THREE.Mesh(data.ground, this.mats.terrain);
+        ground.castShadow = true;
+        ground.receiveShadow = true;
+        ground.userData.hexKey = tile.key;
+        tile.group.add(ground);
+        this.tileMeshes.push(ground);
+        tile.ground = ground;
+        if (data.water) {
+            tile.water = new THREE.Mesh(data.water, this.mats.water);
+            tile.water.receiveShadow = true;
+            tile.water.renderOrder = 2;
+            tile.group.add(tile.water);
+        }
+        if (data.lava) {
+            tile.lava = new THREE.Mesh(data.lava, this.mats.lava);
+            tile.group.add(tile.lava);
+        }
+        Object.assign(tile, {
+            detail, surfaceY: data.surfaceY, waterY: data.waterY, pools: data.pools, smoke: data.smoke,
+            localPoly: data.localPoly, inradius: data.inradius
+        });
+        if (tile.lit !== null) {
+            const lit = tile.lit;
+            tile.lit = null;
+            this.setTileLit(tile, lit);
+        }
+    }
+
+    clearTileMeshes(tile) {
+        for (const k of ['ground', 'water', 'lava']) {
+            if (tile[k]) {
+                tile.group.remove(tile[k]);
+                tile[k].geometry.dispose();
+                tile[k] = null;
+            }
+        }
+        this.tileMeshes = this.tileMeshes.filter((m) => m.userData.hexKey !== tile.key);
+    }
+
     removeTile(tile) {
+        this.clearTileMeshes(tile);
         this.tileGroup.remove(tile.group);
-        tile.ground.geometry.dispose();
-        tile.water?.geometry.dispose();
-        tile.lava?.geometry.dispose();
-        this.tileMeshes = this.tileMeshes.filter((m) => m !== tile.ground);
         this.tiles.delete(tile.key);
+    }
+
+    // Swap near tiles to full detail and far ones to a lighter version, a few per frame
+    updateLOD() {
+        let budget = 3;
+        for (const tile of this.tiles.values()) {
+            if (budget <= 0) break;
+            const want = this.wantsDetail(tile.x, tile.z);
+            if (want !== tile.detail) {
+                this.buildTileMeshes(tile, want);
+                budget--;
+            }
+        }
     }
 
     setTileLit(tile, lit) {
@@ -264,15 +323,25 @@ export class WorldRenderer {
         if (tile.lava) tile.lava.material = lit ? this.mats.lava : this.mats.lavaFog;
     }
 
+    cellAt(x, z) {
+        return this.world ? this.world.cellAt(x, z, this.lastCellHint || 0) : null;
+    }
+
     groundAt(x, z) {
-        const h = worldToHex(x, z);
-        const t = this.tiles.get(keyOf(h.q, h.r));
-        return t ? t.surfaceY + t.group.position.y : 0.3;
+        const c = this.cellAt(x, z);
+        if (!c) return 0;
+        this.lastCellHint = c.id;
+        const t = this.tiles.get(c.key);
+        return t ? t.surfaceY + t.group.position.y : cellSurfaceY(c);
     }
 
     tileAt(x, z) {
-        const h = worldToHex(x, z);
-        return this.tiles.get(keyOf(h.q, h.r));
+        const c = this.cellAt(x, z);
+        return c ? this.tiles.get(c.key) : null;
+    }
+
+    tileScale(key) {
+        return key === this.state?.player ? 1 + PLAYER_CELL_GROW : 1;
     }
 
     // ==================== CREATURES ====================
@@ -383,26 +452,26 @@ export class WorldRenderer {
         const tile = this.tiles.get(hexKey);
         if (!tile) return v.pos.clone();
         const rand = v.rand;
+        const scale = this.tileScale(hexKey);
         if ((v.gait === 'swim' || WATER_LOVERS.has(v.species)) && tile.pools && tile.pools.length) {
             const pool = tile.pools[Math.floor(rand() * tile.pools.length)];
             const a = rand() * Math.PI * 2;
             const r = Math.sqrt(rand()) * pool.r;
-            return new THREE.Vector3(tile.x + pool.x + Math.cos(a) * r, 0, tile.z + pool.z + Math.sin(a) * r);
+            return new THREE.Vector3(tile.x + (pool.x + Math.cos(a) * r) * scale, 0, tile.z + (pool.z + Math.sin(a) * r) * scale);
         }
-        // keep the middle of the hex free for Big Al; big animals stand further out
-        const minR = Math.min(0.62, 0.26 + v.len * 0.32);
-        const maxR = Math.max(minR + 0.06, 0.68);
-        const a = rand() * Math.PI * 2;
-        const r = minR + rand() * (maxR - minR);
-        return new THREE.Vector3(tile.x + Math.cos(a) * r, 0, tile.z + Math.sin(a) * r);
+        // keep the middle of the cell free for Big Al; big animals stand further out
+        const minR = Math.min(tile.inradius * 0.75, 0.3 + v.len * 0.3);
+        const [x, z] = randomPointInCell(tile.localPoly, rand, minR, 0.12 + v.len * 0.1);
+        return new THREE.Vector3(tile.x + x * scale, 0, tile.z + z * scale);
     }
 
     waterLevelAt(v) {
         const tile = this.tileAt(v.pos.x, v.pos.z);
         if (!tile) return null;
         if (tile.waterY !== null && tile.waterY !== undefined) return tile.waterY + tile.group.position.y;
+        const sc = tile.group.scale.x;
         for (const p of tile.pools || []) {
-            if (Math.hypot(v.pos.x - tile.x - p.x, v.pos.z - tile.z - p.z) < p.r + 0.05) return p.y + tile.group.position.y;
+            if (Math.hypot(v.pos.x - tile.x - p.x * sc, v.pos.z - tile.z - p.z * sc) < (p.r + 0.05) * sc) return p.y + tile.group.position.y;
         }
         return null;
     }
@@ -603,9 +672,8 @@ export class WorldRenderer {
         mesh.castShadow = true;
         const sd = SPECIES_DATA[c.species] || { weight: 1 };
         const len = displayLength((sd.weight || 1) * (c.size || 1), 0.15) * 0.8;
-        const a = rand() * Math.PI * 2;
-        const r = 0.3 + rand() * 0.25;
-        mesh.position.set(tile.x + Math.cos(a) * r, tile.surfaceY + 0.005, tile.z + Math.sin(a) * r);
+        const [px, pz] = randomPointInCell(tile.localPoly, rand, 0.35, 0.25);
+        mesh.position.set(tile.x + px, tile.surfaceY + 0.005, tile.z + pz);
         mesh.rotation.y = rand() * Math.PI * 2;
         mesh.scale.setScalar(len);
         this.actorGroup.add(mesh);
@@ -617,8 +685,7 @@ export class WorldRenderer {
 
     // ==================== PLAYER ====================
     syncPlayer(state, prev) {
-        const tile = this.tiles.get(keyOf(state.player.q, state.player.r));
-        const w = hexToWorld(state.player.q, state.player.r);
+        const w = this.world.byKey.get(state.player);
         if (!this.player || this.player.level !== state.level) {
             const old = this.player;
             const tpl = buildBigAl(state.level, { mat: this.mats.creature, wingMat: this.mats.wing });
@@ -658,7 +725,6 @@ export class WorldRenderer {
         this.lastFitness = state.fitness;
         p.gameOver = state.gameOver;
         if (!state.gameOver) p.dead = 0;
-        void tile;
     }
 
     updatePlayer(dt) {
@@ -753,9 +819,8 @@ export class WorldRenderer {
 
     // ==================== MARKERS ====================
     buildMarkers() {
-        const ringGeo = buildHexRing(0.93, 0.07, '#ffffff');
         const mk = (color, opacity) => {
-            const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, vertexColors: true }));
+            const m = new THREE.Mesh(undefined, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, vertexColors: true }));
             m.renderOrder = 5;
             m.visible = false;
             this.markerGroup.add(m);
@@ -763,7 +828,7 @@ export class WorldRenderer {
         };
         this.hoverRing = mk('#ffffff', 0.9);
         this.selectRing = mk('#58e0ff', 0.9);
-        this.moveRings = Array.from({ length: 6 }, () => mk('#ffc23a', 0.55));
+        this.moveRings = Array.from({ length: 12 }, () => mk('#ffc23a', 0.55));
         const pr = new MeshBuilder();
         const segs = 20;
         for (let i = 0; i < segs; i++) {
@@ -775,7 +840,7 @@ export class WorldRenderer {
         this.playerRing.renderOrder = 5;
         this.markerGroup.add(this.playerRing);
         const dotGeo = new THREE.CircleGeometry(0.09, 6).rotateX(-Math.PI / 2);
-        this.pathDots = Array.from({ length: 24 }, () => {
+        this.pathDots = Array.from({ length: 40 }, () => {
             const d = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: '#ffe08a', transparent: true, opacity: 0.85, depthWrite: false }));
             d.visible = false;
             d.renderOrder = 6;
@@ -784,45 +849,53 @@ export class WorldRenderer {
         });
     }
 
-    placeOnTile(mesh, q, r, lift = 0.014) {
-        const t = this.tiles.get(keyOf(q, r));
+    outlineFor(tile) {
+        if (!this.outlines.has(tile.key)) this.outlines.set(tile.key, buildOutline(tile.localPoly));
+        return this.outlines.get(tile.key);
+    }
+
+    // Put a marker on a cell: outlines take the cell's shape, dots sit at its centre
+    placeOnTile(mesh, key, lift = 0.014, outline = true) {
+        const t = key ? this.tiles.get(key) : null;
         if (!t) {
             mesh.visible = false;
             return;
         }
         mesh.visible = true;
+        if (outline) {
+            mesh.geometry = this.outlineFor(t);
+            mesh.scale.set(t.group.scale.x, 1, t.group.scale.z);
+        }
         mesh.position.set(t.x, t.surfaceY + t.group.position.y + lift, t.z);
     }
 
     syncMarkers(state) {
         this.markerState = {
-            hovered: state.hoveredHex, selected: state.selectedHex, movable: this.movable, path: this.path, gameOver: state.gameOver
+            hovered: state.hoveredHex?.key ?? null, selected: state.selectedHex?.key ?? null,
+            movable: this.movable, path: this.path, gameOver: state.gameOver
         };
     }
 
     updateMarkers() {
         const s = this.markerState;
         if (!s) return;
-        const isMovable = (h) => h && s.movable.some((m) => m.q === h.q && m.r === h.r);
         if (s.hovered && !s.gameOver) {
-            this.placeOnTile(this.hoverRing, s.hovered.q, s.hovered.r, 0.02);
-            this.hoverRing.material.color.set(isMovable(s.hovered) ? '#fff2a0' : '#ffffff');
+            this.placeOnTile(this.hoverRing, s.hovered, 0.02);
+            this.hoverRing.material.color.set(s.movable.includes(s.hovered) ? '#fff2a0' : '#ffffff');
         } else this.hoverRing.visible = false;
-        if (s.selected && this.player && !(s.selected.q === this.state.player.q && s.selected.r === this.state.player.r)) {
-            this.placeOnTile(this.selectRing, s.selected.q, s.selected.r, 0.018);
-        } else this.selectRing.visible = false;
+        if (s.selected && s.selected !== this.state.player) this.placeOnTile(this.selectRing, s.selected, 0.018);
+        else this.selectRing.visible = false;
         this.moveRings.forEach((ring, i) => {
-            const h = s.movable[i];
-            if (h && !s.gameOver) {
-                this.placeOnTile(ring, h.q, h.r, 0.012);
+            const key = s.movable[i];
+            if (key && !s.gameOver) {
+                this.placeOnTile(ring, key, 0.012);
                 ring.material.opacity = 0.35 + Math.sin(this.time * 3 + i) * 0.15;
-                ring.scale.setScalar(0.96 + Math.sin(this.time * 3 + i) * 0.02);
             } else ring.visible = false;
         });
         this.pathDots.forEach((d, i) => {
-            const h = s.path[i];
-            if (h) {
-                this.placeOnTile(d, h.q, h.r, 0.03);
+            const key = s.path[i];
+            if (key) {
+                this.placeOnTile(d, key, 0.03, false);
                 d.material.opacity = 0.6 + Math.sin(this.time * 5 - i * 0.6) * 0.3;
             } else d.visible = false;
         });
@@ -1199,11 +1272,23 @@ export class WorldRenderer {
         this.time += dt;
         sharedUniforms.uTime.value = this.time;
 
+        const playerKey = this.state?.player;
         for (const tile of this.tiles.values()) {
-            if (tile.appear < 1) {
+            const focusGoal = tile.key === playerKey ? 1 : 0;
+            if (tile.appear < 1 || tile.focus !== focusGoal) {
                 tile.appear = Math.min(1, tile.appear + dt * 2.2);
-                tile.group.position.y = (easeOutBack(tile.appear) - 1) * 0.9;
+                tile.focus += (focusGoal - tile.focus) * damp(dt, 6);
+                if (Math.abs(tile.focus - focusGoal) < 0.002) tile.focus = focusGoal;
+                // Big Al's cell rises and widens into a little stage
+                const grow = 1 + PLAYER_CELL_GROW * tile.focus;
+                tile.group.scale.set(grow, 1, grow);
+                tile.group.position.y = (easeOutBack(tile.appear) - 1) * 0.9 + tile.focus * 0.08;
             }
+        }
+        this.lodTimer += dt;
+        if (this.lodTimer > 0.25) {
+            this.lodTimer = 0;
+            this.updateLOD();
         }
         const prevTarget = this.cam.target.clone();
         this.updateCamera(dt);

@@ -1,10 +1,10 @@
 ﻿// ==================== ENHANCED GAME STATE WITH CREATURE BEHAVIORS ====================
-import { hexDistance, getHexNeighbors } from '../utils/hexMath.js';
+import { distanceToPlayer } from '../world/cellGraph.js';
+import { getWorld } from '../world/worldGen.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA, HABITAT_SPECIES } from '../data/species.js';
 import { calculateFiercenessRatio, calculateAgilityRatio, calculateInjuries, calculateEnergyGain } from '../utils/combatUtils.js';
 import { calculateVisibility } from '../utils/visibilitySystem.js';
-import { generateTerrainFeatures, generateTerrain } from '../utils/terrainGeneration.js';
 import { executeCreatureBehavior } from '../utils/creatureBehaviors.js';
 import {
     MAX_WEIGHT,
@@ -14,14 +14,14 @@ import {
     THOUGHTS
 } from './gameConstants.js';
 
-// Enhanced Big Al level system with adjusted thresholds for 300g start
+// Big Al level system (hatchlings start at 1kg)
 export const LEVEL_NAMES = ['', 'hatchling', 'juvenile', 'sub-adult', 'adult'];
 // FIXED: the adult threshold used to be 2200kg while MAX_WEIGHT is 2100kg, so adulthood was unreachable
 export const LEVEL_WEIGHTS = [0, 15, 600, 1800, MAX_WEIGHT];
 
 // Enhanced prey size categories for better scaling with updated pterosaurs
 export const PREY_SIZE_CATEGORIES = {
-    'tiny': ['Dragonfly', 'Centipede', 'Cricket', 'Scorpion'],
+    'tiny': ['Dragonfly', 'Centipede', 'Cricket', 'Scorpion', 'Katydid'],
     'small': ['Frog', 'Lizard', 'Mammal', 'Fish', 'Sphenodontian', 'Mesadactylus', 'Turtle', 'Snake', 'Rhamphorhynchus'],
     'medium': ['Dryosaurus', 'Othnielia', 'Harpactognathus', 'Injured Pterosaur', 'Compsognathus', 'Coelurus', 'Hesperornithoides'],
     'large': ['Ornitholestes', 'Juvenile Allosaurus', 'Crocodile', 'Camptosaurus', 'Kepodactylus', 'Kentrosaurus', 'Tuojiangosaurus'],
@@ -33,7 +33,7 @@ const MAX_BEHAVIOR_LOG_SIZE = 15;
 const MAX_CREATURES_PER_HEX = 5; // Maximum 5 creatures per hex tile
 const MAX_AMBIENT_CREATURES = 40; // cap for creatures populated around the player
 const AMBIENT_RESPAWN_TURNS = 8; // a hex in sight is re-rolled for wildlife at most this often
-const CREATURE_CULL_DISTANCE = 9; // creatures this far from the player are forgotten
+const CREATURE_CULL_DISTANCE = 7; // creatures this many cells from the player are forgotten
 const CARCASS_DECAY_TURNS = 15;
 
 const uid = (prefix) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -63,7 +63,7 @@ const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
         multiplier *= Math.max(0.3, 1 / (playerWeight / 50)); // Much gentler
     } else if (category === 'small' && playerWeight > 10.0) { // Only reduce above 10kg
         multiplier *= Math.max(0.4, 1 / (playerWeight / 200)); // Gentler
-    } else if (category === 'medium' && playerWeight < 0.5) { // Small bonus for hatchlings hunting medium prey
+    } else if (category === 'medium' && playerWeight < 2) { // Small bonus for hatchlings hunting medium prey
         multiplier *= 1.5; // 50% bonus - brave little hunters!
     }
 
@@ -110,14 +110,17 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
 };
 
 export const initialGameState = {
-    player: { q: 0, r: 0 },
-    hexes: new Map(),
+    player: null, // key of the cell Big Al stands on
+    cells: new Map(), // key -> { key, x, z, terrain, level, neighbors, discovered, visited, visible, inRange, inSight }
+    worldSeed: null,
     selectedHex: null,
     hoveredHex: null,
 
-    // Enhanced hatchling starting stats - 300g baby!
+    // Hatchling starting stats.
+    // FIXED: hatchlings used to start at 300g, but metabolism treats anything under 1kg as 1kg,
+    // so a new hatchling burned ~13% of its body weight per step.
     level: 1,
-    weight: 0.3, // 300 grams - proper hatchling size!
+    weight: 1.0,
     energy: 100,
     fitness: 100,
     score: 0,
@@ -130,8 +133,6 @@ export const initialGameState = {
     populatedAt: new Map(), // hexKey -> turn the hex was last rolled for ambient wildlife
     lastPlayerAction: null, // { id, type, creatureId, outcome } - drives 3D attack animations
 
-    // Linear features for advanced terrain generation
-    linearFeatures: [],
     mapGenerated: false,
 
     // Notifications and events
@@ -263,11 +264,9 @@ const processCreatureBehaviors = (gameState) => {
     const killed = new Set();
     const carcasses = new Map(gameState.carcasses || []);
     const behaviorLog = [];
-    const player = gameState.player;
 
     for (const [hexKey, creatures] of gameState.creatures.entries()) {
-        const [q, r] = hexKey.split(',').map(Number);
-        const hex = { q, r };
+        const hex = hexKey;
 
         for (const original of creatures) {
             if (killed.has(original.id)) continue;
@@ -277,21 +276,21 @@ const processCreatureBehaviors = (gameState) => {
                 const behavior = executeCreatureBehavior(creature, hex, gameState);
                 if (behavior) {
                     if (ATTACK_ACTIONS.has(behavior.action)) {
-                        if (hexDistance(hex, player) <= 1) {
+                        if (distanceToPlayer(gameState, hex) <= 1) {
                             behaviorLog.push({
                                 id: uid('log'), type: 'creature_attack', creature: creature.species, creatureId: creature.id,
                                 hexKey, message: behavior.message, damage: behavior.damage
                             });
                         }
                     } else if (MOVE_ACTIONS.has(behavior.action) && behavior.target) {
-                        const targetKey = `${behavior.target.q},${behavior.target.r}`;
-                        const targetHex = gameState.hexes.get(targetKey);
+                        const targetKey = behavior.target;
+                        const targetHex = gameState.cells.get(targetKey);
                         if (targetHex && TERRAIN_TYPES[targetHex.terrain].passable) {
                             destKey = targetKey;
                             if (behavior.message) {
                                 behaviorLog.push({
                                     id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id,
-                                    hexKey: targetKey, message: behavior.message, near: hexDistance(behavior.target, player) <= 1
+                                    hexKey: targetKey, message: behavior.message, near: distanceToPlayer(gameState, targetKey) <= 1
                                 });
                             }
                             // NEW: predators that swoop on prey can actually catch it
@@ -304,13 +303,13 @@ const processCreatureBehaviors = (gameState) => {
                                     behaviorLog.push({
                                         id: uid('log'), type: 'creature_hunt', creature: creature.species, creatureId: creature.id, victimId: prey.id,
                                         hexKey: targetKey, message: `The ${creature.species} catches a ${prey.species}!`,
-                                        near: hexDistance(behavior.target, player) <= 2
+                                        near: distanceToPlayer(gameState, targetKey) <= 2
                                     });
                                 }
                             }
                         }
                     } else if (DISPLAY_ACTIONS.has(behavior.action)) {
-                        if (hexDistance(hex, player) <= 2) {
+                        if (distanceToPlayer(gameState, hex) <= 2) {
                             behaviorLog.push({
                                 id: uid('log'), type: 'creature_display', creature: creature.species, creatureId: creature.id,
                                 hexKey, message: behavior.message
@@ -406,18 +405,26 @@ const withBehaviors = (state, behaviorResult) => {
 
 export const gameReducer = (state, action) => {
     switch (action.type) {
-        case 'GENERATE_TERRAIN_FEATURES': {
-            const features = generateTerrainFeatures(state.player.q, state.player.r, 2);
-            return { ...state, linearFeatures: features, mapGenerated: true };
+        // Build the Voronoi world for this seed and hatch Big Al in the nest
+        case 'GENERATE_WORLD': {
+            const seed = action.seed ?? Math.floor(Math.random() * 1e9);
+            const world = getWorld(seed);
+            const cells = new Map();
+            for (const c of world.cells) {
+                cells.set(c.key, {
+                    key: c.key, x: c.x, z: c.z, terrain: c.terrain, level: c.level, neighbors: c.neighbors,
+                    visited: false, visible: false, discovered: false, inRange: false, inSight: false
+                });
+            }
+            return { ...state, worldSeed: seed, cells, player: world.spawnKey, mapGenerated: true };
         }
 
         case 'MOVE_PLAYER': {
-            const { target } = action;
-            const distance = hexDistance(state.player, target);
+            const { target } = action; // cell key
 
-            if (distance > 1 || state.gameOver) return state;
+            if (state.gameOver || !state.cells.get(state.player)?.neighbors.includes(target)) return state;
 
-            const targetHex = state.hexes.get(`${target.q},${target.r}`);
+            const targetHex = state.cells.get(target);
             if (!targetHex) return state;
 
             const terrain = TERRAIN_TYPES[targetHex.terrain];
@@ -426,7 +433,7 @@ export const gameReducer = (state, action) => {
             if (targetHex.terrain === 'quicksand') {
                 return {
                     ...state,
-                    player: { q: target.q, r: target.r },
+                    player: target,
                     gameOver: true,
                     gamePhase: 'dead',
                     deathReason: 'sank',
@@ -440,11 +447,11 @@ export const gameReducer = (state, action) => {
 
             if (!terrain.passable) return state;
 
-            // Check weight restrictions for rivers - 300g hatchlings still too small!
+            // Check weight restrictions for deep rivers - hatchlings are too small!
             if (terrain.minWeight > 0 && state.weight < terrain.minWeight) {
                 return {
                     ...state,
-                    player: { q: target.q, r: target.r },
+                    player: target,
                     gameOver: true,
                     gamePhase: 'dead',
                     deathReason: terrain.name === 'River' ? 'drowned' : 'sank',
@@ -460,16 +467,16 @@ export const gameReducer = (state, action) => {
                 };
             }
 
-            // Enhanced movement costs - scale better with 300g baseline (capped for large dinosaurs)
+            // Movement costs scale with size (capped for large dinosaurs)
             const sizeMultiplier = Math.max(0.4, Math.min(2.0, Math.pow(state.weight / 150, 0.4)));
             const energyCost = Math.round(terrain.energyCost * sizeMultiplier);
 
             const newEnergy = Math.max(0, state.energy - energyCost);
             let newFitness = state.fitness;
 
-            // Enhanced weight loss - adjusted for 300g start
+            // Weight loss from metabolism
             const metabolismRate = 0.0008 + (0.04 / Math.max(1, Math.pow(state.weight, 0.5)));
-            const newWeight = Math.max(0.15, state.weight - metabolismRate); // Minimum 150g
+            const newWeight = Math.max(0.5, state.weight - metabolismRate); // Minimum 500g
             let newNotifications = [...state.notifications];
 
             // Terrain-based fitness loss
@@ -530,7 +537,7 @@ export const gameReducer = (state, action) => {
             // ENHANCED: Process creature behaviors with the player at the new position
             const movedState = {
                 ...state,
-                player: { q: target.q, r: target.r },
+                player: target,
                 moveNumber: state.moveNumber + 1,
                 level: newLevel,
                 energy: newEnergy,
@@ -569,41 +576,11 @@ export const gameReducer = (state, action) => {
             };
         }
 
-        // Batch hex generation (one dispatch instead of hundreds)
-        case 'GENERATE_HEXES': {
-            const newHexes = new Map(state.hexes);
-            let changed = false;
-            for (const { q, r } of action.coords) {
-                const key = `${q},${r}`;
-                if (newHexes.has(key)) continue;
-                // NEW: Big Al starts life in a nest, like the original game
-                let terrain = (q === 0 && r === 0) ? 'nest' : generateTerrain(q, r, newHexes, state.linearFeatures);
-                // FIXED: rivers/mountains placed right next to the nest could trap (or drown) a new hatchling
-                if (hexDistance({ q, r }, { q: 0, r: 0 }) === 1 && ['river', 'lake', 'mountains', 'volcanic', 'quicksand', 'lavafield'].includes(terrain)) {
-                    terrain = Math.random() < 0.5 ? 'openwoods' : 'plains';
-                }
-
-                // Occasional lakes next to rivers.
-                // FIXED: this post-process used to re-run over the whole map on every
-                // generated hex, so already-discovered riverbanks kept turning into lakes.
-                if (terrain === 'riverbank' && Math.random() < 0.15 &&
-                    getHexNeighbors({ q, r }).some((n) => newHexes.get(`${n.q},${n.r}`)?.terrain === 'river')) {
-                    terrain = 'lake';
-                }
-
-                newHexes.set(key, { q, r, terrain, visited: false, visible: false, discovered: false, inRange: false, inSight: false });
-                changed = true;
-            }
-            return changed ? { ...state, hexes: newHexes } : state;
-        }
-
-        case 'GENERATE_HEX':
-            return gameReducer(state, { type: 'GENERATE_HEXES', coords: [{ q: action.q, r: action.r }] });
-
         case 'UPDATE_VISIBILITY': {
-            const newHexes = calculateVisibility(state.player, state.hexes);
+            if (!state.player) return state;
+            const newHexes = calculateVisibility(state.player, state.cells, state.worldSeed);
 
-            // ENHANCED: Update lastSeenTurn for creatures in currently visible hexes
+            // ENHANCED: Update lastSeenTurn for creatures in currently visible cells
             const newCreatures = new Map(state.creatures);
             for (const [hexKey, creatures] of newCreatures.entries()) {
                 const hex = newHexes.get(hexKey);
@@ -612,14 +589,14 @@ export const gameReducer = (state, action) => {
                 }
             }
 
-            return { ...state, hexes: newHexes, creatures: newCreatures };
+            return { ...state, cells: newHexes, creatures: newCreatures };
         }
 
         case 'SPAWN_CREATURES': {
             if (state.gameOver) return state;
 
-            const playerKey = `${state.player.q},${state.player.r}`;
-            const playerHex = state.hexes.get(playerKey);
+            const playerKey = state.player;
+            const playerHex = state.cells.get(playerKey);
             if (!playerHex) return state;
 
             const currentCreatures = state.creatures.get(playerKey) || [];
@@ -633,21 +610,20 @@ export const gameReducer = (state, action) => {
             return { ...state, creatures: newCreaturesMap };
         }
 
-        // NEW: fill the hexes you can see with wildlife so the world feels alive,
+        // NEW: fill the cells you can see with wildlife so the world feels alive,
         // and forget creatures that are far behind you.
         case 'POPULATE_NEARBY': {
             if (state.gameOver) return state;
-            const playerKey = `${state.player.q},${state.player.r}`;
+            const playerKey = state.player;
             const newCreatures = new Map();
             let total = 0;
             for (const [key, list] of state.creatures) {
-                const [q, r] = key.split(',').map(Number);
-                if (hexDistance({ q, r }, state.player) > CREATURE_CULL_DISTANCE) continue;
+                if (distanceToPlayer(state, key) > CREATURE_CULL_DISTANCE) continue;
                 newCreatures.set(key, list);
                 total += list.length;
             }
             const populatedAt = new Map(state.populatedAt || []);
-            for (const [key, hex] of state.hexes) {
+            for (const [key, hex] of state.cells) {
                 if (total >= MAX_AMBIENT_CREATURES) break;
                 if (!hex.inSight || key === playerKey) continue;
                 if ((newCreatures.get(key) || []).length > 0) continue;
@@ -667,7 +643,7 @@ export const gameReducer = (state, action) => {
             const { creatureId } = action;
             if (state.gameOver) return state;
 
-            const playerKey = `${state.player.q},${state.player.r}`;
+            const playerKey = state.player;
             const creatures = state.creatures.get(playerKey) || [];
             const targetCreature = creatures.find(c => c.id === creatureId);
             if (!targetCreature) return state;
@@ -758,7 +734,7 @@ export const gameReducer = (state, action) => {
         // NEW: eat what other predators left behind
         case 'SCAVENGE': {
             if (state.gameOver) return state;
-            const playerKey = `${state.player.q},${state.player.r}`;
+            const playerKey = state.player;
             const list = (state.carcasses || new Map()).get(playerKey) || [];
             const carcass = list.find((c) => c.id === action.carcassId);
             if (!carcass) return state;
@@ -792,7 +768,7 @@ export const gameReducer = (state, action) => {
 
         // Dev helper (window.spawnCreature in development builds)
         case 'DEBUG_SPAWN': {
-            const key = action.hexKey || `${state.player.q},${state.player.r}`;
+            const key = action.hexKey || state.player;
             if (!SPECIES_DATA[action.species]) return state;
             const c = {
                 id: uid(action.species), species: action.species, size: action.size ?? 1, behavior: 'neutral',
@@ -826,7 +802,7 @@ export const gameReducer = (state, action) => {
         case 'RESTART_GAME': {
             return {
                 ...initialGameState,
-                hexes: new Map(),
+                cells: new Map(),
                 creatures: new Map(),
                 carcasses: new Map(),
                 populatedAt: new Map()
