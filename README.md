@@ -27,6 +27,14 @@ Ive added a few things to it and changed a few things too:
 
 •	Exploration: a field journal records every species, habitat and landmark you find. Look for egg clutches, fallen sauropods, mud wallows, lookouts (see further), bone beds, waterfalls and the volcanoes. A minimap shows everything you have discovered
 
+•	Fights take rounds: every animal has a health bar. Small prey dies in one bite, but big animals take several, fighting back, running when hurt, and herd-mates may join in. Sauropods are drawn at their real size and take a long, dangerous fight (or a hatchet bite and a long chase after the blood trail)
+
+•	Pack hunting: as a juvenile you can invite a young Allosaurus to hunt with you (up to two). Your pack adds bite power, takes some of the blows and shares the kills. Enemy packs gang up on you too, and some predators will chase you across several areas until you dash away or lose them in cover
+
+•	Sauropod migration routes: herds of Diplodocus, Camarasaurus and Brachiosaurus walk the trails with their young, followed by the predators that hunt them
+
+•	Goals for each stage of growth lead you out of the forest nursery to the rivers, the open plains and the migration routes. A grown Big Al is too big for thick forest: it costs more energy, and the big prey lives in open country
+
 •	Time of day matters: night and morning mist shorten your sight, but mist also hides you from predators. Some animals come out at night, others at dawn and dusk
 
 •	Gallery forests line the rivers, with trees leaning out over the water. Rivers use the same water as the lakes and the sea. Mist settles over swamps at night and dawn, and over some forests in the early morning
@@ -77,4 +85,6 @@ npm run build
 * Add `?seed=1234` to the URL to replay the same map.
 * Open `/gallery.html` on the dev server to inspect every creature and biome (`?view=terrain`, `?only=Stegosaurus,Diplodocus`, `&walk=1`, `&yaw=0&az=1.57` for side profiles, `&pose=graze|browse|call|crouch|rest|sniff` for behaviour poses).
 * Add `?skipintro` to the URL to skip the title card.
-* In the browser console during `npm run dev`: `spawnCreature('Diplodocus')` drops a creature on Big Al's tile, `teleport('galleryforest', 0)` jumps to the nearest cell of a habitat (optionally setting the turn, 0 = morning), `listCreatures()` lists everything alive.
+* The water shader is ported from the Naval Command ocean (ripple normals, fresnel sky reflection, sun glitter, sub-surface glow, noise-broken foam): `src/three/water.js`.
+* Fight maths live in `src/game/combat.js`, growth goals in `src/game/goals.js`.
+* In the browser console during `npm run dev`: `spawnCreature('Diplodocus')` drops a creature on Big Al's tile, `setStats({ level: 4, weight: 2000 })` skips ahead, `teleport('galleryforest', 0)` jumps to the nearest cell of a habitat (optionally setting the turn, 0 = morning), `listCreatures()` lists everything alive.

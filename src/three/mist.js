@@ -8,7 +8,7 @@ import { mistAmount } from '../game/environment.js';
 import { mulberry32, hashString } from './lowpoly.js';
 
 const POOL = 110;
-const PER_CELL = 7;
+const PER_CELL = 5;
 const RADIUS = 13;
 
 const makeTexture = () => {
@@ -23,8 +23,8 @@ const makeTexture = () => {
         const y = S * (0.38 + rand() * 0.24);
         const r = S * (0.16 + rand() * 0.18);
         const grad = g.createRadialGradient(x, y, 0, x, y, r);
-        grad.addColorStop(0, 'rgba(255,255,255,0.3)');
-        grad.addColorStop(0.6, 'rgba(255,255,255,0.12)');
+        grad.addColorStop(0, 'rgba(255,255,255,0.2)');
+        grad.addColorStop(0.6, 'rgba(255,255,255,0.07)');
         grad.addColorStop(1, 'rgba(255,255,255,0)');
         g.fillStyle = grad;
         g.fillRect(0, 0, S, S);
@@ -125,7 +125,7 @@ export class MistLayer {
                 p.oy = swamp ? 0.06 + rand() * 0.34 : 0.15 + rand() * 1.0;
                 p.size = (swamp ? 1.6 : 1.3) + rand() * 1.3;
                 p.drift = 0.6 + rand();
-                p.strength = 0.55 + rand() * 0.45;
+                p.strength = (swamp ? 0.5 : 0.28) + rand() * 0.3;
                 p.goal = p.strength * m;
                 p.alpha = 0;
                 n++;

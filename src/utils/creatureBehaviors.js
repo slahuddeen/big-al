@@ -1,4 +1,4 @@
-﻿// ==================== ENHANCED CREATURE BEHAVIOR SYSTEM ====================
+// ==================== ENHANCED CREATURE BEHAVIOR SYSTEM ====================
 import { neighborsOf, distanceToPlayer } from '../world/cellGraph.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA } from '../data/species.js'; // FIXED: Moved to top
@@ -174,7 +174,10 @@ const handleHerbivore = (creature, currentHex, gameState, playerDistance, dispat
         }
     }
 
-    // Herbivore behaviors: graze, migrate to better food
+    // Herbivore behaviors: graze, migrate to better food. Sauropods head for their routes and water.
+    if (isGiant && Math.random() < 0.5) {
+        return stayNearPreferredTerrain(creature, currentHex, gameState, ['sauropodgrounds', 'waterhole', 'lake', 'floodplain', 'fernprairie']);
+    }
     if (Math.random() < 0.4) {
         return migrateToFood(creature, currentHex, gameState);
     }
@@ -447,59 +450,102 @@ const huntFromAbove = (creature, currentHex, gameState) => {
     return roamRandomly(creature, currentHex, gameState);
 };
 
+const sizeOf = (c) => (SPECIES_DATA[c.species]?.weight ?? 1) * (c.size ?? 1);
+const passableKey = (gameState, key) => {
+    const hex = gameState.cells.get(key);
+    return hex && TERRAIN_TYPES[hex.terrain].passable && hex.terrain !== 'quicksand';
+};
+const isPredator = (c) => ['pack_predator', 'rival_predator', 'apex_predator', 'ambush_predator', 'aerial_predator', 'territorial'].includes(SPECIES_DATA[c.species]?.behaviorType);
+
+// Ground predators stalk prey on their own cell or next door and may catch it
 const huntPrey = (creature, currentHex, gameState) => {
-    // Similar to huntFromAbove but for ground predators
-    return huntFromAbove(creature, currentHex, gameState);
+    const hunterWeight = sizeOf(creature);
+    const candidates = [currentHex, ...neighborsOf(gameState.cells, currentHex)];
+    let best = null;
+    for (const hex of candidates) {
+        if (!passableKey(gameState, hex)) continue;
+        for (const c of gameState.creatures.get(hex) || []) {
+            if (c.id === creature.id || c.species === creature.species) continue;
+            const w = sizeOf(c);
+            // worth chasing: smaller than half the hunter, but not a mere insect
+            if (w > hunterWeight * 0.5 || w < hunterWeight * 0.005) continue;
+            const score = w * (hex === currentHex ? 1.5 : 1) * (c.wounded ? 3 : 1);
+            if (!best || score > best.score) best = { hex, c, score };
+        }
+    }
+    if (best) {
+        return {
+            action: 'hunt_prey',
+            target: best.hex,
+            preyId: best.c.id,
+            message: best.hex === currentHex ? null : `The ${creature.species} goes after a ${best.c.species}!`
+        };
+    }
+    return patrolHuntingGrounds(creature, currentHex, gameState);
 };
 
+// Bigger predators drive smaller ones away from their patch
 const huntCompetitors = (creature, currentHex, gameState) => {
-    // Look for smaller predators to drive away
-    const neighbors = neighborsOf(gameState.cells, currentHex);
-    for (const neighbor of neighbors) {
-        const neighborKey = neighbor;
-        const creatures = gameState.creatures.get(neighborKey) || [];
-        const competitor = creatures.find(c => {
-            const compData = SPECIES_DATA[c.species];
-            return compData &&
-                ['pack_predator', 'rival_predator'].includes(compData.behaviorType) &&
-                compData.weight < SPECIES_DATA[creature.species].weight;
-        });
-
-        if (competitor) {
+    const myWeight = sizeOf(creature);
+    for (const hex of [currentHex, ...neighborsOf(gameState.cells, currentHex)]) {
+        if (!passableKey(gameState, hex)) continue;
+        const rival = (gameState.creatures.get(hex) || []).find((c) =>
+            c.id !== creature.id && isPredator(c) && c.species !== creature.species && sizeOf(c) < myWeight * 0.6);
+        if (rival) {
             return {
                 action: 'chase_competitor',
-                target: neighbor,
-                message: `The ${creature.species} drives away competition!`
+                target: hex,
+                rivalId: rival.id,
+                message: `The ${creature.species} drives off a ${rival.species}!`
             };
         }
     }
-
-    return roamRandomly(creature, currentHex, gameState);
+    return patrolHuntingGrounds(creature, currentHex, gameState);
 };
 
+// Territorial animals stay within a cell or two of home
 const patrolTerritory = (creature, currentHex, gameState) => {
-    // Move in a pattern around the current area
+    if (!creature.home) creature.home = currentHex;
+    const neighbors = neighborsOf(gameState.cells, currentHex).filter((n) => passableKey(gameState, n));
+    if (currentHex !== creature.home && !neighbors.includes(creature.home)) {
+        // strayed too far: head back
+        const homeHex = gameState.cells.get(creature.home);
+        const back = neighbors.map((n) => ({ n, d: homeHex ? Math.hypot(gameState.cells.get(n).x - homeHex.x, gameState.cells.get(n).z - homeHex.z) : 0 })).sort((a, b) => a.d - b.d)[0];
+        if (back) return { action: 'roam', target: back.n };
+    }
+    const nearHome = neighbors.filter((n) => n === creature.home || neighborsOf(gameState.cells, n).includes(creature.home));
+    if (nearHome.length && Math.random() < 0.35) return { action: 'roam', target: nearHome[Math.floor(Math.random() * nearHome.length)] };
+    return { action: 'patrol' };
+};
+
+// Predators drift toward wherever prey is thickest
+const patrolHuntingGrounds = (creature, currentHex, gameState) => {
+    const myWeight = sizeOf(creature);
+    let best = null;
+    for (const n of neighborsOf(gameState.cells, currentHex)) {
+        if (!passableKey(gameState, n)) continue;
+        const prey = (gameState.creatures.get(n) || []).filter((c) => !isPredator(c) && sizeOf(c) < myWeight * 0.6).length;
+        if (prey && (!best || prey > best.prey)) best = { n, prey };
+    }
+    if (best && Math.random() < 0.6) return { action: 'roam', target: best.n };
     return roamRandomly(creature, currentHex, gameState);
 };
 
-const patrolHuntingGrounds = (creature, currentHex, gameState) => {
-    // Similar to patrol territory but looking for hunting opportunities
-    return patrolTerritory(creature, currentHex, gameState);
-};
-
+// Skittish animals bolt from anything bigger that shares their cell
 const nervousMovement = (creature, currentHex, gameState) => {
-    // Quick, erratic movements
-    if (Math.random() < 0.7) {
-        return roamRandomly(creature, currentHex, gameState);
+    const threat = (gameState.creatures.get(currentHex) || []).some((c) => c.id !== creature.id && isPredator(c) && sizeOf(c) > sizeOf(creature) * 2);
+    if (threat) {
+        const away = neighborsOf(gameState.cells, currentHex).filter((n) => passableKey(gameState, n) && !(gameState.creatures.get(n) || []).some(isPredator));
+        if (away.length) return { action: 'flee', target: away[Math.floor(Math.random() * away.length)] };
     }
+    if (Math.random() < 0.7) return roamRandomly(creature, currentHex, gameState);
     return { action: 'nervous_wait' };
 };
 
+// Defensive animals edge away from big predators but otherwise stay put
 const cautiousMovement = (creature, currentHex, gameState) => {
-    // Slow, careful movement
-    if (Math.random() < 0.3) {
-        return roamRandomly(creature, currentHex, gameState);
-    }
+    const big = (gameState.creatures.get(currentHex) || []).some((c) => c.id !== creature.id && isPredator(c) && sizeOf(c) > sizeOf(creature) * 3);
+    if (big || Math.random() < 0.2) return roamRandomly(creature, currentHex, gameState);
     return { action: 'cautious_wait' };
 };
 

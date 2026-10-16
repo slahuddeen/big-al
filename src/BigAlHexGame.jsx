@@ -112,6 +112,7 @@ const BigAlHexGame = () => {
         window.forceBehaviorUpdate = () => dispatch({ type: 'PROCESS_CREATURE_BEHAVIORS' });
         window.bigAl = { state: gameState, dispatch };
         window.spawnCreature = (species, hexKey, size) => dispatch({ type: 'DEBUG_SPAWN', species, hexKey, size });
+        window.setStats = (patch) => dispatch({ type: 'DEBUG_SET', patch });
         // jump to the nearest cell of a terrain (e.g. teleport('galleryforest')), optionally setting the turn
         window.teleport = (terrain, turn) => {
             const here = gameState.cells.get(gameState.player);
@@ -127,6 +128,7 @@ const BigAlHexGame = () => {
             delete window.bigAl;
             delete window.spawnCreature;
             delete window.teleport;
+            delete window.setStats;
         };
     }, [gameState]);
 

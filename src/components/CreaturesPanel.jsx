@@ -1,9 +1,9 @@
 import React from 'react';
 import { SPECIES_DATA } from '../data/species.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
-import { previewAttack } from '../utils/combatUtils.js';
-import { ABILITIES, ATTACK_MODS, abilityUnlocked, cooldownLeft, inCover } from '../game/abilities.js';
-import { creatureThreat, playerFierceness, playerMisty, hatchetTarget } from '../game/gameState.js';
+import { previewAttack } from '../game/combat.js';
+import { ABILITIES, abilityUnlocked, cooldownLeft, inCover } from '../game/abilities.js';
+import { creatureThreat, playerFierceness, playerMisty, hatchetTarget, counterDamage } from '../game/gameState.js';
 import { POI_TYPES } from '../game/pois.js';
 import { formatWeight, ageLabel } from '../utils/format.js';
 import CreaturePortrait from './CreaturePortrait.jsx';
@@ -11,36 +11,53 @@ import Icon from './Icon.jsx';
 
 const THREAT = {
     easy: { label: 'Easy prey', color: 'var(--good)' },
+    quick: { label: 'Hard to catch', color: 'var(--warn)' },
     fair: { label: 'Fair fight', color: 'var(--warn)' },
     dangerous: { label: 'Dangerous', color: 'var(--bad)' },
     meagre: { label: 'Barely a snack', color: 'var(--muted)' }
 };
 
-const oddsColor = (p) => (p >= 70 ? 'var(--good)' : p >= 40 ? 'var(--warn)' : 'var(--bad)');
 const POI_ICONS = { eggs: 'egg', sauropodcarcass: 'bone', wallow: 'mud', lookout: 'mountain', bonebed: 'bone', waterfall: 'waterfall', volcano: 'volcano', seashore: 'wave' };
+const healthColor = (h) => (h > 60 ? 'var(--good)' : h > 30 ? 'var(--warn)' : 'var(--bad)');
 
-const AttackButton = ({ label, icon, odds, disabled, reason, onClick, primary }) => (
+const AttackButton = ({ label, icon, note, disabled, reason, onClick, primary }) => (
     <button
         type="button"
         disabled={disabled}
         title={reason || undefined}
         onClick={(e) => { e.stopPropagation(); onClick(); }}
-        className={`btn ${primary ? 'btn-primary' : ''} flex-1 min-w-0 !px-2 !py-1.5`}
+        className={`btn ${primary ? 'btn-primary' : ''} min-w-0 !px-2 !py-1.5`}
     >
         <Icon name={icon} size={14} />
         <span className="truncate">{label}</span>
-        {odds !== null && !disabled && <span className="pixel text-[12px]" style={primary ? undefined : { color: oddsColor(odds) }}>{odds}%</span>}
+        {note && !disabled && <span className="pixel text-[11px] opacity-80">{note}</span>}
     </button>
+);
+
+const Stat = ({ label, value, color, title }) => (
+    <div className="flex-1 min-w-0 rounded-md px-1.5 py-1 text-center" style={{ background: 'rgba(0,0,0,0.25)' }} title={title}>
+        <div className="pixel text-[14px] leading-none" style={{ color }}>{value}</div>
+        <div className="text-[9.5px] uppercase tracking-wider text-ink-dim mt-0.5">{label}</div>
+    </div>
 );
 
 const CreatureCard = ({ creature, gameState, dispatch }) => {
     const sd = SPECIES_DATA[creature.species];
     if (!sd) return null;
-    const base = previewAttack(gameState, creature, ATTACK_MODS.normal, 'normal');
+    const counter = counterDamage(gameState, creature);
+    const base = previewAttack(gameState, creature, 'normal', counter);
     const weight = sd.weight * creature.size;
-    const threat = base.success >= 70 ? (base.energyGain < 5 ? 'meagre' : 'easy') : base.success >= 40 ? 'fair' : 'dangerous';
+    const health = Math.max(0, Math.round(creature.health ?? 100));
+    const risk = base.counter * Math.max(0, base.bites - 1) + (base.bites > 1 ? 0 : 0);
+    let threat = 'fair';
+    if (base.bites === 1 && base.energyGain < 5) threat = 'meagre';
+    else if (risk < 8 && base.catch >= 60) threat = 'easy';
+    else if (risk < 8) threat = 'quick';
+    else if (risk < gameState.fitness * 0.45 && base.counterMax < gameState.fitness * 0.6) threat = 'fair';
+    else threat = 'dangerous';
     const attack = (style) => dispatch({ type: 'ATTACK_CREATURE', creatureId: creature.id, style });
     const misty = playerMisty(gameState);
+    const canInvite = creature.species === 'Juvenile Allosaurus' && gameState.level >= 2 && (gameState.pack || []).length < 2 && !creature.engaged;
 
     // alternative attacks from Big Al's abilities
     const styles = ['pounce', 'ambush', 'hatchet']
@@ -49,10 +66,12 @@ const CreatureCard = ({ creature, gameState, dispatch }) => {
             const cd = cooldownLeft(gameState, id);
             let reason = cd > 0 ? `Ready in ${cd} turn${cd > 1 ? 's' : ''}` : null;
             if (!reason && id === 'ambush' && !inCover(gameState, misty)) reason = 'Needs cover: forest, ferns, marsh or mist';
+            if (!reason && id === 'ambush' && creature.engaged) reason = 'It has already seen you';
             if (!reason && id === 'hatchet' && !hatchetTarget(gameState, creature)) reason = 'Only worth it on big animals';
             if (id === 'pounce' && weight > gameState.weight * 2) return null; // no use against big things
-            const odds = previewAttack(gameState, creature, ATTACK_MODS[id], id).success;
-            return { id, reason, odds };
+            const p = previewAttack(gameState, creature, id, counter);
+            const note = id === 'pounce' ? `${p.catch}%` : id === 'ambush' ? `${p.bite}%` : 'bleed';
+            return { id, reason, note };
         })
         .filter(Boolean);
 
@@ -64,27 +83,30 @@ const CreatureCard = ({ creature, gameState, dispatch }) => {
                     <CreaturePortrait species={creature.species} size={80} height={58} />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                        <div className="font-bold text-[14.5px] leading-tight truncate">{creature.species}</div>
-                        <span className="pixel text-[18px] leading-none" style={{ color: oddsColor(base.success) }} title="Chance a normal attack succeeds">{base.success}%</span>
-                    </div>
+                    <div className="font-bold text-[14.5px] leading-tight truncate">{creature.species}</div>
                     <div className="mt-1 flex gap-1 flex-wrap">
                         <span className="chip" style={{ color: THREAT[threat].color, borderColor: 'currentColor' }}>{THREAT[threat].label}</span>
                         <span className="chip">{ageLabel(creature.size)} · {formatWeight(weight)}</span>
-                        <span className="chip" title="Energy if you catch it"><Icon name="meat" size={11} />+{base.energyGain}</span>
+                        <span className="chip" title="Energy if you bring it down"><Icon name="meat" size={11} />+{base.energyGain}</span>
                     </div>
-                    {creature.wounded && (
-                        <div className="mt-1.5 flex items-center gap-2">
-                            <span className="text-[11px] font-semibold" style={{ color: 'var(--bad)' }}>Bleeding</span>
-                            <div className="meter flex-1" style={{ height: 5 }}><i style={{ width: `${Math.max(0, creature.health)}%`, background: 'var(--bad)' }} /></div>
-                        </div>
-                    )}
+                    <div className="mt-1.5 flex items-center gap-2" title={`Health ${health}%`}>
+                        <Icon name="heart" size={11} style={{ color: healthColor(health) }} />
+                        <div className="meter flex-1" style={{ height: 6 }}><i style={{ width: `${health}%`, background: healthColor(health) }} /></div>
+                        {creature.wounded && <span className="text-[10.5px] font-semibold" style={{ color: 'var(--bad)' }}>bleeding</span>}
+                    </div>
                 </div>
             </div>
-            <div className="px-2.5 pb-2.5 flex gap-1.5">
-                <AttackButton label="Attack" icon="claw" odds={null} primary={threat !== 'dangerous'} onClick={() => attack('normal')} />
-                {styles.map((s) => (
-                    <AttackButton key={s.id} label={ABILITIES[s.id].name.replace(' Bite', '')} icon={s.id} odds={s.odds} disabled={!!s.reason} reason={s.reason || ABILITIES[s.id].desc} onClick={() => attack(s.id)} />
+            <div className="px-2.5 pb-2 flex gap-1.5">
+                <Stat label="Per bite" value={`${base.bite}%`} color="var(--ink)" title="How much of its health one bite takes" />
+                <Stat label={base.bites === 1 ? 'One bite' : 'Bites'} value={base.bites > 20 ? '20+' : base.bites} color={base.bites <= 2 ? 'var(--good)' : base.bites <= 5 ? 'var(--warn)' : 'var(--bad)'} title="Bites to bring it down" />
+                <Stat label="Hits back" value={base.bites === 1 ? '-' : `-${base.counterMax}`} color={base.counterMax < gameState.fitness * 0.25 ? 'var(--ink)' : 'var(--bad)'} title="Damage when it strikes back (it doesn't always)" />
+                <Stat label="Catch" value={`${base.catch}%`} color={base.catch >= 70 ? 'var(--good)' : base.catch >= 40 ? 'var(--warn)' : 'var(--bad)'} title="Chance you reach it before it bolts" />
+            </div>
+            <div className={`px-2.5 pb-2.5 grid gap-1.5 ${styles.length + (canInvite ? 1 : 0) >= 3 ? 'grid-cols-2' : 'grid-flow-col auto-cols-fr'}`}>
+                {canInvite && <AttackButton label="Hunt together" icon="paw" primary onClick={() => dispatch({ type: 'INVITE', creatureId: creature.id })} reason="Invite this young Allosaurus into your hunting pack" />}
+                <AttackButton label={creature.engaged ? 'Bite' : 'Attack'} icon="claw" primary={!canInvite && threat !== 'dangerous'} onClick={() => attack('normal')} />
+                {styles.map((st) => (
+                    <AttackButton key={st.id} label={ABILITIES[st.id].name.replace(' Bite', '')} icon={st.id} note={st.note} disabled={!!st.reason} reason={st.reason || ABILITIES[st.id].desc} onClick={() => attack(st.id)} />
                 ))}
             </div>
         </div>
@@ -148,7 +170,8 @@ const CreaturesPanel = ({ gameState, dispatch }) => {
         if (!gameState.cells.get(n)?.inSight) continue;
         for (const c of gameState.creatures.get(n) || []) nearby.push(c);
     }
-    const dangerNear = nearby.filter((c) => creatureThreat(c) > pf);
+    const dangerNear = nearby.filter((c) => creatureThreat(c) > pf || c.chasing > 0);
+    const chasers = [...nearby, ...creatures].filter((c) => c.chasing > 0);
     if (!creatures.length && !carcasses.length && !poi && !dangerNear.length) return null;
 
     return (
@@ -175,7 +198,7 @@ const CreaturesPanel = ({ gameState, dispatch }) => {
                                 return <span key={sp} className="chip !pl-1"><CreaturePortrait species={sp} size={26} height={18} />{sp}{n > 1 ? ` ×${n}` : ''}</span>;
                             })}
                         </div>
-                        <div className="text-[11px] text-ink-muted mt-1">Aggressive animals will charge into your area to attack.</div>
+                        <div className="text-[11px] text-ink-muted mt-1">{chasers.length ? `You're being chased by ${[...new Set(chasers.map((c) => c.species))].join(', ')}. Dash, or lose it in cover.` : 'Aggressive animals will charge into your area to attack.'}</div>
                     </div>
                 )}
             </div>

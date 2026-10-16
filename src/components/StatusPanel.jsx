@@ -1,6 +1,7 @@
 import React from 'react';
 import { LEVEL_NAMES, LEVEL_WEIGHTS } from '../game/gameState.js';
 import { PASSIVES, hasPassive } from '../game/abilities.js';
+import { activeGoals } from '../game/goals.js';
 import { formatWeight, capitalise } from '../utils/format.js';
 import CreaturePortrait from './CreaturePortrait.jsx';
 import Icon from './Icon.jsx';
@@ -65,6 +66,36 @@ const StatusPanel = ({ gameState }) => {
                 <Meter icon="heart" label="Health" value={gameState.fitness} color="var(--health)" />
                 <Meter icon="meat" label="Energy" value={gameState.energy} color="var(--food)" />
                 <Meter icon="water" label="Water" value={gameState.hydration} color="var(--water)" />
+            </div>
+
+            {(gameState.pack || []).length > 0 && (
+                <div className="mt-3 pt-2 border-t border-[color:var(--line)]">
+                    <div className="label mb-1 flex items-center gap-1"><Icon name="paw" size={11} />Hunting pack</div>
+                    <div className="space-y-1">
+                        {gameState.pack.map((m) => (
+                            <div key={m.id} className="flex items-center gap-2" title={`${m.name}: ${Math.round(m.health)}% health. Adds bite power and shares your kills.`}>
+                                <CreaturePortrait species="Juvenile Allosaurus" size={34} height={22} />
+                                <span className="text-[12px] font-semibold w-12 truncate">{m.name}</span>
+                                <div className="meter flex-1" style={{ height: 5 }}><i style={{ width: `${Math.max(0, m.health)}%`, background: 'var(--health)' }} /></div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div className="mt-3 pt-2 border-t border-[color:var(--line)]">
+                <div className="label mb-1 flex items-center gap-1"><Icon name="star" size={11} />Goals</div>
+                <div className="space-y-0.5">
+                    {activeGoals(gameState).map((g) => {
+                        const done = gameState.goals?.[g.id] !== undefined;
+                        return (
+                            <div key={g.id} className="flex items-start gap-1.5 text-[11.5px] leading-snug" style={{ opacity: done ? 0.55 : 1 }}>
+                                <Icon name={done ? 'check' : 'target'} size={12} style={{ color: done ? 'var(--good)' : 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
+                                <span className={done ? 'line-through text-ink-muted' : 'text-ink'}>{g.text}</span>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
             {passives.length > 0 && (

@@ -2,13 +2,15 @@
 import { distanceToPlayer, bfsDistances } from '../world/cellGraph.js';
 import { getWorld } from '../world/worldGen.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
-import { SPECIES_DATA, HABITAT_SPECIES, GROUP_SIZE, activityFactor } from '../data/species.js';
+import { SPECIES_DATA, HABITAT_SPECIES, GROUP_SIZE, CHASERS, FLYERS, activityFactor } from '../data/species.js';
+import { biteDamage, boltChance, fightBackChance, standsGround, packPower, preyMass, STYLE_MODS } from './combat.js';
 import { calculateFiercenessRatio, calculateAgilityRatio, calculateInjuries, calculateEnergyGain, escapeChance as attemptCreatureEscape } from '../utils/combatUtils.js';
 import { calculateVisibility } from '../utils/visibilitySystem.js';
 import { executeCreatureBehavior } from '../utils/creatureBehaviors.js';
 import { ABILITIES, ATTACK_MODS, hasPassive, abilityReady, inCover } from './abilities.js';
 import { isMisty, WATER_SOURCES, thirstFactor, shelterOf } from './environment.js';
 import { generatePois, POI_TYPES } from './pois.js';
+import { GOALS } from './goals.js';
 import {
     MAX_WEIGHT,
     HEALING_RATE,
@@ -46,7 +48,7 @@ const ATTACK_ACTIONS = new Set([
     'attack_player', 'ambush_attack', 'territorial_attack', 'defensive_attack', 'aerial_attack',
     'swoop_attack', 'rival_attack', 'casual_defense', 'defensive_strike'
 ]);
-const MOVE_ACTIONS = new Set(['move', 'flee', 'roam', 'move_to_preferred', 'hunt_from_above', 'chase_competitor']);
+const MOVE_ACTIONS = new Set(['move', 'flee', 'roam', 'move_to_preferred', 'hunt_from_above', 'hunt_prey', 'chase_competitor']);
 const DISPLAY_ACTIONS = new Set(['warning', 'intimidate', 'defensive_posture']);
 
 const uid = (prefix) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -98,19 +100,24 @@ const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
     return multiplier;
 };
 
-const makeCreature = (species, state, size) => {
+const GIANTS = new Set(['Diplodocus', 'Camarasaurus', 'Brachiosaurus']);
+const makeCreature = (species, state, size, extra = {}) => {
     const sd = SPECIES_DATA[species];
     const minAge = sd.minimumAge || 0.1;
+    // grown sauropods are grown: their young come separately with the herd
+    const adultSize = GIANTS.has(species) ? 0.55 + Math.random() * 0.45 : minAge + (1 - minAge) * Math.random();
     return {
         id: uid(species), species,
-        size: size ?? minAge + (1 - minAge) * Math.random(),
+        size: size ?? adultSize,
         behavior: 'neutral', spawnTurn: state.moveNumber, lastBehaviorTurn: state.moveNumber, lastSeenTurn: state.moveNumber,
-        health: 100, status: 'normal', energy: 100
+        health: 100, status: 'normal', energy: 100, ...extra
     };
 };
 
+const countFlyers = (creatures) => [...creatures.values()].flat().filter((c) => FLYERS.has(c.species)).length;
+
 // Roll which creatures appear on a cell of the given terrain. Herds and packs arrive together.
-const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_HEX, existing = 0, key = null } = {}) => {
+const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_HEX, existing = 0, key = null, flyerBudget = 2 } = {}) => {
     const dist = { ...(HABITAT_SPECIES[terrain] || {}) };
     const poi = key ? state.pois?.get(key) : null;
     if (poi?.type === 'sauropodcarcass' && poi.portions > 0) {
@@ -120,20 +127,28 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
     const phase = phaseOf(state);
     const spawned = [];
     let attempts = 0;
+    let flyers = flyerBudget;
     for (const species of Object.keys(dist).sort(() => Math.random() - 0.5)) {
         if (existing + spawned.length >= max || attempts >= 10) break;
         attempts++;
+        if (FLYERS.has(species) && flyers <= 0) continue;
         let chance = dist[species] * getPreySizeMultiplier(state.level, state.weight, species) * chanceScale * activityFactor(species, phase);
         if (state.level <= 2 && ['Male Allosaurus', 'Female Allosaurus', 'Stegosaurus', 'Torvosaurus', 'Saurophaganax'].includes(species)) chance *= 0.05;
+        if (GIANTS.has(species) && terrain === 'sauropodgrounds') chance = Math.max(chance, dist[species] * chanceScale); // herds are always on the move here
         if (Math.random() >= chance) continue;
         const [gMin, gMax] = GROUP_SIZE[species] || [1, 1];
-        const n = Math.min(max - existing - spawned.length, gMin + Math.floor(Math.random() * (gMax - gMin + 1)));
-        const adult = makeCreature(species, state);
-        spawned.push(adult);
+        let n = Math.min(max - existing - spawned.length, gMin + Math.floor(Math.random() * (gMax - gMin + 1)));
+        if (FLYERS.has(species)) n = Math.min(n, flyers);
+        if (n <= 0) continue;
+        if (FLYERS.has(species)) flyers -= n;
+        const herd = uid('herd');
+        const heading = Math.random() * Math.PI * 2;
+        spawned.push(makeCreature(species, state, undefined, { herd, heading }));
         for (let i = 1; i < n; i++) {
-            // herds bring their young along
-            const young = ['Diplodocus', 'Camarasaurus', 'Brachiosaurus', 'Stegosaurus'].includes(species) && Math.random() < 0.6;
-            spawned.push(makeCreature(species, state, young ? 0.15 + Math.random() * 0.25 : undefined));
+            // herds bring their young along (a young sauropod is tiny next to its parents)
+            const young = (GIANTS.has(species) || species === 'Stegosaurus') && Math.random() < 0.6;
+            const youngSize = GIANTS.has(species) ? 0.01 + Math.random() * 0.07 : 0.15 + Math.random() * 0.25;
+            spawned.push(makeCreature(species, state, young ? youngSize : undefined, { herd, heading }));
         }
     }
     return spawned;
@@ -170,7 +185,9 @@ export const initialGameState = {
     // Exploration
     pois: new Map(), // key -> point of interest
     journal: { species: {}, biomes: {}, landmarks: {} },
-    stats: { kills: 0, scavenged: 0, sleeps: 0, distance: 0 },
+    stats: { kills: 0, scavenged: 0, sleeps: 0, distance: 0, drinks: 0, biggestKill: 0, openKills: 0, visited: {} },
+    pack: [], // hunting companions: [{ id, name, weight, health }]
+    goals: {}, // goal id -> turn completed
 
     mapGenerated: false,
 
@@ -294,12 +311,23 @@ const attackDamage = (state, creature, rawDamage) => {
     return Math.max(1, Math.round(dmg));
 };
 
+// Damage an animal does when it strikes back in a fight (for the encounter cards)
+export const counterDamage = (state, c) => attackDamage(state, c, (SPECIES_DATA[c.species]?.danger ?? 1) * (c.size ?? 1));
+
 // ==================== CREATURE TURN ====================
 // Animals act on their own; attacks only land from Big Al's own area, so an
-// aggressive animal next door charges in first.
+// aggressive animal next door charges in first. Hunters may keep chasing you
+// for a few turns, packs gang up, and sauropod herds walk their migration routes.
+const headingFor = (id) => {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 3600;
+    return (h / 3600) * Math.PI * 2;
+};
+
 const processCreatureBehaviors = (gameState, opts = {}) => {
     const placements = [];
     const killed = new Set();
+    const attacked = new Set();
     let carcasses = new Map(gameState.carcasses || []);
     const blood = new Map(gameState.blood || []);
     const behaviorLog = [];
@@ -307,38 +335,115 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
     for (const [k, list] of gameState.creatures) occupancy.set(k, list.length);
     const player = gameState.player;
     const pf = playerFierceness(gameState);
+    const turn = gameState.moveNumber;
     const move = (from, to) => {
         occupancy.set(from, (occupancy.get(from) || 1) - 1);
         occupancy.set(to, (occupancy.get(to) || 0) + 1);
     };
+    const roomAt = (key) => (occupancy.get(key) || 0) < MAX_CREATURES_PER_HEX;
+    const pushAttack = (creature, key, charged, message, raw) => {
+        attacked.add(creature.id);
+        creature.engaged = true;
+        if (CHASERS[creature.species]) creature.chasing = 3;
+        if (opts.evading) {
+            behaviorLog.push({ id: uid('log'), type: 'creature_miss', creature: creature.species, creatureId: creature.id, hexKey: key, charged, message: `The ${creature.species} lunges, but you're already gone!` });
+        } else {
+            behaviorLog.push({ id: uid('log'), type: 'creature_attack', creature: creature.species, creatureId: creature.id, hexKey: key, charged, message, damage: attackDamage(gameState, creature, raw) });
+        }
+    };
+    const rallies = new Set(); // pack species that have started an attack this turn
+    const displaced = new Map(); // animals driven off by a rival: id -> cell
 
     for (const [hexKey, creatures] of gameState.creatures.entries()) {
         for (const original of creatures) {
             if (killed.has(original.id)) continue;
             const creature = { ...original };
             let destKey = hexKey;
+            const sd = SPECIES_DATA[creature.species] || {};
             try {
                 // wounded animals bleed, weaken and try to get away
                 if (creature.wounded) {
-                    creature.health = (creature.health ?? 100) - 12;
-                    blood.set(hexKey, gameState.moveNumber);
+                    creature.health = (creature.health ?? 100) - (creature.bleed ?? 12);
+                    blood.set(hexKey, turn);
                     if (creature.health <= 0) {
                         killed.add(creature.id);
-                        carcasses = addCarcass(carcasses, hexKey, { species: creature.species, size: creature.size, turn: gameState.moveNumber, portions: 4 });
-                        behaviorLog.push({ id: uid('log'), type: 'creature_died', creature: creature.species, creatureId: creature.id, hexKey, message: `The wounded ${creature.species} collapses.`, near: distanceToPlayer(gameState, hexKey) <= 4 });
+                        carcasses = addCarcass(carcasses, hexKey, { species: creature.species, size: creature.size, turn, portions: Math.max(2, Math.min(8, Math.round(preyMass(creature) / Math.max(1, gameState.weight)))) });
+                        behaviorLog.push({ id: uid('log'), type: 'creature_died', creature: creature.species, creatureId: creature.id, hexKey, mass: preyMass(creature), byPlayer: !!creature.woundedByPlayer, message: `The wounded ${creature.species} collapses.`, near: distanceToPlayer(gameState, hexKey) <= 4 });
                         continue;
                     }
-                    if (Math.random() < 0.75) {
-                        const to = escapeCell(gameState, hexKey, occupancy);
-                        if (to) {
-                            destKey = to;
-                            move(hexKey, to);
-                            blood.set(to, gameState.moveNumber);
-                            behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey: to, message: `The wounded ${creature.species} staggers away, leaving a trail of blood.`, near: false });
+                    if (hexKey !== player || Math.random() < 0.6) {
+                        if (Math.random() < 0.75) {
+                            const to = escapeCell(gameState, hexKey, occupancy);
+                            if (to) {
+                                destKey = to;
+                                move(hexKey, to);
+                                blood.set(to, turn);
+                                behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey: to, message: `The wounded ${creature.species} staggers away, leaving a trail of blood.`, near: false });
+                            }
                         }
+                        placements.push({ creature, key: destKey, origin: hexKey });
+                        continue;
                     }
-                    placements.push({ creature, key: destKey, origin: hexKey });
-                    continue;
+                }
+
+                // hunters on your trail keep coming
+                if (creature.chasing > 0 && !gameState.gameOver) {
+                    const dist = distanceToPlayer(gameState, hexKey);
+                    creature.chasing -= 1;
+                    const loseTrail = opts.evading || (inCover(gameState, playerMisty(gameState)) && Math.random() < 0.3) || dist > 3;
+                    if (loseTrail) {
+                        creature.chasing = 0;
+                        if (dist <= 3) behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey, message: `The ${creature.species} loses your trail.`, near: true });
+                    } else if (creature.lastChaseTurn !== turn || dist === 0) {
+                        creature.lastChaseTurn = turn;
+                        let at = hexKey;
+                        const steps = Math.random() < (CHASERS[creature.species] || 0.5) ? 2 : 1;
+                        for (let i = 0; i < steps && at !== player; i++) {
+                            const to = towardPlayer(gameState, at);
+                            if (!to || !roomAt(to)) break;
+                            move(at, to);
+                            at = to;
+                        }
+                        destKey = at;
+                        if (at === player && Math.random() < noticeChance(gameState, creature, opts) + 0.25) {
+                            pushAttack(creature, player, hexKey !== player, `The ${creature.species} runs you down!`, (sd.danger || 1) * creature.size * 1.1);
+                            if (sd.behaviorType === 'pack_predator') rallies.add(creature.species);
+                        } else if (at !== hexKey) {
+                            behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey: at, chasing: true, message: `The ${creature.species} is chasing you!`, near: true });
+                        }
+                        placements.push({ creature, key: destKey, origin: hexKey });
+                        continue;
+                    }
+                }
+
+                // sauropod herds walk the migration routes
+                if (sd.behaviorType === 'giant_herbivore' && !creature.engaged && gameState.cells.get(hexKey)?.terrain === 'sauropodgrounds' && creature.lastMigrateTurn !== turn) {
+                    creature.lastMigrateTurn = turn;
+                    const heading = creature.heading ?? headingFor(creature.herd || creature.id);
+                    if ((turn + Math.floor(heading * 10)) % 2 === 0) {
+                        const here = gameState.cells.get(hexKey);
+                        let best = null;
+                        let bestDot = 0.1;
+                        for (const n of here.neighbors) {
+                            const c = gameState.cells.get(n);
+                            if (!c || c.terrain !== 'sauropodgrounds') continue;
+                            const dx = c.x - here.x;
+                            const dz = c.z - here.z;
+                            const dot = (dx * Math.cos(heading) + dz * Math.sin(heading)) / Math.hypot(dx, dz);
+                            if (dot > bestDot) {
+                                bestDot = dot;
+                                best = n;
+                            }
+                        }
+                        if (best && roomAt(best)) {
+                            destKey = best;
+                            move(hexKey, best);
+                        } else if (!best) {
+                            creature.heading = heading + Math.PI; // end of the trail: turn back
+                        }
+                        placements.push({ creature, key: destKey, origin: hexKey });
+                        continue;
+                    }
                 }
 
                 const behavior = executeCreatureBehavior(creature, hexKey, gameState);
@@ -346,49 +451,43 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                     if (ATTACK_ACTIONS.has(behavior.action)) {
                         const dist = distanceToPlayer(gameState, hexKey);
                         const threat = creatureThreat(creature);
-                        const isPredator = PREDATOR_TYPES.has(SPECIES_DATA[creature.species]?.behaviorType);
+                        const isPredator = PREDATOR_TYPES.has(sd.behaviorType);
                         if (gameState.gameOver || dist > 2) {
                             // nothing to do
-                        } else if (hasPassive(gameState, 'apex') && isPredator && threat < pf * 0.6) {
-                            // Big Al outclasses it: it backs off instead
+                        } else if (threat < pf * 0.25 || (hasPassive(gameState, 'apex') && isPredator && threat < pf * 0.6)) {
+                            // Big Al is far too big to pick a fight with: it backs off instead
                             const to = escapeCell(gameState, hexKey, occupancy);
                             if (to) {
                                 destKey = to;
                                 move(hexKey, to);
-                                behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey: to, message: `The ${creature.species} thinks better of it and slinks away.`, near: true });
+                                if (dist <= 1) behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey: to, message: `The ${creature.species} thinks better of it and slinks away.`, near: false });
                             }
                         } else if (dist === 2) {
                             // too far to strike: close the distance
                             const to = towardPlayer(gameState, hexKey);
-                            if (to && (occupancy.get(to) || 0) < MAX_CREATURES_PER_HEX) {
+                            if (to && roomAt(to)) {
                                 destKey = to;
                                 move(hexKey, to);
-                                behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey: to, message: `The ${creature.species} is stalking you!`, near: true });
+                                if (CHASERS[creature.species] && threat > pf * 0.5) creature.chasing = 3;
+                                behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey: to, chasing: !!creature.chasing, message: `The ${creature.species} is stalking you!`, near: true });
                             }
                         } else if (Math.random() < noticeChance(gameState, creature, opts)) {
                             let canStrike = true;
                             if (dist === 1) {
                                 // charge into Big Al's area to attack
-                                if ((occupancy.get(player) || 0) < MAX_CREATURES_PER_HEX) {
+                                if (roomAt(player)) {
                                     destKey = player;
                                     move(hexKey, player);
                                 } else canStrike = false;
                             }
                             if (canStrike) {
-                                if (opts.evading) {
-                                    behaviorLog.push({ id: uid('log'), type: 'creature_miss', creature: creature.species, creatureId: creature.id, hexKey: destKey, charged: dist === 1, message: `The ${creature.species} lunges, but you're already gone!` });
-                                } else {
-                                    behaviorLog.push({
-                                        id: uid('log'), type: 'creature_attack', creature: creature.species, creatureId: creature.id, hexKey: destKey, charged: dist === 1,
-                                        message: dist === 1 ? `The ${creature.species} charges in! ${behavior.message}` : behavior.message,
-                                        damage: attackDamage(gameState, creature, behavior.damage || 1)
-                                    });
-                                }
+                                pushAttack(creature, destKey, dist === 1, dist === 1 ? `The ${creature.species} charges in! ${behavior.message}` : behavior.message, behavior.damage || 1);
+                                if (sd.behaviorType === 'pack_predator') rallies.add(creature.species);
                             }
                         }
                     } else if (MOVE_ACTIONS.has(behavior.action) && behavior.target) {
                         const targetKey = behavior.target;
-                        if (passable(gameState, targetKey) && (occupancy.get(targetKey) || 0) < MAX_CREATURES_PER_HEX) {
+                        if (passable(gameState, targetKey) && roomAt(targetKey)) {
                             destKey = targetKey;
                             move(hexKey, targetKey);
                             if (behavior.message) {
@@ -397,17 +496,29 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                                     hexKey: targetKey, message: behavior.message, near: distanceToPlayer(gameState, targetKey) <= 1
                                 });
                             }
-                            // predators that swoop on prey can actually catch it
-                            if (behavior.action === 'hunt_from_above' && behavior.preyId && !killed.has(behavior.preyId) && Math.random() < 0.5) {
-                                const prey = (gameState.creatures.get(targetKey) || []).find((c) => c.id === behavior.preyId);
-                                if (prey) {
-                                    killed.add(prey.id);
-                                    carcasses = addCarcass(carcasses, targetKey, { species: prey.species, size: prey.size, turn: gameState.moveNumber });
-                                    behaviorLog.push({
-                                        id: uid('log'), type: 'creature_hunt', creature: creature.species, creatureId: creature.id, victimId: prey.id,
-                                        hexKey: targetKey, message: `The ${creature.species} catches a ${prey.species}!`,
-                                        near: distanceToPlayer(gameState, targetKey) <= 2
-                                    });
+                        }
+                        // predators that catch prey (from the air or on the ground)
+                        if (['hunt_from_above', 'hunt_prey'].includes(behavior.action) && behavior.preyId && !killed.has(behavior.preyId) && Math.random() < 0.5) {
+                            const prey = (gameState.creatures.get(targetKey) || []).find((c) => c.id === behavior.preyId);
+                            if (prey) {
+                                killed.add(prey.id);
+                                carcasses = addCarcass(carcasses, targetKey, { species: prey.species, size: prey.size, turn });
+                                behaviorLog.push({
+                                    id: uid('log'), type: 'creature_hunt', creature: creature.species, creatureId: creature.id, victimId: prey.id,
+                                    hexKey: targetKey, message: `The ${creature.species} catches a ${prey.species}!`,
+                                    near: distanceToPlayer(gameState, targetKey) <= 2
+                                });
+                            }
+                        }
+                        // a bigger predator drives a smaller one off
+                        if (behavior.action === 'chase_competitor' && behavior.rivalId) {
+                            const rival = (gameState.creatures.get(targetKey) || []).find((c) => c.id === behavior.rivalId);
+                            if (rival) {
+                                const to = escapeCell(gameState, targetKey, occupancy);
+                                if (to) {
+                                    displaced.set(rival.id, to);
+                                    move(targetKey, to);
+                                    behaviorLog.push({ id: uid('log'), type: 'creature_display', creature: creature.species, creatureId: creature.id, hexKey: targetKey, message: behavior.message, quiet: distanceToPlayer(gameState, targetKey) > 1 });
                                 }
                             }
                         }
@@ -424,12 +535,26 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
         }
     }
 
+    // pack hunters attack together: the rest of the pack piles in
+    for (const p of placements) {
+        const c = p.creature;
+        if (!rallies.has(c.species) || attacked.has(c.id) || killed.has(c.id) || c.wounded) continue;
+        if (distanceToPlayer(gameState, p.key) > 1 || (p.key !== player && !roomAt(player))) continue;
+        if (p.key !== player) {
+            move(p.key, player);
+            p.key = player;
+        }
+        pushAttack(c, player, p.origin !== player, `The ${c.species} pack closes in!`, (SPECIES_DATA[c.species].danger || 1) * c.size * 0.9);
+    }
+
     const newCreatures = new Map();
     for (const p of placements) {
         if (killed.has(p.creature.id)) continue;
-        const list = newCreatures.get(p.key) || [];
+        let key = p.key;
+        if (displaced.has(p.creature.id) && key === p.origin) key = displaced.get(p.creature.id);
+        const list = newCreatures.get(key) || [];
         list.push(p.creature);
-        newCreatures.set(p.key, list);
+        newCreatures.set(key, list);
     }
     return { creatures: newCreatures, behaviorLog, carcasses, blood };
 };
@@ -438,15 +563,55 @@ const killPlayer = (state, reason, thought) => ({
     ...state, gameOver: true, gamePhase: 'dead', deathReason: reason, currentThought: thought
 });
 
+const PACK_NAMES = ['Scar', 'Ember', 'Ridge', 'Quill', 'Talon', 'Ash', 'Fern', 'Flint', 'Rust', 'Sable'];
+const OPEN_COUNTRY = new Set(['plains', 'fernprairie', 'katydidmeadow', 'fernsavanna', 'savanna', 'steppe', 'scrubland', 'floodplain', 'sauropodgrounds', 'termitemounds', 'hills']);
+
+// Bookkeeping for a kill (journal, stats used by the goals)
+const recordKill = (state, species, mass) => {
+    const entry = state.journal.species[species] || { firstTurn: state.moveNumber, kills: 0 };
+    const here = state.cells.get(state.player)?.terrain;
+    return {
+        ...state,
+        journal: { ...state.journal, species: { ...state.journal.species, [species]: { ...entry, kills: entry.kills + 1 } } },
+        stats: {
+            ...state.stats,
+            kills: state.stats.kills + 1,
+            biggestKill: Math.max(state.stats.biggestKill || 0, mass),
+            openKills: (state.stats.openKills || 0) + (OPEN_COUNTRY.has(here) ? 1 : 0)
+        }
+    };
+};
+
+// Some blows land on a hunting companion instead of Big Al
+const hitCompanion = (state, damage, creature) => {
+    if (!state.pack?.length || Math.random() > 0.35) return null;
+    const i = Math.floor(Math.random() * state.pack.length);
+    const m = state.pack[i];
+    const dmg = Math.round(damage * Math.min(2, Math.max(0.4, state.weight / Math.max(1, m.weight))));
+    const health = m.health - dmg;
+    const pack = health <= 0 ? state.pack.filter((_, k) => k !== i) : state.pack.map((p, k) => (k === i ? { ...p, health } : p));
+    return {
+        pack,
+        message: health <= 0 ? `The ${creature} kills ${m.name}!` : `${m.name} takes the ${creature}'s blow. -${dmg}`,
+        died: health <= 0
+    };
+};
+
 const applyCreatureBehaviorResults = (gameState, behaviorLog) => {
     let newState = { ...gameState };
     let newNotifications = [...gameState.notifications];
     for (const log of behaviorLog) {
         switch (log.type) {
             case 'creature_attack': {
+                const shield = hitCompanion(newState, log.damage, log.creature);
+                if (shield) {
+                    newState.pack = shield.pack;
+                    newNotifications = addNotification(newNotifications, { type: shield.died ? 'death' : 'combat', message: shield.message });
+                    break;
+                }
                 newState.fitness = Math.max(0, newState.fitness - log.damage);
                 newState.energy = Math.max(0, newState.energy - 4);
-                newNotifications = addNotification(newNotifications, { type: 'combat', message: `${log.message} -${log.damage} health` });
+                if (log.message) newNotifications = addNotification(newNotifications, { type: 'combat', message: `${log.message} -${log.damage} health` });
                 if (newState.fitness <= 0 && !newState.gameOver) {
                     newState = killPlayer(newState, 'combat', `The ${log.creature} proved too dangerous...`);
                 }
@@ -456,7 +621,7 @@ const applyCreatureBehaviorResults = (gameState, behaviorLog) => {
                 newNotifications = addNotification(newNotifications, { type: 'success', message: log.message });
                 break;
             case 'creature_movement':
-                if (log.near) newNotifications = addNotification(newNotifications, { type: 'warning', message: log.message });
+                if (log.near) newNotifications = addNotification(newNotifications, { type: log.chasing ? 'combat' : 'warning', message: log.message });
                 break;
             case 'creature_hunt':
                 if (log.near) {
@@ -465,13 +630,14 @@ const applyCreatureBehaviorResults = (gameState, behaviorLog) => {
                 }
                 break;
             case 'creature_died':
-                if (log.near) {
+                if (log.byPlayer) newState = recordKill(newState, log.creature, log.mass || 1);
+                if (log.near || log.byPlayer) {
                     newNotifications = addNotification(newNotifications, { type: 'success', message: `${log.message} A feast awaits.` });
                     newState.currentThought = 'The blood trail ends here. Time to eat.';
                 }
                 break;
             case 'creature_display':
-                newNotifications = addNotification(newNotifications, { type: 'warning', message: log.message });
+                if (!log.quiet) newNotifications = addNotification(newNotifications, { type: 'warning', message: log.message });
                 break;
             default:
                 break;
@@ -543,6 +709,14 @@ const contextualThought = (state) => {
     return THOUGHTS[Math.floor(Math.random() * THOUGHTS.length)];
 };
 
+const DENSE = new Set(['denseforest', 'oldgrowth', 'jungle', 'galleryforest', 'deadfall', 'youngforest', 'forest']);
+export const crampedIn = (state, terrain) => state.level >= 3 && DENSE.has(terrain);
+
+// Companions walk with Big Al, heal slowly and grow alongside him; a starving pack breaks up
+const followPack = (state, energy) => (state.pack || [])
+    .filter(() => energy > 15 || Math.random() > 0.15)
+    .map((m) => ({ ...m, weight: Math.max(m.weight, state.weight * 0.7), health: Math.min(100, m.health + 3) }));
+
 const setCooldown = (state, id) => ({ ...state.cooldowns, [id]: state.moveNumber + ABILITIES[id].cooldown });
 
 // ==================== EXPLORATION BOOKKEEPING ====================
@@ -587,6 +761,18 @@ const recordDiscoveries = (prev, next) => {
         }
         if (species !== journal.species || biomes !== journal.biomes || landmarks !== journal.landmarks) {
             state = { ...state, journal: { species, biomes, landmarks }, notifications, score };
+        }
+    }
+    // goals
+    if (state.mapGenerated && !state.gameOver && (prev.stats !== state.stats || prev.level !== state.level || prev.pack !== state.pack || prev.journal !== state.journal)) {
+        for (const g of GOALS) {
+            if (state.goals?.[g.id] !== undefined || g.level > state.level || !g.check(state)) continue;
+            state = {
+                ...state,
+                goals: { ...(state.goals || {}), [g.id]: state.moveNumber },
+                score: state.score + g.reward,
+                notifications: addNotification(state.notifications, { type: 'levelup', message: `Goal complete: ${g.text} (+${g.reward})` })
+            };
         }
     }
     if (state.notifications !== prev.notifications) {
@@ -643,7 +829,9 @@ const coreReducer = (state, action) => {
 
             const dashing = state.dashArmed;
             const sizeMultiplier = Math.max(0.4, Math.min(2.0, Math.pow(state.weight / 150, 0.4)));
-            const energyCost = Math.round(terrain.energyCost * sizeMultiplier * (hasPassive(state, 'legs') ? 0.85 : 1)) + (dashing ? ABILITIES.dash.energy : 0);
+            // a big body crashes through thick forest: open country suits a grown allosaur
+            const cramped = crampedIn(state, targetHex.terrain);
+            const energyCost = Math.round(terrain.energyCost * sizeMultiplier * (hasPassive(state, 'legs') ? 0.85 : 1) * (cramped ? 1 + 0.35 * (state.level - 2) : 1)) + (dashing ? ABILITIES.dash.energy : 0);
             const timed = passTime(state, { energyCost, terrain: targetHex.terrain });
             let { fitness, notifications } = timed;
 
@@ -683,14 +871,20 @@ const coreReducer = (state, action) => {
                 notifications,
                 dashArmed: false,
                 cooldowns: dashing ? setCooldown(state, 'dash') : state.cooldowns,
-                stats: { ...state.stats, distance: state.stats.distance + 1 },
+                stats: { ...state.stats, distance: state.stats.distance + 1, visited: { ...(state.stats.visited || {}), [targetHex.terrain]: true } },
+                pack: followPack(state, timed.energy),
                 lastPlayerAction: dashing ? { id: uid('act'), type: 'dash' } : state.lastPlayerAction
             };
+            if ((state.pack || []).length > movedState.pack.length) {
+                const gone = state.pack.find((m) => !movedState.pack.some((k) => k.id === m.id));
+                movedState.notifications = addNotification(movedState.notifications, { type: 'warning', message: `${gone.name} is hungry and wanders off to hunt alone.` });
+            }
             const behaviorState = withBehaviors(movedState, processCreatureBehaviors(movedState, { evading: dashing }));
             return {
                 ...behaviorState,
                 selectedHex: null,
-                currentThought: behaviorState.gameOver ? behaviorState.currentThought : contextualThought(behaviorState)
+                currentThought: behaviorState.gameOver ? behaviorState.currentThought
+                    : cramped && Math.random() < 0.5 ? 'Your bulk crashes through the undergrowth. Open country suits you better now.' : contextualThought(behaviorState)
             };
         }
 
@@ -767,6 +961,7 @@ const coreReducer = (state, action) => {
             let next = {
                 ...state,
                 hydration: 100,
+                stats: { ...state.stats, drinks: (state.stats.drinks || 0) + 1 },
                 lastPlayerAction: { id: uid('act'), type: 'drink' },
                 currentThought: 'Cool water. Much better.'
             };
@@ -882,7 +1077,7 @@ const coreReducer = (state, action) => {
             if (!playerHex) return state;
             const current = state.creatures.get(playerKey) || [];
             if (current.length >= MAX_CREATURES_PER_HEX) return state;
-            const spawned = rollSpawns(playerHex.terrain, state, { existing: current.length, key: playerKey });
+            const spawned = rollSpawns(playerHex.terrain, state, { existing: current.length, key: playerKey, flyerBudget: Math.max(0, 3 - countFlyers(state.creatures)) });
             if (spawned.length === 0) return state;
             const newCreaturesMap = new Map(state.creatures);
             newCreaturesMap.set(playerKey, [...current, ...spawned]);
@@ -901,6 +1096,7 @@ const coreReducer = (state, action) => {
                 total += list.length;
             }
             const populatedAt = new Map(state.populatedAt || []);
+            let flyerBudget = Math.max(0, 4 - countFlyers(newCreatures)); // keep the sky from filling up
             for (const [key, hex] of state.cells) {
                 if (total >= MAX_AMBIENT_CREATURES) break;
                 if (!hex.inSight || key === playerKey) continue;
@@ -908,7 +1104,8 @@ const coreReducer = (state, action) => {
                 const last = populatedAt.get(key);
                 if (last !== undefined && state.moveNumber - last < AMBIENT_RESPAWN_TURNS) continue;
                 populatedAt.set(key, state.moveNumber);
-                const spawned = rollSpawns(hex.terrain, state, { chanceScale: 0.4, max: 3, key });
+                const spawned = rollSpawns(hex.terrain, state, { chanceScale: 0.4, max: hex.terrain === 'sauropodgrounds' ? 5 : 3, key, flyerBudget: Math.min(1, flyerBudget) });
+                flyerBudget -= spawned.filter((c) => FLYERS.has(c.species)).length;
                 if (spawned.length) {
                     newCreatures.set(key, spawned);
                     total += spawned.length;
@@ -917,6 +1114,8 @@ const coreReducer = (state, action) => {
             return { ...state, creatures: newCreatures, populatedAt };
         }
 
+        // One round of a fight. Small prey dies in one bite; big animals have
+        // health that you wear down over several rounds while they fight back.
         case 'ATTACK_CREATURE': {
             const { creatureId } = action;
             const style = action.style || 'normal';
@@ -925,101 +1124,140 @@ const coreReducer = (state, action) => {
             if (style === 'ambush' && !inCover(state, playerMisty(state))) return state;
 
             const playerKey = state.player;
-            const targetCreature = (state.creatures.get(playerKey) || []).find((c) => c.id === creatureId);
-            if (!targetCreature) return state;
-            const speciesData = SPECIES_DATA[targetCreature.species];
-            const preyWeight = speciesData.weight * targetCreature.size;
-            if (style === 'hatchet' && !hatchetTarget(state, targetCreature)) return state;
+            const here = state.creatures.get(playerKey) || [];
+            const target = here.find((c) => c.id === creatureId);
+            if (!target) return state;
+            const sd = SPECIES_DATA[target.species];
+            const mass = preyMass(target);
+            if (style === 'hatchet' && !hatchetTarget(state, target)) return state;
+            // an ambush only works on something that hasn't seen you yet
+            if (style === 'ambush' && target.engaged) return state;
+
             let newState = { ...state, creatures: removeCreature(state.creatures, playerKey, creatureId) };
             if (style !== 'normal') newState.cooldowns = setCooldown(state, style);
             let notifications = state.notifications;
-            const combatLog = [];
+            const log = [];
             let outcome;
-
-            // modifiers from the attack style and the prey's condition
-            const mods = ATTACK_MODS[style];
-            const woundMul = targetCreature.wounded ? Math.max(0.15, (targetCreature.health ?? 100) / 100) : 1;
-            const fiercenessRatio = calculateFiercenessRatio(state.weight, state.fitness, speciesData, targetCreature.size) * mods[0] * woundMul;
-            const agilityRatio = calculateAgilityRatio(state.weight, speciesData) * mods[1] * (targetCreature.wounded ? 0.6 : 1);
-            const escapeChance = attemptCreatureEscape(targetCreature.species, speciesData, targetCreature.size, state.weight, state.level) * mods[2];
-            const flee = () => {
-                // it bolts into a neighbouring area: you can give chase
-                const occupancy = new Map([...newState.creatures].map(([k, l]) => [k, l.length]));
-                const to = escapeCell(state, playerKey, occupancy);
-                if (to) newState.creatures = placeCreature(newState.creatures, to, { ...targetCreature, lastBehaviorTurn: state.moveNumber });
+            let creatureAfter = null;
+            const occupancy = () => new Map([...newState.creatures].map(([k, l]) => [k, l.length]));
+            const strikeBack = (mult, verb) => {
+                const shield = hitCompanion(newState, attackDamage(state, target, sd.danger * target.size * mult), target.species);
+                if (shield) {
+                    newState.pack = shield.pack;
+                    log.push(shield.message);
+                    return;
+                }
+                const dmg = attackDamage(state, target, sd.danger * target.size * mult);
+                newState.fitness = Math.max(0, (newState.fitness ?? state.fitness) - dmg);
+                log.push(`It ${verb || sd.injury}. -${dmg} health`);
             };
 
-            if (style === 'hatchet' && agilityRatio < 1.3 && fiercenessRatio < 2.5) {
-                // slash and let it bleed
-                outcome = 'wound';
-                const health = (targetCreature.health ?? 100) - (38 + Math.random() * 18);
-                const occupancy = new Map([...newState.creatures].map(([k, l]) => [k, l.length]));
-                const to = escapeCell(state, playerKey, occupancy) || playerKey;
-                newState.creatures = placeCreature(newState.creatures, to, { ...targetCreature, wounded: true, health, lastBehaviorTurn: state.moveNumber });
-                newState.blood = new Map(state.blood).set(playerKey, state.moveNumber).set(to, state.moveNumber);
-                combatLog.push(`Your hatchet bite opens a deep wound in the ${targetCreature.species}. It flees, bleeding heavily.`);
-                if (Math.random() < 0.35) {
-                    const injury = Math.round(calculateInjuries(fiercenessRatio * 0.6) * (hasPassive(state, 'hide') ? 0.8 : 1));
-                    newState.fitness = Math.max(0, state.fitness - injury);
-                    combatLog.push(`It ${speciesData.injury} as it goes. -${injury} health`);
-                }
-                newState.energy = Math.max(0, state.energy - 6);
-                newState.currentThought = 'Now follow the blood. It will not get far.';
-            } else if (style !== 'hatchet' && Math.random() < escapeChance) {
+            if (Math.random() < boltChance(state, target, style)) {
+                // it gets away before you reach it, into the next area
                 outcome = 'escape';
-                flee();
-                combatLog.push(`The ${targetCreature.species} darts away before you can catch it!`);
+                const to = escapeCell(state, playerKey, occupancy());
+                if (to) newState.creatures = placeCreature(newState.creatures, to, { ...target, lastBehaviorTurn: state.moveNumber });
+                log.push(`The ${target.species} bolts before you can reach it!`);
                 newState.energy = Math.max(0, state.energy - 4);
                 newState.currentThought = 'Too slow! It ran into the next area.';
-            } else if (style !== 'hatchet' && fiercenessRatio < 1 && agilityRatio < 1) {
-                outcome = 'kill';
-                combatLog.push(`${style === 'ambush' ? 'From cover, you' : style === 'pounce' ? 'You pounce and' : 'You'} take the ${targetCreature.species}!`);
-                const injuryAmount = calculateInjuries(fiercenessRatio);
-                if (injuryAmount > 3) {
-                    newState.fitness = Math.max(0, state.fitness - injuryAmount);
-                    combatLog.push(`The struggle hurts you. -${Math.round(injuryAmount)} health`);
-                }
-                const energyGain = calculateEnergyGain(speciesData, targetCreature.size, state.weight, state.level);
-                const fed = feed(state, energyGain, targetCreature.size);
-                newState.energy = fed.energy;
-                newState.weight = fed.weight;
-                newState.score = fed.score;
-                if (fed.weightGain > 0) combatLog.push(`+${fed.weightGain >= 1 ? `${fed.weightGain.toFixed(1)}kg` : `${Math.round(fed.weightGain * 1000)}g`}, full belly.`);
-                else combatLog.push(`+${Math.round(energyGain)} energy.`);
-                // big kills leave leftovers to come back to
-                const hungerRoom = Math.max(1, 100 - state.energy);
-                if (preyWeight > state.weight * 0.5 && energyGain > hungerRoom * 1.6) {
-                    const portions = Math.min(5, Math.floor(energyGain / (hungerRoom * 1.6)));
-                    newState.carcasses = addCarcass(state.carcasses, playerKey, { species: targetCreature.species, size: targetCreature.size, turn: state.moveNumber, portions });
-                    combatLog.push('You cannot finish it all: leftovers remain.');
-                }
-                const growth = applyGrowth(state.level, newState.weight, notifications);
-                newState.level = growth.level;
-                notifications = growth.notifications;
-                newState.stats = { ...state.stats, kills: state.stats.kills + 1 };
-                const entry = state.journal.species[targetCreature.species] || { firstTurn: state.moveNumber, kills: 0 };
-                newState.journal = { ...state.journal, species: { ...state.journal.species, [targetCreature.species]: { ...entry, kills: entry.kills + 1 } } };
-            } else if (style !== 'hatchet' && fiercenessRatio < 1) {
-                outcome = 'escape';
-                flee();
-                combatLog.push(`The ${targetCreature.species} escapes your clumsy attack!`);
-                newState.energy = Math.max(0, state.energy - 5);
             } else {
-                // it fights back and stands its ground
-                outcome = 'hurt';
-                newState.creatures = placeCreature(newState.creatures, playerKey, { ...targetCreature, lastBehaviorTurn: state.moveNumber });
-                const injuries = Math.round(calculateInjuries(fiercenessRatio) * (state.level <= 2 ? 1.8 : 1) * (hasPassive(state, 'hide') ? 0.8 : 1));
-                newState.fitness = Math.max(0, state.fitness - injuries);
-                newState.energy = Math.max(0, state.energy - 12);
-                combatLog.push(`The ${targetCreature.species} ${speciesData.injury}! -${injuries} health`);
+                const bite = biteDamage(state, target, style, packPower(state));
+                const health = (target.health ?? 100) - bite;
+                newState.energy = Math.max(0, state.energy - (mass > state.weight * 0.3 ? 5 : 1));
+                const helpers = (state.pack || []).length;
+                if (health <= 0) {
+                    outcome = 'kill';
+                    log.push(`${style === 'ambush' ? 'From cover, you' : style === 'pounce' ? 'You pounce and' : 'You'} bring down the ${target.species}${helpers ? ' with your pack' : ''}!`);
+                    // the pack eats too
+                    const energyGain = calculateEnergyGain(sd, target.size, state.weight, state.level) / (1 + helpers * 0.35);
+                    const fed = feed({ ...state, energy: newState.energy }, energyGain, target.size);
+                    newState.energy = fed.energy;
+                    newState.weight = fed.weight;
+                    newState.score = fed.score + Math.round(Math.min(400, mass / Math.max(0.01, state.weight) * 25));
+                    log.push(fed.weightGain > 0 ? `+${fed.weightGain >= 1 ? `${fed.weightGain.toFixed(1)}kg` : `${Math.round(fed.weightGain * 1000)}g`}, full belly.` : `+${Math.round(energyGain)} energy.`);
+                    if (helpers) newState.pack = state.pack.map((m) => ({ ...m, health: Math.min(100, m.health + 25) }));
+                    // big kills leave leftovers to come back to
+                    const hungerRoom = Math.max(1, 100 - state.energy);
+                    if (mass > state.weight * 0.5 && energyGain > hungerRoom * 1.6) {
+                        const portions = Math.min(8, Math.floor(energyGain / (hungerRoom * 1.6)));
+                        newState.carcasses = addCarcass(state.carcasses, playerKey, { species: target.species, size: target.size, turn: state.moveNumber, portions });
+                        log.push('You cannot finish it all: leftovers remain.');
+                    }
+                    const growth = applyGrowth(state.level, newState.weight, notifications);
+                    newState.level = growth.level;
+                    notifications = growth.notifications;
+                    newState = recordKill(newState, target.species, mass);
+                } else {
+                    // it survives the bite
+                    const share = Math.round(Math.min(100, (bite / (target.health ?? 100)) * 100));
+                    creatureAfter = { ...target, health, engaged: true, lastBehaviorTurn: state.moveNumber };
+                    if (style === 'hatchet') {
+                        creatureAfter = { ...creatureAfter, wounded: true, bleed: 12, woundedByPlayer: true };
+                        log.push(`Your hatchet bite opens a deep wound in the ${target.species}.`);
+                    } else {
+                        log.push(`You bite the ${target.species}${helpers ? ' as your pack closes in' : ''}. (${share}% of its strength)`);
+                        // deep bites keep bleeding
+                        if (bite > 25 && health < 60) creatureAfter = { ...creatureAfter, wounded: true, bleed: creatureAfter.bleed ?? 5, woundedByPlayer: true };
+                    }
+                    outcome = 'hit';
+                    if (Math.random() < fightBackChance(target.species) * STYLE_MODS[style].counter) {
+                        strikeBack(1, null);
+                        outcome = 'hit_back';
+                    }
+                    // hurt animals that aren't fighters run for it
+                    const runs = (!standsGround(target.species) && health < 45) || style === 'hatchet';
+                    let to = null;
+                    if (runs && Math.random() < 0.8) to = escapeCell(state, playerKey, occupancy());
+                    if (to) {
+                        newState.creatures = placeCreature(newState.creatures, to, creatureAfter);
+                        log.push(creatureAfter.wounded ? 'It flees, bleeding.' : 'It runs for it!');
+                        newState.blood = new Map(state.blood).set(playerKey, state.moveNumber).set(to, state.moveNumber);
+                        outcome = outcome === 'hit_back' ? 'hit_back' : 'flee';
+                    } else {
+                        newState.creatures = placeCreature(newState.creatures, playerKey, creatureAfter);
+                    }
+                    // the rest of a herd defends its own
+                    for (const ally of here) {
+                        if (ally.id === target.id || ally.species !== target.species || !['giant_herbivore', 'dangerous_herbivore', 'herbivore'].includes(sd.behaviorType)) continue;
+                        if (preyMass(ally) < mass || Math.random() > 0.45) continue;
+                        strikeBack(sd.behaviorType === 'herbivore' ? 0.5 : 1, `herd-mate ${SPECIES_DATA[ally.species].injury}`);
+                        break;
+                    }
+                    newState.currentThought = health < 30 ? 'It is weakening. Keep at it.' : outcome === 'hit_back' ? 'It fights back hard.' : 'First blood.';
+                }
             }
-            if (!newState.currentThought || newState.currentThought === state.currentThought) newState.currentThought = combatLog[0];
+            if (!newState.currentThought || newState.currentThought === state.currentThought) newState.currentThought = log[0];
             if (newState.fitness <= 0) {
-                newState = killPlayer(newState, 'combat', state.level === 1 ? `The ${targetCreature.species} was too dangerous for a small hatchling...` : `The ${targetCreature.species} proved too powerful...`);
+                newState = killPlayer(newState, 'combat', state.level === 1 ? `The ${target.species} was too dangerous for a small hatchling...` : `The ${target.species} proved too powerful...`);
             }
-            newState.notifications = addNotification(notifications, { type: outcome === 'kill' || outcome === 'wound' ? 'success' : 'combat', message: combatLog.join(' ') });
+            newState.notifications = addNotification(notifications, { type: outcome === 'kill' ? 'success' : outcome === 'escape' || outcome === 'hit_back' ? 'combat' : 'info', message: log.join(' ') });
             newState.lastPlayerAction = { id: uid('act'), type: 'attack', style, creatureId, outcome };
             return newState;
+        }
+
+        // Invite a young Allosaurus to hunt with you
+        case 'INVITE': {
+            if (state.gameOver || state.level < 2 || (state.pack || []).length >= 2) return state;
+            const here = state.creatures.get(state.player) || [];
+            const c = here.find((x) => x.id === action.creatureId && x.species === 'Juvenile Allosaurus');
+            if (!c || c.engaged) return state;
+            let next = { ...state, creatures: removeCreature(state.creatures, state.player, c.id) };
+            const ratio = preyMass(c) / state.weight;
+            const accept = 0.45 + (ratio > 0.4 && ratio < 2.5 ? 0.25 : 0) + (state.energy > 60 ? 0.1 : 0);
+            if (Math.random() < accept) {
+                const used = new Set((state.pack || []).map((m) => m.name));
+                const name = PACK_NAMES.find((n) => !used.has(n) && Math.random() < 0.5) || PACK_NAMES.find((n) => !used.has(n)) || 'Sibling';
+                next.pack = [...(state.pack || []), { id: c.id, name, weight: Math.max(preyMass(c), state.weight * 0.7), health: 100, joined: state.moveNumber }];
+                next.notifications = addNotification(state.notifications, { type: 'levelup', message: `The young Allosaurus falls in beside you. ${name} joins your hunting pack.` });
+                next.currentThought = 'Two hunt better than one.';
+                next.lastPlayerAction = { id: uid('act'), type: 'recruit', creatureId: c.id };
+            } else {
+                const to = escapeCell(state, state.player, new Map([...next.creatures].map(([k, l]) => [k, l.length])));
+                if (to) next.creatures = placeCreature(next.creatures, to, { ...c, lastBehaviorTurn: state.moveNumber });
+                next.notifications = addNotification(state.notifications, { type: 'warning', message: 'The young Allosaurus snaps at you and lopes off.' });
+                next.currentThought = 'Not today, then.';
+            }
+            return next;
         }
 
         // Eat what other predators (or Big Al) left behind
@@ -1086,6 +1324,10 @@ const coreReducer = (state, action) => {
             };
         }
 
+        // Dev helper (window.setStats in development builds), e.g. { level: 4, weight: 2000 }
+        case 'DEBUG_SET':
+            return { ...state, ...action.patch };
+
         // Dev helper (window.teleport in development builds)
         case 'DEBUG_TELEPORT': {
             if (!state.cells.has(action.key)) return state;
@@ -1122,7 +1364,9 @@ const coreReducer = (state, action) => {
                 populatedAt: new Map(),
                 pois: new Map(),
                 journal: { species: {}, biomes: {}, landmarks: {} },
-                stats: { kills: 0, scavenged: 0, sleeps: 0, distance: 0 }
+                stats: { kills: 0, scavenged: 0, sleeps: 0, distance: 0, drinks: 0, biggestKill: 0, openKills: 0, visited: {} },
+                pack: [],
+                goals: {}
             };
 
         case 'SELECT_HEX':

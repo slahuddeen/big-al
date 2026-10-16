@@ -14,7 +14,8 @@ import { createOutlineMaterial, addOutlines, outlineUniforms } from './outline.j
 import { MistLayer } from './mist.js';
 import { buildPoiMesh } from './pois3d.js';
 import { getWorld } from '../world/worldGen.js';
-import { SPECIES_DATA } from '../data/species.js';
+import { SPECIES_DATA, BODY_LENGTH_M } from '../data/species.js';
+import { waterUniforms } from './water.js';
 import { getTimeOfDay, DAY_LENGTH } from '../game/gameConstants.js';
 
 const DETAIL_RADIUS = 13; // cells closer than this to the camera target get full decoration
@@ -60,7 +61,6 @@ const SKIES = [
     { top: '#0a1030', horizon: '#232c58', glow: '#3a4888', gx: 0.5 },
     { top: '#161a3e', horizon: '#4a4468', glow: '#9a7aa0', gx: 0.25 }
 ];
-const MIST_TINT = ['#fff3e6', '#ffffff', '#ffdcc6', '#9aa6d8', '#c4bce0'].map((c) => new THREE.Color(c));
 export const phaseIndex = (moveNumber) => getTimeOfDay(moveNumber).turnInCycle % PHASES.length;
 
 const GAIT_SPEED = { biped: 0.95, quad: 0.5, sprawl: 0.6, crawl: 0.35, slither: 0.45, hop: 0.7, swim: 0.45, fly: 1.1, flutter: 0.9, perched: 0 };
@@ -142,6 +142,9 @@ export class WorldRenderer {
         this.creatures = new Map();
         this.carcasses = new Map();
         this.bloodMarks = new Map();
+        this.packVis = new Map();
+        this.recruitFrom = new Map();
+        this.mistTint = new THREE.Color('#ffffff');
         this.templates = new Map();
         this.player = null;
         this.seenLog = new Set();
@@ -196,6 +199,7 @@ export class WorldRenderer {
         this.syncCarcasses(state);
         this.syncTraces(state, prev);
         this.syncPlayer(state, prev);
+        this.syncPack(state);
         this.movable = extra.movable || [];
         this.path = extra.path || [];
         this.syncMarkers(state);
@@ -221,6 +225,12 @@ export class WorldRenderer {
             m.geometry.dispose();
         }
         this.bloodMarks.clear();
+        for (const c of this.packVis.values()) {
+            this.actorGroup.remove(c.model.root);
+            c.model.mat.dispose();
+            this.removeHealthBar(c);
+        }
+        this.packVis.clear();
         this.pendingDeaths.clear();
         this.world = getWorld(seed);
         this.worldSeed = seed;
@@ -502,7 +512,9 @@ export class WorldRenderer {
         const template = this.getTemplate(c.species);
         const model = this.instantiate(template);
         const sd = SPECIES_DATA[c.species] || { weight: 1 };
-        const len = displayLength((sd.weight || 1) * (c.size || 1), template.minLen);
+        // the giants are drawn at their real size next to Big Al (length grows with the cube root of mass)
+        const metres = BODY_LENGTH_M[c.species];
+        const len = metres ? metres * 0.162 * Math.cbrt(c.size || 1) : displayLength((sd.weight || 1) * (c.size || 1), template.minLen);
         const rand = mulberry32(hashString(c.id));
         model.seed = rand() * 100;
         const v = {
@@ -698,7 +710,9 @@ export class WorldRenderer {
         // small animals dart in bursts
         if (v.role === 'critter' && v.mv > 0.5 && v.rand() < dt * 0.8) v.burst = 0.6;
         v.burst = Math.max(0, v.burst - dt);
-        const speed = speedBase * (0.35 + v.len * 0.55) * (v.urgent ? 2.2 : 1) * (v.burst > 0 ? 2.2 : 1) * (stalking ? 0.45 : 1);
+        const chasing = (v.data?.chasing || 0) > 0;
+        let speed = speedBase * (0.35 + v.len * 0.55) * (v.urgent || chasing ? 2.2 : 1) * (v.burst > 0 ? 2.2 : 1) * (stalking ? 0.45 : 1);
+        if (v.role === 'browser') speed = Math.min(speed, v.urgent ? 0.9 : 0.4); // giants plod
 
         if (v.gait === 'fly') {
             // circle above the cell, drifting to a new centre when relocated
@@ -804,6 +818,50 @@ export class WorldRenderer {
             phase: v.phase, moving: v.mv, attack, jaw, rear,
             look: v.look, graze: v.graze, browse: v.browse, call: v.call, crouch: v.crouch, rest: v.rest, sniff: v.sniff
         });
+
+        // health bar for anything hurt, in a fight, or big enough to be a fight
+        const health = v.data?.health ?? 100;
+        const big = (SPECIES_DATA[v.species]?.weight ?? 0) * (v.data?.size ?? 1) >= (this.state?.weight ?? 1) * 0.25;
+        const showBar = health < 99.5 || v.data?.engaged || (sameCell && big);
+        this.placeHealthBar(v, showBar, health, y + v.len * (m.height || 0.4) * scale / Math.max(0.001, v.len) + 0.16);
+        if (chasing && !v.chaseShown) this.exclaim(v);
+        v.chaseShown = chasing;
+    }
+
+    // ---------- floating health bars ----------
+    placeHealthBar(v, show, health, top) {
+        if (!show) {
+            if (v.hp) v.hp.group.visible = false;
+            return;
+        }
+        if (!v.hp) {
+            const group = new THREE.Group();
+            const bg = new THREE.Mesh(this.hpBgGeo, new THREE.MeshBasicMaterial({ color: '#0b0806', transparent: true, opacity: 0.9, depthTest: false }));
+            const fill = new THREE.Mesh(this.hpFillGeo, new THREE.MeshBasicMaterial({ color: '#7ccf6a', transparent: true, depthTest: false, toneMapped: false }));
+            bg.renderOrder = 20;
+            fill.renderOrder = 21;
+            fill.position.set(-0.47, 0, 0.001);
+            group.add(bg, fill);
+            this.markerGroup.add(group);
+            v.hp = { group, bg, fill, shown: health };
+        }
+        const hp = v.hp;
+        hp.shown += (health - hp.shown) * 0.15;
+        hp.group.visible = true;
+        hp.group.position.set(v.pos.x, top, v.pos.z);
+        hp.group.quaternion.copy(this.camera.quaternion);
+        hp.group.scale.setScalar((0.5 + Math.min(2.5, v.len) * 0.14) / this.cam.zoom ** 0.6);
+        const k = Math.max(0.001, hp.shown / 100);
+        hp.fill.scale.x = k;
+        hp.fill.material.color.set(k > 0.6 ? '#9cf07a' : k > 0.3 ? '#ffd24a' : '#ff5a4a');
+    }
+
+    removeHealthBar(v) {
+        if (!v.hp) return;
+        this.markerGroup.remove(v.hp.group);
+        v.hp.bg.material.dispose();
+        v.hp.fill.material.dispose();
+        v.hp = null;
     }
 
     updateDying(v, dt) {
@@ -839,14 +897,18 @@ export class WorldRenderer {
             m.root.scale.setScalar(v.len * Math.max(0.001, 1 - k));
             animateModel(m, this.time, { phase: v.phase, moving: 1 });
             if (k >= 1) done = true;
+        } else if (d.type === 'join') {
+            done = true;
         } else {
             const k = Math.min(1, d.t / 0.45);
             m.root.scale.setScalar(v.len * Math.max(0.001, 1 - k));
             if (k >= 1) done = true;
         }
+        if (v.hp) v.hp.group.visible = false;
         if (done) {
             this.actorGroup.remove(m.root);
             m.mat.dispose();
+            this.removeHealthBar(v);
             this.creatures.delete(v.id);
         }
     }
@@ -1022,6 +1084,80 @@ export class WorldRenderer {
         if (!state.gameOver) p.dead = 0;
     }
 
+    // ==================== HUNTING PACK ====================
+    syncPack(state) {
+        const want = new Set((state.pack || []).map((m) => m.id));
+        for (const [id, c] of this.packVis) {
+            if (want.has(id)) continue;
+            this.actorGroup.remove(c.model.root);
+            c.model.mat.dispose();
+            this.removeHealthBar(c);
+            this.burst(c.pos.clone().add(new THREE.Vector3(0, 0.2, 0)), '#a02020', 10);
+            this.packVis.delete(id);
+        }
+        (state.pack || []).forEach((m, i) => {
+            let c = this.packVis.get(m.id);
+            if (!c) {
+                const model = this.instantiate(this.getTemplate('Juvenile Allosaurus'));
+                model.seed = 7 + i;
+                this.actorGroup.add(model.root);
+                const start = this.recruitFrom.get(m.id) || (this.player ? this.player.pos.clone() : new THREE.Vector3());
+                c = { id: m.id, model, pos: start.clone(), yaw: this.player?.yaw ?? 0, phase: 0, mv: 0, len: 0.3, look: 0, data: m, attack: null, species: 'Juvenile Allosaurus' };
+                this.packVis.set(m.id, c);
+            }
+            c.slot = i;
+            c.data = m;
+            c.lenGoal = displayLength(m.weight, 0.2) * 1.1;
+        });
+    }
+
+    updatePack(dt) {
+        const p = this.player;
+        if (!p) return;
+        for (const c of this.packVis.values()) {
+            c.len += (c.lenGoal - c.len) * damp(dt, 2);
+            // walk a little behind and to one side of Big Al
+            const hx = Math.cos(p.yaw);
+            const hz = -Math.sin(p.yaw);
+            const side = c.slot % 2 ? 1 : -1;
+            const back = 0.3 + (p.len + c.len) * 0.3;
+            const tx = p.pos.x - hx * back + -hz * side * 0.38;
+            const tz = p.pos.z - hz * back + hx * side * 0.38;
+            const dx = tx - c.pos.x;
+            const dz = tz - c.pos.z;
+            const dist = Math.hypot(dx, dz);
+            if (dist > 0.05) {
+                const step = Math.min(dist, (dist > 1 ? 2.6 : 1.1) * dt);
+                c.pos.x += (dx / dist) * step;
+                c.pos.z += (dz / dist) * step;
+                c.yaw = lerpAngle(c.yaw, Math.atan2(-dz, dx), damp(dt, 8));
+                c.mv = Math.min(1, c.mv + dt * 5);
+            } else {
+                c.mv = Math.max(0, c.mv - dt * 4);
+                c.yaw = lerpAngle(c.yaw, p.yaw, damp(dt, 2));
+            }
+            c.phase += dt * 14 * Math.max(0.15, c.mv);
+            let attack = 0;
+            if (c.attack) {
+                c.attack.t += dt;
+                const k = Math.max(0, c.attack.t) / 0.6;
+                if (k >= 1) c.attack = null;
+                else if (c.attack.t > 0) {
+                    attack = Math.sin(Math.PI * k);
+                    if (c.attack.target) c.yaw = lerpAngle(c.yaw, Math.atan2(-(c.attack.target.z - c.pos.z), c.attack.target.x - c.pos.x), damp(dt, 14));
+                }
+            }
+            c.look = approach(c.look, Math.sin(this.time * 0.4 + c.slot * 2) * 0.6, dt, 2);
+            const y = this.groundAt(c.pos.x, c.pos.z);
+            c.model.root.position.set(c.pos.x, y, c.pos.z);
+            c.model.root.rotation.set(0, c.yaw, 0);
+            c.model.root.scale.setScalar(c.len);
+            animateModel(c.model, this.time, { phase: c.phase, moving: c.mv, attack, jaw: attack, look: c.look, rest: p.rest * 0.9 });
+            const h = c.data.health ?? 100;
+            this.placeHealthBar(c, h < 99.5, h, y + c.len * (c.model.height || 0.4) + 0.12);
+        }
+    }
+
     hurtPlayer() {
         const p = this.player;
         if (!p) return;
@@ -1189,13 +1325,15 @@ export class WorldRenderer {
                 const v = this.creatures.get(a.creatureId);
                 const target = v ? v.pos.clone() : null;
                 const hit = v ? v.pos.clone().add(new THREE.Vector3(0, v.len * 0.25 + 0.05, 0)) : null;
-                const lands = a.outcome === 'kill' || a.outcome === 'wound';
+                const lands = a.outcome !== 'escape';
                 p.attack = { t: 0, target, hitAt: lands ? hit : null, color: '#b02020' };
+                for (const c of this.packVis.values()) c.attack = { t: -0.1 - Math.random() * 0.2, target };
                 if (a.outcome === 'kill') {
                     this.pendingDeaths.set(a.creatureId, 'death');
-                    this.cam.shake = Math.max(this.cam.shake, 0.08);
-                } else if (a.outcome === 'hurt' && v) {
-                    v.attack = { t: -0.25, target: p.pos.clone() };
+                    this.cam.shake = Math.max(this.cam.shake, 0.08 + Math.min(0.25, (v?.len || 0) * 0.05));
+                } else if (a.outcome === 'hit_back' && v) {
+                    v.attack = { t: -0.3, target: p.pos.clone() };
+                    v.alertUntil = this.time + 4;
                 } else if (v) {
                     v.alertUntil = this.time + 3;
                 }
@@ -1214,6 +1352,11 @@ export class WorldRenderer {
                 this.cam.shake = Math.max(this.cam.shake, 0.3);
                 this.soundRing({ pos: p.pos, len: p.len, model: p.model }, 1.6);
                 this.ripple(p.pos, '#ffd890', 3, 1.1);
+            } else if (a.type === 'recruit') {
+                const v = this.creatures.get(a.creatureId);
+                if (v) this.recruitFrom.set(a.creatureId, v.pos.clone());
+                this.pendingDeaths.set(a.creatureId, 'join');
+                this.burst(p.pos.clone().add(new THREE.Vector3(0, 0.3, 0)), '#ffd84a', 14);
             } else if (a.type === 'dash') {
                 p.moveDur = 0.3;
                 for (let i = 0; i < 6; i++) this.dust(p.pos, 1.2);
@@ -1244,6 +1387,8 @@ export class WorldRenderer {
         this.playerRing = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ color: '#ffb020', transparent: true, opacity: 0.7, depthWrite: false, vertexColors: true }));
         this.playerRing.renderOrder = 5;
         this.markerGroup.add(this.playerRing);
+        this.hpBgGeo = new THREE.PlaneGeometry(1.08, 0.2);
+        this.hpFillGeo = new THREE.PlaneGeometry(0.94, 0.1).translate(0.47, 0, 0);
         const dotGeo = new THREE.CircleGeometry(0.09, 6).rotateX(-Math.PI / 2);
         this.pathDots = Array.from({ length: 40 }, () => {
             const d = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: '#ffe08a', transparent: true, opacity: 0.85, depthWrite: false }));
@@ -1367,18 +1512,6 @@ export class WorldRenderer {
         this.fireflyData = Array.from({ length: n }, () => ({ ox: (Math.random() - 0.5) * 10, oz: (Math.random() - 0.5) * 10, h: 0.15 + Math.random() * 0.7, ph: Math.random() * 10, sp: 0.3 + Math.random() * 0.6 }));
         this.fxGroup.add(this.fireflies);
         this.night = 0;
-
-        // a flock of small pterosaurs wheeling overhead (pure decoration)
-        this.flock = [];
-        const tpl = buildCreatureModel('Rhamphorhynchus', { mat: this.mats.creature, wingMat: this.mats.wing });
-        addOutlines(tpl.root, this.mats.outline, (m) => m.material === this.mats.wing);
-        for (let i = 0; i < 5; i++) {
-            const m = this.instantiate(tpl);
-            m.seed = i * 1.7;
-            m.root.scale.setScalar(0.32 + Math.random() * 0.1);
-            this.fxGroup.add(m.root);
-            this.flock.push({ model: m, off: i * 0.5, r: 3.5 + Math.random() * 1.5, h: 3 + Math.random() * 0.8 });
-        }
 
         // shared particle geometry
         this.particleGeo = new THREE.TetrahedronGeometry(0.04);
@@ -1525,17 +1658,6 @@ export class WorldRenderer {
         col.needsUpdate = true;
         this.fireflies.visible = this.night > 0.02;
 
-        const day = 1 - this.night;
-        this.flock.forEach((b, i) => {
-            const a = t * 0.25 + b.off;
-            const x = cx + Math.cos(a) * b.r;
-            const z = cz + Math.sin(a) * b.r * 0.8;
-            b.model.root.position.set(x, b.h + Math.sin(t * 0.7 + i) * 0.2, z);
-            b.model.root.rotation.y = Math.atan2(-Math.cos(a) * 0.8, -Math.sin(a));
-            b.model.root.visible = day > 0.4;
-            animateModel(b.model, t, { bank: 2 });
-        });
-
         // volcano smoke
         this.smokeTimer += dt;
         if (this.smokeTimer > 0.35) {
@@ -1549,8 +1671,11 @@ export class WorldRenderer {
         const pulse = 0.85 + Math.sin(t * 2.2) * 0.15;
         this.mats.lava.color.setRGB(pulse * 1.1, pulse, pulse);
 
+        // mist takes its colour from the sky and the light rather than being plain white
+        const lc = this.light.cur;
+        if (lc) this.mistTint.copy(lc.horizon).lerp(lc.sky, 0.45).lerp(lc.ground, 0.12).multiplyScalar(0.92);
         const phase = Math.max(0, this.light.phase);
-        this.mist.update(dt, t, this.tiles, phase, this.cam.target, MIST_TINT[phase]);
+        this.mist.update(dt, t, this.tiles, phase, this.cam.target, this.mistTint);
     }
 
     updateLighting(dt) {
@@ -1585,6 +1710,12 @@ export class WorldRenderer {
         this.sun.position.set(tg.x + Math.cos(c.az) * Math.cos(c.el) * 25, tg.y + Math.sin(c.el) * 25, tg.z + Math.sin(c.az) * Math.cos(c.el) * 25);
         this.sun.target.position.copy(tg);
         this.postfx.setSky(c.top, c.horizon, c.glow, c.gx);
+        const wu = waterUniforms;
+        wu.uSunDir.value.copy(this.sun.position).sub(this.sun.target.position).normalize();
+        wu.uSunColor.value.copy(c.sun).multiplyScalar(c.sunI * 0.38);
+        wu.uAmbient.value.copy(c.sky).multiplyScalar(c.hemiI * 0.42);
+        wu.uSkyTop.value.copy(c.top);
+        wu.uSkyHorizon.value.copy(c.horizon);
     }
 
     // ==================== CAMERA & INPUT ====================
@@ -1803,6 +1934,7 @@ export class WorldRenderer {
         this.updateLighting(dt);
         for (const v of [...this.creatures.values()]) this.updateCreature(v, dt);
         this.updatePlayer(dt);
+        this.updatePack(dt);
         this.updateMarkers();
         this.updateTraces();
         this.updateAmbient(dt);

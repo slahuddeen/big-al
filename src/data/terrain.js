@@ -1,4 +1,4 @@
-﻿// ==================== TERRAIN SYSTEM ====================
+// ==================== TERRAIN SYSTEM ====================
 const createTerrain = (name, emoji, color, config = {}) => ({
     name,
     emoji,
@@ -22,8 +22,8 @@ export const TERRAIN_TYPES = {
         description: "The shallow Sundance Sea - far too deep to wade"
     }),
     river: createTerrain("River", "🌊", "#2563eb", {
-        isWater: true, category: 'water', description: "Deep, fast river - wade carefully",
-        dangerLevel: 2, energyCost: 12, fitnessRisk: 0.3, minWeight: 50
+        isWater: true, category: 'water', description: "Deep, fast river - hatchlings are swept away, juveniles can wade",
+        dangerLevel: 2, energyCost: 12, fitnessRisk: 0.3, minWeight: 12
     }),
     stream: createTerrain("Stream", "💧", "#38bdf8", {
         isWater: true, category: 'water', description: "Shallow stream - safe to splash across",

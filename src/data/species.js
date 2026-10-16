@@ -331,9 +331,9 @@ export const HABITAT_SPECIES = {
         'Compsognathus': 0.1, 'Sphenodontian': 0.1, 'Ornitholestes': 0.08, 'Mesadactylus': 0.12
     },
     'sauropodgrounds': {
-        // Migration route - active but not overwhelming
-        'Harpactognathus': 0.15, 'Mesadactylus': 0.12, 'Camptosaurus': 0.12, 'Stegosaurus': 0.12,
-        'Diplodocus': 0.18, 'Brachiosaurus': 0.15, 'Camarasaurus': 0.18,
+        // Migration route: sauropod herds on the move, and the predators that follow them
+        'Harpactognathus': 0.08, 'Camptosaurus': 0.12, 'Stegosaurus': 0.12, 'Dryosaurus': 0.1,
+        'Diplodocus': 0.45, 'Brachiosaurus': 0.3, 'Camarasaurus': 0.4, 'Stokesosaurus': 0.06,
         'Ceratosaurus': 0.1, 'Torvosaurus': 0.08, 'Male Allosaurus': 0.12, 'Female Allosaurus': 0.12,
         'Saurophaganax': 0.05, 'Kepodactylus': 0.08
     },
@@ -371,7 +371,7 @@ export const HABITAT_SPECIES = {
         'Rhamphorhynchus': 0.15, 'Diplodocus': 0.15, 'Brachiosaurus': 0.12, 'Kepodactylus': 0.1
     },
     'beach': {
-        'Dragonfly': 0.15, 'Frog': 0.12, 'Fish': 0.18, 'Cricket': 0.1, 'Turtle': 0.2,
+        'Dragonfly': 0.15, 'Frog': 0.12, 'Cricket': 0.1, 'Turtle': 0.2,
         'Lizard': 0.12, 'Crocodile': 0.15, 'Harpactognathus': 0.12, 'Mesadactylus': 0.15, 'Kepodactylus': 0.08
     },
 
@@ -491,7 +491,7 @@ export const HABITAT_SPECIES = {
     },
     'galleryforest': {
         'Stokesosaurus': 0.07,
-        'Dragonfly': 0.25, 'Frog': 0.18, 'Centipede': 0.15, 'Mammal': 0.15, 'Turtle': 0.12, 'Fish': 0.1,
+        'Dragonfly': 0.25, 'Frog': 0.18, 'Centipede': 0.15, 'Mammal': 0.15, 'Turtle': 0.12,
         'Compsognathus': 0.12, 'Othnielia': 0.14, 'Dryosaurus': 0.14, 'Camptosaurus': 0.1, 'Harpactognathus': 0.12,
         'Rhamphorhynchus': 0.08, 'Hesperornithoides': 0.08, 'Stegosaurus': 0.06, 'Crocodile': 0.07, 'Torvosaurus': 0.06
     },
@@ -500,7 +500,7 @@ export const HABITAT_SPECIES = {
     // SPECIAL AREAS - Active but not crazy
     'nest': {
         'Dragonfly': 0.2, 'Cricket': 0.15, 'Centipede': 0.18, 'Scorpion': 0.1,
-        'Compsognathus': 0.25, 'Ornitholestes': 0.3, 'Mesadactylus': 0.15  // Nest raiders
+        'Compsognathus': 0.25, 'Ornitholestes': 0.3, 'Mesadactylus': 0.05  // Nest raiders
     }
 };
 
@@ -510,9 +510,28 @@ export const GROUP_SIZE = {
     Compsognathus: [2, 4], Ornitholestes: [1, 3], Hesperornithoides: [1, 2],
     Dryosaurus: [2, 4], Othnielia: [2, 4], Camptosaurus: [1, 3],
     Stegosaurus: [1, 2], Kentrosaurus: [1, 2], Tuojiangosaurus: [1, 2],
-    Diplodocus: [1, 3], Camarasaurus: [1, 3], Brachiosaurus: [1, 2],
-    Mesadactylus: [1, 3], Rhamphorhynchus: [1, 3]
+    Diplodocus: [2, 5], Camarasaurus: [2, 4], Brachiosaurus: [1, 3],
+    Mesadactylus: [1, 2], Rhamphorhynchus: [1, 2]
 };
+
+// Animals that can fly (and so crowd the sky if too many spawn)
+export const FLYERS = new Set(['Mesadactylus', 'Harpactognathus', 'Kepodactylus', 'Rhamphorhynchus']);
+
+// Extra toughness: armour, sheer bulk or a shell soak up bites
+export const TOUGHNESS = {
+    Turtle: 2.5, Crocodile: 1.6, Stegosaurus: 1.6, Kentrosaurus: 1.5, Tuojiangosaurus: 1.5,
+    Diplodocus: 2.2, Camarasaurus: 2.2, Brachiosaurus: 2.5, Torvosaurus: 1.2, Saurophaganax: 1.2
+};
+
+// Predators that will run you down across several areas
+export const CHASERS = {
+    Compsognathus: 0.8, Ornitholestes: 0.8, Hesperornithoides: 0.75, Coelurus: 0.6, Stokesosaurus: 0.75,
+    'Juvenile Allosaurus': 0.7, Ceratosaurus: 0.6, 'Male Allosaurus': 0.6, 'Female Allosaurus': 0.6,
+    Torvosaurus: 0.5, Saurophaganax: 0.55
+};
+
+// Real body length in metres, used to draw the giants at their true scale
+export const BODY_LENGTH_M = { Diplodocus: 26, Brachiosaurus: 22, Camarasaurus: 18 };
 
 // When each animal is about: 'day', 'night', 'twilight' (dawn and dusk) or both
 export const ACTIVITY = {

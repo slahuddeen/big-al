@@ -2,6 +2,7 @@ import React from 'react';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { WATER_SOURCES, thirstFactor } from '../game/environment.js';
 import { POI_TYPES } from '../game/pois.js';
+import { crampedIn } from '../game/gameState.js';
 import CreaturePortrait from './CreaturePortrait.jsx';
 import Icon from './Icon.jsx';
 
@@ -31,7 +32,8 @@ const HoverTooltip = ({ hex, mousePos, creatures, gameState, pathLength }) => {
                 <span className="chip"><Icon name="eye" size={11} />{SIGHT[terrain.visibility] || 'Normal'} sight</span>
                 {WATER_SOURCES.has(cell.terrain) && <span className="chip" style={{ color: 'var(--water)' }}><Icon name="water" size={11} />Water</span>}
                 {thirst >= 1.3 && <span className="chip" style={{ color: 'var(--food)' }}>Hot and dry</span>}
-                {terrain.minWeight > 0 && <span className="chip" style={{ color: 'var(--warn)' }}>Needs {terrain.minWeight}kg</span>}
+                {terrain.minWeight > 0 && <span className="chip" style={{ color: gameState.weight < terrain.minWeight ? 'var(--bad)' : 'var(--good)' }}>{gameState.weight < terrain.minWeight ? `Deadly under ${terrain.minWeight}kg` : 'You can wade it'}</span>}
+                {crampedIn(gameState, cell.terrain) && <span className="chip" style={{ color: 'var(--warn)' }}>Cramped for your size</span>}
                 {terrain.fitnessRisk > 0 && terrain.fitnessRisk < 1 && <span className="chip" style={{ color: 'var(--warn)' }}>Rough going</span>}
                 {pathLength > 1 && <span className="chip" style={{ color: 'var(--accent)' }}>{pathLength} steps</span>}
             </div>
