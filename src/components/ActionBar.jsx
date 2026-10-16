@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ABILITIES, abilityUnlocked, cooldownLeft } from '../game/abilities.js';
 import { WATER_SOURCES, shelterOf } from '../game/environment.js';
-import { LEVEL_NAMES, sleepBlockers } from '../game/gameState.js';
+import { LEVEL_NAMES, sleepBlockers, canDrink, hideChance, raining } from '../game/gameState.js';
 import { capitalise } from '../utils/format.js';
 import Icon from './Icon.jsx';
 
@@ -9,7 +9,8 @@ import Icon from './Icon.jsx';
 export const getActions = (gameState) => {
     const here = gameState.cells.get(gameState.player);
     const blockers = sleepBlockers(gameState);
-    const water = here && [gameState.player, ...here.neighbors].some((k) => WATER_SOURCES.has(gameState.cells.get(k)?.terrain));
+    const water = canDrink(gameState);
+    const nearDried = here && [gameState.player, ...here.neighbors].some((k) => WATER_SOURCES.has(gameState.cells.get(k)?.terrain));
     const wallow = gameState.pois.get(gameState.player)?.type === 'wallow';
     const shelter = here ? shelterOf(here.terrain)[0] : 1;
     const ability = (id) => {
@@ -17,7 +18,7 @@ export const getActions = (gameState) => {
         const unlocked = abilityUnlocked(gameState, id);
         const cd = cooldownLeft(gameState, id);
         let reason = null;
-        if (!unlocked) reason = `Unlocks as a ${LEVEL_NAMES[a.level]}`;
+        if (!unlocked) reason = gameState.level > (a.maxLevel ?? 99) ? 'You are too big for this now' : `Unlocks as a ${LEVEL_NAMES[a.level]}`;
         else if (cd > 0) reason = `Ready in ${cd} turn${cd > 1 ? 's' : ''}`;
         else if (gameState.energy <= (a.energy || 0)) reason = 'Too tired';
         return { id, icon: id, label: a.name, desc: a.desc, unlocked, cooldown: cd, reason, cost: a.energy };
@@ -30,9 +31,10 @@ export const getActions = (gameState) => {
         },
         {
             id: 'drink', icon: 'drink', label: 'Drink', unlocked: true,
-            reason: !water ? 'No fresh water within reach' : gameState.hydration >= 99 ? 'Not thirsty' : null,
-            desc: 'Drink your fill from water here or next to you. Watch for crocodiles.'
+            reason: !water ? (nearDried ? 'The water here has dried up' : 'No fresh water within reach') : gameState.hydration >= 99 ? 'Not thirsty' : null,
+            desc: raining(gameState) ? 'It is raining: lap water from the puddles anywhere.' : 'Drink your fill from water here or next to you. Watch for crocodiles. In the drought, streams, waterholes and marshes dry up.'
         },
+        { ...ability('hide'), desc: `${ABILITIES.hide.desc} Cover here: ${Math.round(hideChance(gameState) * 100)}%.` },
         ability('sniff'),
         { ...ability('dash'), armed: gameState.dashArmed, reason: gameState.dashArmed ? null : ability('dash').reason },
         ability('roar')
@@ -76,6 +78,7 @@ const ActionBar = ({ gameState, dispatch, onJournal, journalNew }) => {
     const run = (a) => {
         if (a.id === 'sleep') dispatch({ type: 'SLEEP' });
         else if (a.id === 'drink') dispatch({ type: 'DRINK' });
+        else if (a.id === 'hide') dispatch({ type: 'HIDE' });
         else dispatch({ type: 'USE_ABILITY', ability: a.id });
     };
     return (
@@ -95,6 +98,7 @@ export const actionHotkeys = (gameState, dispatch, key) => {
     if (!a || (a.reason && !a.armed)) return false;
     if (a.id === 'sleep') dispatch({ type: 'SLEEP' });
     else if (a.id === 'drink') dispatch({ type: 'DRINK' });
+    else if (a.id === 'hide') dispatch({ type: 'HIDE' });
     else dispatch({ type: 'USE_ABILITY', ability: a.id });
     return true;
 };

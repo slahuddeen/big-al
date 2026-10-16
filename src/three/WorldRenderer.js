@@ -12,6 +12,8 @@ import { MeshBuilder, blob, limb, loft, mulberry32, hashString } from './lowpoly
 import { PostFX } from './postfx.js';
 import { createOutlineMaterial, addOutlines, outlineUniforms } from './outline.js';
 import { MistLayer } from './mist.js';
+import { WeatherLayer } from './weather3d.js';
+import { windAt, drynessAt, weatherAt, isDrought, DRIES_UP } from '../game/weather.js';
 import { buildPoiMesh } from './pois3d.js';
 import { getWorld } from '../world/worldGen.js';
 import { SPECIES_DATA, BODY_LENGTH_M } from '../data/species.js';
@@ -44,6 +46,9 @@ const envelope = (t, dur, fadeIn = 0.35, fadeOut = 0.45) => Math.max(0, Math.min
 // stays readable on a cell.
 export const displayLength = (massKg, minLen = 0.14) =>
     Math.max(minLen, Math.min(1.9, 0.15 * Math.pow(Math.max(massKg, 0.001) / 0.002, 0.15)));
+
+const GREY_SKY = new THREE.Color('#b4bcc4');
+const GIANT_SPECIES = new Set(['Diplodocus', 'Camarasaurus', 'Brachiosaurus']);
 
 // Lighting presets per turn of the day/night cycle
 const PHASES = [
@@ -131,6 +136,9 @@ export class WorldRenderer {
         this.markerGroup = new THREE.Group();
         this.scene.add(this.tileGroup, this.actorGroup, this.fxGroup, this.markerGroup);
         this.mist = new MistLayer(this.fxGroup);
+        this.weatherFx = new WeatherLayer(this.fxGroup);
+        // smoothed weather, so a change of weather rolls in rather than snapping
+        this.wx = { angle: 0, strength: 0.25, rain: 0, storm: 0, cloud: 0, dry: 0, flash: 0, drought: null, ready: false };
 
         // ---- world state mirrors ----
         this.tiles = new Map();
@@ -149,6 +157,7 @@ export class WorldRenderer {
         this.player = null;
         this.seenLog = new Set();
         this.lastPlayerActionId = undefined;
+        this.skyTmp = [new THREE.Color(), new THREE.Color(), new THREE.Color(), new THREE.Color()];
         this.lastFitness = null;
         this.hurtDelay = 0;
         this.pendingHurt = null;
@@ -289,6 +298,7 @@ export class WorldRenderer {
         });
         for (const g of this.outlines.values()) g.dispose();
         this.mist.dispose();
+        this.weatherFx.dispose();
         this.postfx.dispose();
         this.renderer.dispose();
         this.renderer.domElement.remove();
@@ -340,6 +350,7 @@ export class WorldRenderer {
             tile.water = new THREE.Mesh(data.water, this.mats.water);
             tile.water.receiveShadow = true;
             tile.water.renderOrder = 2;
+            tile.water.visible = !(this.wx?.drought && DRIES_UP.has(tile.terrain));
             tile.group.add(tile.water);
         }
         if (data.lava) {
@@ -1285,7 +1296,15 @@ export class WorldRenderer {
         let graze = 0;
         let sniff = 0;
         let call = 0;
+        let crouch = 0;
         let look = Math.sin(this.time * 0.3) * 0.4;
+        // lying low in cover for the rest of the turn after hiding
+        const hidden = this.state && this.state.hiddenAt === this.state.moveNumber;
+        if (hidden && !moving) {
+            crouch = 1;
+            rest = 0.3;
+            look = Math.sin(this.time * 0.8) * 0.5;
+        }
         if (p.anim) {
             p.anim.t += dt;
             const e = envelope(p.anim.t, p.anim.dur, 0.4, 0.5);
@@ -1307,6 +1326,16 @@ export class WorldRenderer {
                 sniff = e;
             } else if (p.anim.type === 'roar') {
                 call = Math.sin(Math.PI * Math.min(1, p.anim.t / p.anim.dur));
+            } else if (p.anim.type === 'hide') {
+                // press flat into the cover; if spotted, jerk the head up
+                crouch = Math.max(crouch, e);
+                rest = Math.max(rest, e * 0.35);
+                if (p.anim.found && p.anim.t > 0.7) {
+                    crouch *= 0.4;
+                    look = Math.sin(p.anim.t * 9) * 0.6;
+                }
+            } else if (p.anim.type === 'harass') {
+                call = Math.sin(Math.PI * Math.min(1, p.anim.t / 0.9)) * (p.anim.t < 0.9 ? 1 : 0);
             }
             if (p.anim.t >= p.anim.dur) p.anim = null;
         } else if (!moving && !p.gameOver) {
@@ -1331,6 +1360,7 @@ export class WorldRenderer {
         p.sniff = approach(p.sniff, sniff, dt, 7);
         p.call = approach(p.call, call, dt, 10);
         p.look = approach(p.look, look, dt, 4);
+        p.crouch = approach(p.crouch || 0, crouch, dt, 5);
 
         const y = this.groundAt(p.pos.x, p.pos.z) + (moving ? Math.sin(Math.PI * p.moveT) * 0.15 : 0);
         m.root.position.set(p.pos.x, y, p.pos.z);
@@ -1345,7 +1375,7 @@ export class WorldRenderer {
         m.mat.emissive.setRGB(p.hurt * 0.8, 0, 0);
         animateModel(m, this.time, {
             phase: p.phase, moving, attack, jaw: attack, look: p.look,
-            rest: p.rest, graze: p.graze, sniff: p.sniff, call: p.call
+            rest: p.rest, graze: p.graze, sniff: p.sniff, call: p.call, crouch: p.crouch
         });
         this.playerRing.position.set(p.pos.x, y + 0.012, p.pos.z);
         this.playerRing.scale.setScalar(0.32 + p.len * 0.25);
@@ -1430,6 +1460,26 @@ export class WorldRenderer {
                 if (v) this.recruitFrom.set(a.creatureId, v.pos.clone());
                 this.pendingDeaths.set(a.creatureId, 'join');
                 this.burst(p.pos.clone().add(new THREE.Vector3(0, 0.3, 0)), '#ffd84a', 14);
+            } else if (a.type === 'hide') {
+                p.anim = { type: 'hide', t: 0, dur: 2.2, found: a.outcome === 'found' };
+                if (a.outcome === 'found') this.exclaim(p);
+            } else if (a.type === 'harass') {
+                // dart in at the herd; the adults rear and bellow, and a split leaves the calf calling
+                p.anim = { type: 'harass', t: 0, dur: 1.4 };
+                const near = [...this.creatures.values()].filter((v) => v.hexKey === state.player && GIANT_SPECIES.has(v.species));
+                const target = near.find((v) => v.id === a.calfId) || near[0];
+                if (target) p.attack = { t: 0, target: target.pos.clone(), hitAt: null };
+                for (let i = 0; i < 6; i++) this.dust(p.pos, 1.4);
+                for (const v of near) {
+                    if (v.id === a.calfId) continue;
+                    v.idle = { kind: 'call', t: 0, dur: 1.6 };
+                    this.soundRing(v);
+                }
+                this.cam.shake = Math.max(this.cam.shake, 0.15);
+                if (a.outcome === 'split') {
+                    const calf = this.creatures.get(a.calfId);
+                    if (calf) calf.idle = { kind: 'call', t: 0, dur: 2.2 };
+                }
             } else if (a.type === 'dash') {
                 p.moveDur = 0.3;
                 for (let i = 0; i < 6; i++) this.dust(p.pos, 1.2);
@@ -1724,7 +1774,7 @@ export class WorldRenderer {
             const tile = this.tileAt(x, z);
             const ok = tile && tile.lit && !['lake', 'mountains', 'volcanic', 'lavafield', 'desert'].includes(tile.terrain);
             pos.setXYZ(i, x, (tile ? tile.surfaceY : 0.3) + f.h + Math.sin(t * 1.3 + f.ph) * 0.08, z);
-            const b = ok ? this.night * Math.max(0, Math.sin(t * 2.4 + f.ph * 3)) : 0;
+            const b = ok ? this.night * (1 - this.wx.rain) * Math.max(0, Math.sin(t * 2.4 + f.ph * 3)) : 0;
             col.setXYZ(i, b * 0.9, b, b * 0.4);
         });
         pos.needsUpdate = true;
@@ -1751,6 +1801,56 @@ export class WorldRenderer {
         this.mist.update(dt, t, this.tiles, phase, this.cam.target, this.mistTint);
     }
 
+    // ==================== WEATHER ====================
+    updateWeather(dt) {
+        const st = this.state;
+        const W = this.wx;
+        if (!st || st.worldSeed === null || st.worldSeed === undefined) return;
+        const turn = st.moveNumber;
+        const weather = weatherAt(st.worldSeed, turn);
+        const wind = windAt(st.worldSeed, turn);
+        const goal = {
+            rain: weather === 'rain' ? 0.75 : weather === 'storm' ? 1 : 0,
+            storm: weather === 'storm' ? 1 : 0,
+            cloud: { clear: 0, cloudy: 0.5, rain: 0.8, storm: 1 }[weather],
+            dry: drynessAt(turn)
+        };
+        // snap rather than fade on the first frame or after a jump in time (a loaded game)
+        if (!W.ready || Math.abs(turn - W.turn) > 1) {
+            Object.assign(W, goal, { angle: wind.angle, strength: wind.strength, ready: true });
+        }
+        W.turn = turn;
+        const k = damp(dt, 0.6);
+        W.rain += (goal.rain - W.rain) * k;
+        W.storm += (goal.storm - W.storm) * k;
+        W.cloud += (goal.cloud - W.cloud) * k;
+        W.dry += (goal.dry - W.dry) * damp(dt, 0.4);
+        W.angle = lerpAngle(W.angle, wind.angle, damp(dt, 0.5));
+        // gusts: the wind breathes on top of its turn-to-turn strength
+        const gust = 1 + Math.sin(this.time * 0.37) * 0.12 + Math.sin(this.time * 1.13 + 1.7) * 0.06;
+        W.strength += (wind.strength * gust - W.strength) * damp(dt, 0.8);
+        const dir = { x: Math.cos(W.angle), z: Math.sin(W.angle) };
+        sharedUniforms.uWind.value.set(dir.x, dir.z, W.strength);
+        sharedUniforms.uDry.value = W.dry;
+        sharedUniforms.uRain.value = W.rain;
+
+        // the small waters dry up in the drought and come back with the rains
+        const drought = isDrought(turn);
+        if (drought !== W.drought) {
+            W.drought = drought;
+            for (const tile of this.tiles.values()) {
+                if (tile.water && DRIES_UP.has(tile.terrain)) tile.water.visible = !drought;
+            }
+        }
+
+        const fx = this.weatherFx.update(dt, this.time, {
+            centre: this.cam.target, wind: { x: dir.x, z: dir.z, strength: W.strength },
+            rain: W.rain, storm: W.storm, dry: W.dry, zoom: this.cam.zoom
+        });
+        W.flash = fx.flash;
+        if (fx.thunder) this.cam.shake = Math.max(this.cam.shake, 0.12);
+    }
+
     updateLighting(dt) {
         const target = PHASES[Math.max(0, this.light.phase)];
         const sky = SKIES[Math.max(0, this.light.phase)];
@@ -1774,21 +1874,28 @@ export class WorldRenderer {
         c.hemiI += (target.hemiI - c.hemiI) * k;
         c.az = lerpAngle(c.az, target.sunAz, k);
         c.el += (target.sunEl - c.el) * k;
+        // cloud cover dims the sun and flattens the light; lightning lights everything up
+        const W = this.wx;
         this.sun.color.copy(c.sun);
-        this.sun.intensity = c.sunI;
-        this.hemi.color.copy(c.sky);
+        this.sun.intensity = c.sunI * (1 - W.cloud * 0.62) + W.flash * 2.5;
+        this.hemi.color.copy(c.sky).lerp(GREY_SKY, W.cloud * 0.4);
         this.hemi.groundColor.copy(c.ground);
-        this.hemi.intensity = c.hemiI;
+        this.hemi.intensity = c.hemiI * (1 + W.cloud * 0.12) + W.flash * 1.6;
         const tg = this.cam.target;
         this.sun.position.set(tg.x + Math.cos(c.az) * Math.cos(c.el) * 25, tg.y + Math.sin(c.el) * 25, tg.z + Math.sin(c.az) * Math.cos(c.el) * 25);
         this.sun.target.position.copy(tg);
-        this.postfx.setSky(c.top, c.horizon, c.glow, c.gx);
+        const grey = W.cloud * 0.7;
+        const top = this.skyTmp[0].copy(c.top).lerp(this.skyTmp[3].copy(GREY_SKY).multiplyScalar(0.55 + c.hemiI * 0.3), grey);
+        const horizon = this.skyTmp[1].copy(c.horizon).lerp(this.skyTmp[3].copy(GREY_SKY).multiplyScalar(0.6 + c.hemiI * 0.32), grey);
+        const glow = this.skyTmp[2].copy(c.glow).lerp(horizon, W.cloud * 0.85);
+        this.postfx.setSky(top, horizon, glow, c.gx);
+        this.postfx.setWeather(W.cloud * 0.55 + W.rain * 0.15, W.flash);
         const wu = waterUniforms;
         wu.uSunDir.value.copy(this.sun.position).sub(this.sun.target.position).normalize();
-        wu.uSunColor.value.copy(c.sun).multiplyScalar(c.sunI * 0.38);
+        wu.uSunColor.value.copy(c.sun).multiplyScalar(c.sunI * 0.38 * (1 - W.cloud * 0.7));
         wu.uAmbient.value.copy(c.sky).multiplyScalar(c.hemiI * 0.42);
-        wu.uSkyTop.value.copy(c.top);
-        wu.uSkyHorizon.value.copy(c.horizon);
+        wu.uSkyTop.value.copy(top);
+        wu.uSkyHorizon.value.copy(horizon);
     }
 
     // ==================== CAMERA & INPUT ====================
@@ -2004,6 +2111,7 @@ export class WorldRenderer {
         const prevEl = this.cam.el;
         this.updateCamera(dt);
         this.cameraMoved = prevTarget.distanceToSquared(this.cam.target) > 1e-6 || Math.abs(prevAz - this.cam.az) > 1e-4 || Math.abs(prevEl - this.cam.el) > 1e-4;
+        this.updateWeather(dt);
         this.updateLighting(dt);
         for (const v of [...this.creatures.values()]) this.updateCreature(v, dt);
         this.separate(dt);

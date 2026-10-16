@@ -18,7 +18,7 @@ export const SPRITES = {
     Ornitholestes: S('ornitholestes'),
     Stokesosaurus: S('stokesosaurus'),
     Camptosaurus: S('camptosaurus'),
-    Dryosaurus: S('dryosaurus'),
+    // Dryosaurus uses its rendered 3D portrait: the model follows newer reconstructions (beak, stripes, bristle crest)
     Othnielia: S('othnielia'),
     Harpactognathus: S('harpactognathus'),
     Mesadactylus: S('mesadactylus'),

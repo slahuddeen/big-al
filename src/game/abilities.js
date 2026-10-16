@@ -5,6 +5,10 @@
 import { TERRAIN_TYPES } from '../data/terrain.js';
 
 export const ABILITIES = {
+    hide: {
+        id: 'hide', name: 'Hide', level: 1, maxLevel: 2, kind: 'action', cooldown: 1, energy: 0,
+        desc: 'Freeze in cover. Predators hunting you may lose you: best in thick forest, deadfall, ferns, marsh, rain or mist. Too big to hide once you are a sub-adult.'
+    },
     sniff: {
         id: 'sniff', name: 'Sniff', level: 1, kind: 'action', cooldown: 3, energy: 1, hotkey: 'F',
         desc: 'Read the wind. Reveals animals, carcasses and blood within 4 areas, even out of sight.'
@@ -48,7 +52,7 @@ export const PASSIVES = [
 
 export const hasPassive = (state, id) => PASSIVES.some((p) => p.id === id && state.level >= p.level && (!p.maxLevel || state.level <= p.maxLevel));
 
-export const abilityUnlocked = (state, id) => state.level >= (ABILITIES[id]?.level ?? 99);
+export const abilityUnlocked = (state, id) => state.level >= (ABILITIES[id]?.level ?? 99) && state.level <= (ABILITIES[id]?.maxLevel ?? 99);
 
 export const cooldownLeft = (state, id) => Math.max(0, (state.cooldowns?.[id] ?? 0) - state.moveNumber);
 

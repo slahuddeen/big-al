@@ -41,11 +41,19 @@ Ive added a few things to it and changed a few things too:
 
 •	The UI uses the pixel art for every animal, and creatures on the map have thick dark outlines so they stand out. The camera is soft: a tilt-shift focus with slightly boosted colour at the edges of the screen
 
+•	Seasons: the Morrison basin alternates a wet season (rain, storms, green growth, herds out on the plains) and a dry season (you get thirsty faster, the land browns to straw, and late in the dry season streams, waterholes, floodplain pools and marshes dry up, so animals crowd round the rivers and the open country empties). The weather rolls in and out: overcast, rain and storms dim the light, rain washes away your scent and gives you puddles to drink, storms cut your sight and bring lightning
+
+•	Hide: as a hatchling or juvenile you can freeze in cover when hunters are near. How well it works depends on the cover (deadfall, dense forest, jungle and ferns are best, open desert worst), and rain and mist help. If you are found, they attack
+
+•	Cutting a calf from the herd: sauropod calves are guarded, and adults block most attacks on them. Harass the herd (better with a pack, and it gets easier as they tire) to drive the adults on down the trail and leave a calf behind
+
+•	Wind blows across the basin, changing with the weather and the season. You read it from the foliage leaning and rustling in travelling gusts, faint streaks of wind, and leaves (or dust in the dry season) tumbling past
+
+•	The bigger you grow, the fewer insects and small fry you notice: they stop turning up as food once you are too big to care
+
+•	Dryosaurus follows newer reconstructions: a beaked head held low on a long neck, striped ochre hide and a russet bristle crest from the shoulders to the tip of the tail
+
 Im still developing these features:
-•	A pack hunting system
-
-•	A sauropod hunting minigame
-
 •	More attack types as you grow and hunt different animals (pokemon like system)
 
 •	A territory system
@@ -66,7 +74,7 @@ https://www.jenniferedwards.co.uk/portfolio/#bigalgame
 | Orbit and tilt | Right-drag (or Shift-drag, or middle-drag), or Q / E to rotate |
 | Zoom | Mouse wheel, or + / - |
 | Re-centre on Big Al | C (V resets rotation, tilt and zoom) |
-| Actions | 1 Sleep, 2 Drink, 3 Sniff, 4 Dash, 5 Roar |
+| Actions | 1 Sleep, 2 Drink, 3 Hide, 4 Sniff, 5 Dash, 6 Roar |
 | Field journal | J |
 | Look somewhere | Click the minimap |
 
@@ -79,9 +87,9 @@ npm run build
 ```
 
 * `src/world/` generates the map: `worldGen.js` (Voronoi cells, terraced elevation, rivers, lakes, sea, biomes, trails) and `cellGraph.js` (neighbours and distances on the cell graph).
-* `src/three/` holds the 3D engine: `lowpoly.js` (edge-loop lofting, extrusion and jittered blobs), `cells3d.js` (one builder per biome, ground detail, rivers and waterfalls), `materials.js` (wind sway and water shaders), `creatures3d.js` (rigged models for every species and Big Al), `animation.js` (procedural gaits and behaviour poses), `outline.js` (inverted-hull creature outlines), `mist.js`, `pois3d.js` (landmark models), `postfx.js` (sky, tilt-shift soft focus and edge vibrance) and `WorldRenderer.js` (scene, camera, lighting, picking, creature behaviour, effects).
-* Game rules live in `src/game/`: `gameState.js` (the reducer), `abilities.js` (growth abilities and passives), `environment.js` (mist, water, thirst and shelter rules) and `pois.js` (points of interest).
-* UI pictures come from `public/assets/sprites`, trimmed web-sized copies of the pixel art in `public/assets/dinos` (mapped in `src/data/sprites.js`). Species without art fall back to a rendered portrait of their 3D model.
+* `src/three/` holds the 3D engine: `lowpoly.js` (edge-loop lofting, extrusion and jittered blobs), `cells3d.js` (one builder per biome, ground detail, rivers and waterfalls), `materials.js` (wind sway and water shaders), `creatures3d.js` (rigged models for every species and Big Al), `animation.js` (procedural gaits and behaviour poses), `outline.js` (inverted-hull creature outlines), `mist.js`, `weather3d.js` (rain, lightning, wind streaks, leaves and dust), `pois3d.js` (landmark models), `postfx.js` (sky, tilt-shift soft focus and edge vibrance) and `WorldRenderer.js` (scene, camera, lighting, picking, creature behaviour, effects).
+* Game rules live in `src/game/`: `gameState.js` (the reducer), `abilities.js` (growth abilities and passives), `environment.js` (mist, water, thirst and shelter rules), `weather.js` (seasons, weather and wind, all pure functions of the world seed and turn) and `pois.js` (points of interest).
+* UI pictures come from `public/assets/sprites`, trimmed web-sized copies of the pixel art in `public/assets/dinos` (mapped in `src/data/sprites.js`). Species without art (and Dryosaurus, whose model is the more accurate picture) fall back to a rendered portrait of their 3D model.
 * Add `?seed=1234` to the URL to replay the same map.
 * Open `/gallery.html` on the dev server to inspect every creature and biome (`?view=terrain`, `?only=Stegosaurus,Diplodocus`, `&walk=1`, `&yaw=0&az=1.57` for side profiles, `&pose=graze|browse|call|crouch|rest|sniff` for behaviour poses).
 * Add `?skipintro` to the URL to skip the title card.

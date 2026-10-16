@@ -24,7 +24,9 @@ const SoftCameraShader = {
         uTop: { value: new THREE.Color('#8cc4e8') },
         uHorizon: { value: new THREE.Color('#dcecff') },
         uGlow: { value: new THREE.Color('#ffe3b8') },
-        uGlowPos: { value: new THREE.Vector2(0.3, 1.0) }
+        uGlowPos: { value: new THREE.Vector2(0.3, 1.0) },
+        uGloom: { value: 0 }, // overcast and rain: flatter, cooler, a little darker
+        uFlash: { value: 0 } // lightning
     },
     vertexShader: /* glsl */`
         varying vec2 vUv;
@@ -32,7 +34,7 @@ const SoftCameraShader = {
     fragmentShader: /* glsl */`
         uniform sampler2D tDiffuse;
         uniform vec2 uResolution, uGlowPos;
-        uniform float uPixelRatio, uBlur, uVibrance, uSaturation, uContrast, uVignette;
+        uniform float uPixelRatio, uBlur, uVibrance, uSaturation, uContrast, uVignette, uGloom, uFlash;
         uniform vec3 uTop, uHorizon, uGlow;
         varying vec2 vUv;
 
@@ -83,8 +85,11 @@ const SoftCameraShader = {
             float s = clamp((mx - mn) / max(mx, 1e-3), 0.0, 1.0);
             float vib = uVibrance * smoothstep(0.25, 1.0, edge) * (1.0 - s) * smoothstep(0.0, 0.08, mx) * cover;
             col = max(sat(col, 1.0 + vib), 0.0);
+            // weather: grey it down under cloud, white it out for a lightning flash
+            col = mix(col, sat(col, 0.72) * vec3(0.9, 0.95, 1.02), uGloom);
+            col += vec3(0.75, 0.82, 1.0) * uFlash * (0.35 + 0.65 * dot(col, vec3(0.33)));
             // gentle vignette
-            col *= 1.0 - uVignette * smoothstep(0.45, 1.15, edge);
+            col *= 1.0 - (uVignette + uGloom * 0.12) * smoothstep(0.45, 1.15, edge);
             gl_FragColor = vec4(toSRGB(clamp(col, 0.0, 1.0)), 1.0);
         }`
 };
@@ -116,6 +121,11 @@ export class PostFX {
         u.uHorizon.value.copy(horizon);
         u.uGlow.value.copy(glow);
         u.uGlowPos.value.set(glowX, 1.0);
+    }
+
+    setWeather(gloom, flash) {
+        this.soft.uniforms.uGloom.value = gloom;
+        this.soft.uniforms.uFlash.value = flash;
     }
 
     render(dt) {

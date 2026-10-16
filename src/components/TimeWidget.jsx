@@ -1,6 +1,7 @@
 import React from 'react';
 import { getTimeOfDay, TOTAL_CYCLE } from '../game/gameConstants.js';
-import { playerMisty } from '../game/gameState.js';
+import { playerMisty, weatherNow } from '../game/gameState.js';
+import { seasonOf, isDrought } from '../game/weather.js';
 import Icon from './Icon.jsx';
 
 // Sun (or moon) travelling over a small arc: one notch per turn of the day
@@ -9,6 +10,9 @@ const PHASE_COLORS = ['#ffcf7a', '#fff1b8', '#ff9a5a', '#a8b8ff', '#c0a8ff'];
 const TimeWidget = ({ gameState }) => {
     const t = getTimeOfDay(gameState.moveNumber);
     const misty = playerMisty(gameState);
+    const season = seasonOf(gameState.moveNumber);
+    const drought = isDrought(gameState.moveNumber);
+    const weather = weatherNow(gameState);
     const phase = t.turnInCycle;
     const ang = Math.PI * (1 - (phase + 0.5) / TOTAL_CYCLE);
     const cx = 50 + Math.cos(ang) * 40;
@@ -37,6 +41,19 @@ const TimeWidget = ({ gameState }) => {
                     <span className="opacity-40">|</span>
                     <span title="Score"><Icon name="star" size={11} className="inline -mt-0.5 mr-0.5" style={{ color: 'var(--accent)' }} /><span className="pixel text-ink">{gameState.score}</span></span>
                 </div>
+            </div>
+            <div className="flex flex-col gap-1 items-start">
+                <span className="chip" style={{ color: season.name === 'wet' ? '#8fd46a' : drought ? '#ef8f55' : '#e8c060' }}
+                    title={season.name === 'wet' ? 'Wet season: rain, green growth, herds out on the plains' : drought ? 'Drought: small waters have dried up; animals crowd the rivers' : 'Dry season: water is scarce and you get thirsty faster'}>
+                    <Icon name={season.name === 'wet' ? 'leaf' : 'sun'} size={12} />
+                    {season.name === 'wet' ? 'Wet season' : drought ? 'Drought' : 'Dry season'}
+                    <span className="text-ink-dim">{Math.ceil(season.turnsLeft / 5)}d</span>
+                </span>
+                {weather !== 'clear' && (
+                    <span className="chip" title={weather === 'storm' ? 'Storm: you see less, and your scent is hidden' : weather === 'rain' ? 'Rain: your scent washes away and there are puddles to drink' : 'Overcast'}>
+                        <Icon name={weather === 'cloudy' ? 'cloud' : weather} size={12} />{weather === 'cloudy' ? 'Overcast' : weather === 'rain' ? 'Rain' : 'Storm'}
+                    </span>
+                )}
             </div>
             {misty && (
                 <span className="chip" title="Morning mist: you see less, but predators notice you less too">

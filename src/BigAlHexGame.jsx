@@ -219,7 +219,7 @@ const BigAlHexGame = () => {
                 return;
             }
             if (journalOpen) return;
-            if (/^[1-5]$/.test(k) && actionHotkeys(gameState, dispatch, k)) setTravelPath([]);
+            if (/^[1-6]$/.test(k) && actionHotkeys(gameState, dispatch, k)) setTravelPath([]);
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);

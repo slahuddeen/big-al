@@ -8,6 +8,7 @@ export const EVENT_STYLE = {
     info: { icon: 'info', color: '#7ab8f0' },
     discovery: { icon: 'star', color: '#f4b740' },
     levelup: { icon: 'level', color: '#b88cf0' },
-    rest: { icon: 'sleep', color: '#9aa8ff' }
+    rest: { icon: 'sleep', color: '#9aa8ff' },
+    weather: { icon: 'rain', color: '#8fc8e8' }
 };
 export const eventStyle = (type) => EVENT_STYLE[type] || EVENT_STYLE.info;

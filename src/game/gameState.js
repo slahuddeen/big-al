@@ -11,6 +11,7 @@ import { ABILITIES, ATTACK_MODS, hasPassive, abilityReady, inCover } from './abi
 import { isMisty, WATER_SOURCES, thirstFactor, shelterOf } from './environment.js';
 import { generatePois, POI_TYPES } from './pois.js';
 import { GOALS } from './goals.js';
+import { seasonOf, isDrought, DRIES_UP, isRaining, weatherAt, seasonSpawnFactor } from './weather.js';
 import {
     MAX_WEIGHT,
     HEALING_RATE,
@@ -71,6 +72,38 @@ export const sleepBlockers = (state) => {
     return (state.creatures.get(state.player) || []).filter((c) => creatureThreat(c) > pf * 0.15 || PREDATOR_TYPES.has(SPECIES_DATA[c.species]?.behaviorType) && creatureThreat(c) > pf * 0.05);
 };
 
+// ---------- weather helpers ----------
+export const raining = (state) => state.worldSeed !== null && isRaining(state.worldSeed, state.moveNumber);
+export const weatherNow = (state) => (state.worldSeed !== null ? weatherAt(state.worldSeed, state.moveNumber) : 'clear');
+// Can you drink here? Small waters dry up in the drought; in the rain there are puddles everywhere
+export const drinkableAt = (state, key) => {
+    const t = state.cells.get(key)?.terrain;
+    if (!WATER_SOURCES.has(t)) return false;
+    return !(DRIES_UP.has(t) && isDrought(state.moveNumber));
+};
+export const canDrink = (state) => {
+    const here = state.cells.get(state.player);
+    if (!here) return false;
+    return raining(state) || [state.player, ...here.neighbors].some((k) => drinkableAt(state, k));
+};
+
+// How well a small dinosaur can hide here (0..1)
+const COVER_SCORE = {
+    deadfall: 0.9, denseforest: 0.85, jungle: 0.85, oldgrowth: 0.75, galleryforest: 0.75, forest: 0.7, youngforest: 0.7,
+    marsh: 0.7, fernprairie: 0.65, boulderfield: 0.65, katydidmeadow: 0.55, forestedge: 0.55, scrubland: 0.55,
+    openwoods: 0.5, ginkgogrove: 0.5, rocky: 0.45, riverbank: 0.45, termitemounds: 0.4, deadforest: 0.35, nest: 0.35, hills: 0.3,
+    desert: 0.1, beach: 0.1, sauropodgrounds: 0.15
+};
+export const hideChance = (state, creature = null) => {
+    const here = state.cells.get(state.player);
+    let p = COVER_SCORE[here?.terrain] ?? 0.2;
+    p *= state.level === 1 ? 1 : 0.7; // a juvenile is harder to tuck away
+    if (raining(state)) p *= 1.25;
+    if (playerMisty(state)) p *= 1.2;
+    if (creature?.engaged) p *= 0.65; // much harder once it has its eye on you
+    return Math.max(0.05, Math.min(0.95, p));
+};
+
 // Hatchet bites are for animals at least a good fraction of Big Al's size
 export const hatchetTarget = (state, c) => (SPECIES_DATA[c.species]?.weight ?? 0) * (c.size ?? 1) >= state.weight * 0.4;
 export const playerMisty = (state) => {
@@ -89,9 +122,9 @@ const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
     }
     const multipliers = {
         1: { tiny: 4.0, small: 3.5, medium: 2.0, large: 0.8, huge: 0.15 },
-        2: { tiny: 2.5, small: 4.0, medium: 3.0, large: 1.5, huge: 0.3 },
-        3: { tiny: 0.6, small: 2.5, medium: 3.5, large: 3.0, huge: 1.8 },
-        4: { tiny: 0.1, small: 0.8, medium: 2.5, large: 4.0, huge: 4.5 }
+        2: { tiny: 1.2, small: 4.0, medium: 3.0, large: 1.5, huge: 0.3 },
+        3: { tiny: 0.12, small: 1.4, medium: 3.5, large: 3.0, huge: 1.8 },
+        4: { tiny: 0.01, small: 0.3, medium: 2.5, large: 4.0, huge: 4.5 }
     };
     let multiplier = multipliers[playerLevel][category];
     if (category === 'tiny' && playerWeight > 2.0) multiplier *= Math.max(0.3, 1 / (playerWeight / 50));
@@ -137,7 +170,7 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
         if (existing + spawned.length >= max || attempts >= 10) break;
         attempts++;
         if (FLYERS.has(species) && flyers <= 0) continue;
-        let chance = dist[species] * getPreySizeMultiplier(state.level, state.weight, species) * chanceScale * activityFactor(species, phase);
+        let chance = dist[species] * getPreySizeMultiplier(state.level, state.weight, species) * chanceScale * activityFactor(species, phase) * seasonSpawnFactor(terrain, species, state.moveNumber);
         if (state.level <= 2 && ['Male Allosaurus', 'Female Allosaurus', 'Stegosaurus', 'Torvosaurus', 'Saurophaganax'].includes(species)) chance *= 0.05;
         if (GIANTS.has(species) && terrain === 'sauropodgrounds') chance = Math.max(chance, dist[species] * chanceScale); // herds are always on the move here
         if (Math.random() >= chance) continue;
@@ -307,6 +340,9 @@ const noticeChance = (state, creature, opts = {}) => {
     const sd = SPECIES_DATA[creature.species] || {};
     let p = 1;
     if (opts.asleep) p *= 0.7;
+    if (creature.lostUntil !== undefined && creature.lostUntil >= state.moveNumber) return 0; // it lost you
+    if (state.hiddenAt === state.moveNumber) p *= 0.25;
+    if (raining(state)) p *= weatherNow(state) === 'storm' ? 0.5 : 0.65; // rain hides your scent
     if (inCover(state)) p *= 0.8;
     if (playerMisty(state)) p *= 0.6;
     if (hasPassive(state, 'tiny') && (sd.weight || 1) * (creature.size || 1) > state.weight * 100) p *= 0.45;
@@ -396,9 +432,9 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                     if (hexKey !== player || Math.random() < 0.6) {
                         if (Math.random() < 0.75) {
                             const to = escapeCell(gameState, hexKey, occupancy);
-                            if (to) {
+                            if (to && roomAt(to, creature)) {
                                 destKey = to;
-                                move(hexKey, to);
+                                move(hexKey, to, creature);
                                 blood.set(to, turn);
                                 behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey: to, message: `The wounded ${creature.species} staggers away, leaving a trail of blood.`, near: false });
                             }
@@ -412,7 +448,7 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                 if (creature.chasing > 0 && !gameState.gameOver) {
                     const dist = distanceToPlayer(gameState, hexKey);
                     creature.chasing -= 1;
-                    const loseTrail = opts.evading || (inCover(gameState, playerMisty(gameState)) && Math.random() < 0.3) || dist > 3;
+                    const loseTrail = opts.evading || (inCover(gameState, playerMisty(gameState)) && Math.random() < 0.3) || (raining(gameState) && Math.random() < 0.35) || dist > 3 || (creature.lostUntil ?? -1) >= turn;
                     if (loseTrail) {
                         creature.chasing = 0;
                         if (dist <= 3) behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey, message: `The ${creature.species} loses your trail.`, near: true });
@@ -422,8 +458,8 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                         const steps = Math.random() < (CHASERS[creature.species] || 0.5) ? 2 : 1;
                         for (let i = 0; i < steps && at !== player; i++) {
                             const to = towardPlayer(gameState, at);
-                            if (!to || !roomAt(to)) break;
-                            move(at, to);
+                            if (!to || !roomAt(to, creature)) break;
+                            move(at, to, creature);
                             at = to;
                         }
                         destKey = at;
@@ -479,17 +515,17 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                         } else if (threat < pf * 0.25 || (hasPassive(gameState, 'apex') && isPredator && threat < pf * 0.6)) {
                             // Big Al is far too big to pick a fight with: it backs off instead
                             const to = escapeCell(gameState, hexKey, occupancy);
-                            if (to) {
+                            if (to && roomAt(to, creature)) {
                                 destKey = to;
-                                move(hexKey, to);
+                                move(hexKey, to, creature);
                                 if (dist <= 1) behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey: to, message: `The ${creature.species} thinks better of it and slinks away.`, near: false });
                             }
                         } else if (dist === 2) {
                             // too far to strike: close the distance
                             const to = towardPlayer(gameState, hexKey);
-                            if (to && roomAt(to)) {
+                            if (to && roomAt(to, creature)) {
                                 destKey = to;
-                                move(hexKey, to);
+                                move(hexKey, to, creature);
                                 if (CHASERS[creature.species] && threat > pf * 0.5) creature.chasing = 3;
                                 behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey: to, chasing: !!creature.chasing, message: `The ${creature.species} is stalking you!`, near: true });
                             }
@@ -497,9 +533,9 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                             let canStrike = true;
                             if (dist === 1) {
                                 // charge into Big Al's area to attack
-                                if (roomAt(player)) {
+                                if (roomAt(player, creature)) {
                                     destKey = player;
-                                    move(hexKey, player);
+                                    move(hexKey, player, creature);
                                 } else canStrike = false;
                             }
                             if (canStrike) {
@@ -700,8 +736,10 @@ const passTime = (state, { energyCost, terrain, heal = HEALING_RATE, thirstMul =
     const metabolismRate = 0.0008 + (0.04 / Math.max(1, Math.pow(state.weight, 0.5)));
     const weight = Math.max(0.5, state.weight - metabolismRate);
     const energy = Math.max(0, state.energy - energyCost);
-    let hydration = Math.max(0, state.hydration - 2.2 * thirstFactor(terrain) * thirstMul);
-    if (['river', 'stream', 'lake'].includes(terrain)) hydration = Math.min(100, hydration + 30);
+    const season = seasonOf(state.moveNumber).name;
+    let hydration = Math.max(0, state.hydration - 2.2 * thirstFactor(terrain) * thirstMul * (season === 'dry' ? 1.35 : 0.8));
+    if (['river', 'lake'].includes(terrain) || (terrain === 'stream' && !isDrought(state.moveNumber))) hydration = Math.min(100, hydration + 30);
+    if (state.worldSeed !== null && isRaining(state.worldSeed, state.moveNumber)) hydration = Math.min(100, hydration + 8);
     let fitness = state.fitness;
     if (hydration <= 0) {
         fitness = Math.max(0, fitness - 6);
@@ -784,6 +822,18 @@ const recordDiscoveries = (prev, next) => {
         if (species !== journal.species || biomes !== journal.biomes || landmarks !== journal.landmarks) {
             state = { ...state, journal: { species, biomes, landmarks }, notifications, score };
         }
+    }
+    // seasons and weather turning
+    if (state.mapGenerated && !state.gameOver && prev.moveNumber !== state.moveNumber && state.worldSeed !== null) {
+        const a = seasonOf(prev.moveNumber);
+        const b = seasonOf(state.moveNumber);
+        const say = (type, message) => { state = { ...state, notifications: addNotification(state.notifications, { type, message }) }; };
+        if (a.name !== b.name) say('weather', b.name === 'wet' ? 'The rains have come. The basin turns green and the herds spread out across the plains.' : 'The dry season begins. Water will get scarce; animals will gather at the rivers.');
+        else if (!isDrought(prev.moveNumber) && isDrought(state.moveNumber)) say('weather', 'Drought. Streams, waterholes and marshes are drying up.');
+        const wa = weatherAt(state.worldSeed, prev.moveNumber);
+        const wb = weatherAt(state.worldSeed, state.moveNumber);
+        if (wa !== wb && wb === 'storm') say('weather', 'A storm rolls in. Rain hides your scent.');
+        else if (wa !== wb && wb === 'rain' && wa !== 'storm') say('weather', 'It starts to rain. Your scent washes away.');
     }
     // goals
     if (state.mapGenerated && !state.gameOver && (prev.stats !== state.stats || prev.level !== state.level || prev.pack !== state.pack || prev.journal !== state.journal)) {
@@ -978,8 +1028,8 @@ const coreReducer = (state, action) => {
         case 'DRINK': {
             if (state.gameOver) return state;
             const here = state.cells.get(state.player);
-            const sources = [state.player, ...here.neighbors].filter((k) => WATER_SOURCES.has(state.cells.get(k)?.terrain));
-            if (!sources.length) return state;
+            const sources = [state.player, ...here.neighbors].filter((k) => drinkableAt(state, k));
+            if (!sources.length && !raining(state)) return state;
             let next = {
                 ...state,
                 hydration: 100,
@@ -1019,7 +1069,7 @@ const coreReducer = (state, action) => {
 
             if (id === 'sniff') {
                 const scent = [];
-                for (const [key, d] of bfsDistances(state.cells, state.player, 4)) {
+                for (const [key, d] of bfsDistances(state.cells, state.player, raining(state) ? 2 : 4)) {
                     if (d === 0) continue;
                     const cell = state.cells.get(key);
                     for (const c of state.creatures.get(key) || []) scent.push({ key, kind: 'creature', species: c.species, turn: state.moveNumber, hidden: !cell.inSight });
@@ -1083,6 +1133,7 @@ const coreReducer = (state, action) => {
             if (state.pois.get(state.player)?.type === 'lookout') rangeBonus += 2;
             if (phase === 3 || phase === 4) rangeBonus -= 1;
             if (here && isMisty(here.terrain, phase, here.key)) rangeBonus -= 1;
+            if (weatherNow(state) === 'storm') rangeBonus -= 1;
             const newHexes = calculateVisibility(state.player, state.cells, state.worldSeed, { rangeBonus });
             const newCreatures = new Map(state.creatures);
             for (const [hexKey, creatures] of newCreatures.entries()) {
@@ -1154,6 +1205,30 @@ const coreReducer = (state, action) => {
             if (style === 'hatchet' && !hatchetTarget(state, target)) return state;
             // an ambush only works on something that hasn't seen you yet
             if (style === 'ambush' && target.engaged) return state;
+
+            // a young sauropod in its herd is guarded: the adults close ranks
+            const guards = here.filter((c) => c.species === target.species && isBigGiant(c));
+            if (GIANTS.has(target.species) && !isBigGiant(target) && guards.length && Math.random() < 0.75) {
+                let blocked = { ...state, energy: Math.max(0, state.energy - 6), cooldowns: style !== 'normal' ? setCooldown(state, style) : state.cooldowns };
+                const g = guards[Math.floor(Math.random() * guards.length)];
+                const dmg = attackDamage(state, g, SPECIES_DATA[g.species].danger * g.size * 0.8);
+                const shield = hitCompanion(blocked, dmg, g.species);
+                let msg;
+                if (shield) {
+                    blocked.pack = shield.pack;
+                    msg = `The adults close ranks around the calf. ${shield.message}`;
+                } else {
+                    blocked.fitness = Math.max(0, state.fitness - dmg);
+                    msg = `The adults close ranks around the calf and a tail lashes out. -${dmg} health`;
+                }
+                blocked = {
+                    ...blocked,
+                    notifications: addNotification(state.notifications, { type: 'combat', message: msg }),
+                    currentThought: 'Not while the herd protects it. Split them up first.',
+                    lastPlayerAction: { id: uid('act'), type: 'attack', style, creatureId: g.id, outcome: 'blocked' }
+                };
+                return blocked.fitness <= 0 ? killPlayer(blocked, 'combat', `The ${g.species} herd protected its young...`) : blocked;
+            }
 
             let newState = { ...state, creatures: removeCreature(state.creatures, playerKey, creatureId) };
             if (style !== 'normal') newState.cooldowns = setCooldown(state, style);
@@ -1255,6 +1330,125 @@ const coreReducer = (state, action) => {
             newState.notifications = addNotification(notifications, { type: outcome === 'kill' ? 'success' : outcome === 'escape' || outcome === 'hit_back' ? 'combat' : 'info', message: log.join(' ') });
             newState.lastPlayerAction = { id: uid('act'), type: 'attack', style, creatureId, outcome };
             return newState;
+        }
+
+        // Freeze in cover and hope whatever is hunting you walks past
+        case 'HIDE': {
+            if (state.gameOver || !abilityReady(state, 'hide')) return state;
+            const pf = playerFierceness(state);
+            const near = new Set([state.player, ...state.cells.get(state.player).neighbors]);
+            let creatures = state.creatures;
+            const log = [];
+            const lost = [];
+            const found = [];
+            for (const [key, list] of state.creatures) {
+                if (!near.has(key)) continue;
+                for (const c of list) {
+                    const hunter = PREDATOR_TYPES.has(SPECIES_DATA[c.species]?.behaviorType) && creatureThreat(c) > pf * 0.25;
+                    if (!hunter && !c.chasing) continue;
+                    if (key !== state.player && !c.chasing && !c.engaged) continue;
+                    if (Math.random() < hideChance(state, c)) {
+                        // it loses you and wanders off
+                        let updated = { ...c, chasing: 0, engaged: false, lostUntil: state.moveNumber + 2 };
+                        creatures = removeCreature(creatures, key, c.id);
+                        let to = key;
+                        if (key === state.player) to = escapeCell(state, key, new Map([...creatures].map(([k, l]) => [k, l.length]))) || key;
+                        creatures = placeCreature(creatures, to, updated);
+                        lost.push(c.species);
+                    } else {
+                        found.push(c);
+                    }
+                }
+            }
+            let next = {
+                ...state,
+                creatures,
+                hiddenAt: state.moveNumber,
+                cooldowns: setCooldown(state, 'hide'),
+                lastPlayerAction: { id: uid('act'), type: 'hide', outcome: found.length ? 'found' : 'hidden' }
+            };
+            const terrainName = TERRAIN_TYPES[state.cells.get(state.player).terrain].name.toLowerCase();
+            if (found.length) {
+                // it sees through the cover: it attacks
+                const c = found[0];
+                const dmg = attackDamage(state, c, SPECIES_DATA[c.species].danger * c.size);
+                next.fitness = Math.max(0, state.fitness - dmg);
+                next.notifications = addNotification(state.notifications, { type: 'combat', message: `${lost.length ? `The ${lost[0]} passes by, but the` : 'The'} ${c.species} finds you anyway! -${dmg} health` });
+                next.currentThought = 'Found! Run or fight.';
+                next.creatureBehaviorLog = [...state.creatureBehaviorLog, { id: uid('log'), type: 'creature_attack', creature: c.species, creatureId: c.id, hexKey: state.player, charged: false, message: '', damage: dmg }].slice(-MAX_BEHAVIOR_LOG_SIZE);
+                if (next.fitness <= 0) return killPlayer(next, 'combat', `The ${c.species} sniffed you out...`);
+            } else if (lost.length) {
+                next.notifications = addNotification(state.notifications, { type: 'success', message: `You freeze in the ${terrainName}. The ${[...new Set(lost)].join(' and the ')} ${lost.length > 1 ? 'lose' : 'loses'} your trail.` });
+                next.currentThought = 'Still... perfectly still...';
+                next.stats = { ...state.stats, hidden: (state.stats.hidden || 0) + 1 };
+            } else {
+                next.notifications = addNotification(state.notifications, { type: 'info', message: `You crouch low in the ${terrainName}. Nothing will see you easily this turn.` });
+                next.currentThought = 'Small and still. Invisible.';
+            }
+            return next;
+        }
+
+        // Charge a sauropod herd to try and cut a youngster off from the adults
+        case 'HARASS': {
+            if (state.gameOver || state.level < 2) return state;
+            const here = state.creatures.get(state.player) || [];
+            const adults = here.filter(isBigGiant);
+            const young = here.filter((c) => GIANTS.has(c.species) && !isBigGiant(c));
+            if (!adults.length || !young.length) return state;
+            const pack = (state.pack || []).length;
+            const tries = adults[0].harried || 0;
+            const chance = Math.min(0.85, 0.18 + pack * 0.18 + (state.level - 2) * 0.12 + tries * 0.15 + (raining(state) ? 0.05 : 0));
+            let next = { ...state, energy: Math.max(0, state.energy - 8), lastPlayerAction: { id: uid('act'), type: 'harass' } };
+            let notifications = state.notifications;
+            // the adults swing their tails at you
+            for (const a of adults) {
+                if (Math.random() > 0.4) continue;
+                const dmg = attackDamage(state, a, SPECIES_DATA[a.species].danger * a.size * 0.7);
+                const shield = hitCompanion(next, dmg, a.species);
+                if (shield) {
+                    next.pack = shield.pack;
+                    notifications = addNotification(notifications, { type: 'combat', message: shield.message });
+                } else {
+                    next.fitness = Math.max(0, (next.fitness ?? state.fitness) - dmg);
+                    notifications = addNotification(notifications, { type: 'combat', message: `A ${a.species} tail whips past you. -${dmg} health` });
+                }
+            }
+            if (next.fitness <= 0) return killPlayer({ ...next, notifications }, 'combat', 'A sauropod tail is a terrible thing...');
+            let creatures = state.creatures;
+            if (Math.random() < chance) {
+                // the herd panics down the trail; the smallest calf is left behind
+                const calf = young.slice().sort((a, b) => a.size - b.size)[0];
+                const herdHere = here.filter((c) => GIANTS.has(c.species) && c.id !== calf.id);
+                const cell = state.cells.get(state.player);
+                const heading = adults[0].heading ?? 0;
+                const ahead = cell.neighbors
+                    .filter((n) => passable(state, n))
+                    .map((n) => {
+                        const c = state.cells.get(n);
+                        return { n, d: ((c.x - cell.x) * Math.cos(heading) + (c.z - cell.z) * Math.sin(heading)) / Math.hypot(c.x - cell.x, c.z - cell.z) + (c.terrain === 'sauropodgrounds' ? 0.5 : 0) };
+                    })
+                    .sort((a, b) => b.d - a.d)
+                    .map((x) => x.n);
+                for (const c of herdHere) {
+                    // down the trail, spilling into the next best area if that one is already full of giants
+                    const to = ahead.find((n) => (creatures.get(n) || []).length < MAX_CREATURES_PER_HEX && (!isBigGiant(c) || countGiants(creatures.get(n)) < MAX_GIANTS_PER_CELL));
+                    creatures = removeCreature(creatures, state.player, c.id);
+                    creatures = placeCreature(creatures, to || state.player, { ...c, harried: 0, lastMigrateTurn: state.moveNumber });
+                }
+                creatures = removeCreature(creatures, state.player, calf.id);
+                creatures = placeCreature(creatures, state.player, { ...calf, herd: null, separated: true, engaged: false, lastBehaviorTurn: state.moveNumber });
+                next.stats = { ...state.stats, separated: (state.stats.separated || 0) + 1 };
+                notifications = addNotification(notifications, { type: 'success', message: `The herd thunders off down the trail. A ${calf.species} calf is left behind!` });
+                next.currentThought = 'Now. Before the adults come back.';
+                next.lastPlayerAction = { ...next.lastPlayerAction, outcome: 'split', calfId: calf.id };
+            } else {
+                creatures = removeCreature(creatures, state.player, adults[0].id);
+                creatures = placeCreature(creatures, state.player, { ...adults[0], harried: tries + 1 });
+                notifications = addNotification(notifications, { type: 'warning', message: `The herd closes ranks around its young.${pack ? '' : ' A pack would help.'} Keep at it.` });
+                next.currentThought = 'They are tiring. Again.';
+                next.lastPlayerAction = { ...next.lastPlayerAction, outcome: 'held' };
+            }
+            return { ...next, creatures, notifications };
         }
 
         // Invite a young Allosaurus to hunt with you

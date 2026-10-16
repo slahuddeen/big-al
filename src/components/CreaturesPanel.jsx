@@ -3,7 +3,8 @@ import { SPECIES_DATA } from '../data/species.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { previewAttack } from '../game/combat.js';
 import { ABILITIES, abilityUnlocked, cooldownLeft, inCover } from '../game/abilities.js';
-import { creatureThreat, playerFierceness, playerMisty, hatchetTarget, counterDamage } from '../game/gameState.js';
+import { creatureThreat, playerFierceness, playerMisty, hatchetTarget, counterDamage, isBigGiant } from '../game/gameState.js';
+import { preyMass } from '../game/combat.js';
 import { POI_TYPES } from '../game/pois.js';
 import { formatWeight, ageLabel } from '../utils/format.js';
 import CreaturePortrait from './CreaturePortrait.jsx';
@@ -41,11 +42,14 @@ const Stat = ({ label, value, color, title }) => (
     </div>
 );
 
-const CreatureCard = ({ creature, gameState, dispatch }) => {
+const GIANT_SPECIES = new Set(['Diplodocus', 'Camarasaurus', 'Brachiosaurus']);
+
+const CreatureCard = ({ creature, gameState, dispatch, guarded }) => {
     const sd = SPECIES_DATA[creature.species];
     if (!sd) return null;
     const counter = counterDamage(gameState, creature);
     const base = previewAttack(gameState, creature, 'normal', counter);
+    if (guarded) base.catch = 25;
     const weight = sd.weight * creature.size;
     const health = Math.max(0, Math.round(creature.health ?? 100));
     const risk = base.counter * Math.max(0, base.bites - 1) + (base.bites > 1 ? 0 : 0);
@@ -88,6 +92,8 @@ const CreatureCard = ({ creature, gameState, dispatch }) => {
                         <span className="chip" style={{ color: THREAT[threat].color, borderColor: 'currentColor' }}>{THREAT[threat].label}</span>
                         <span className="chip">{ageLabel(creature.size)} · {formatWeight(weight)}</span>
                         <span className="chip" title="Energy if you bring it down"><Icon name="meat" size={11} />+{base.energyGain}</span>
+                        {guarded && <span className="chip" style={{ color: 'var(--warn)' }} title="The adults close ranks around it. Harass the herd to cut it off first.">Guarded</span>}
+                        {creature.separated && <span className="chip" style={{ color: 'var(--good)' }}>Cut off from its herd</span>}
                     </div>
                     <div className="mt-1.5 flex items-center gap-2" title={`Health ${health}%`}>
                         <Icon name="heart" size={11} style={{ color: healthColor(health) }} />
@@ -108,6 +114,52 @@ const CreatureCard = ({ creature, gameState, dispatch }) => {
                 {styles.map((st) => (
                     <AttackButton key={st.id} label={ABILITIES[st.id].name.replace(' Bite', '')} icon={st.id} note={st.note} disabled={!!st.reason} reason={st.reason || ABILITIES[st.id].desc} onClick={() => attack(st.id)} />
                 ))}
+            </div>
+        </div>
+    );
+};
+
+const HerdCard = ({ adults, young, gameState, dispatch }) => {
+    const pack = (gameState.pack || []).length;
+    const tries = adults[0]?.harried || 0;
+    const odds = Math.round(Math.min(0.85, 0.18 + pack * 0.18 + (gameState.level - 2) * 0.12 + tries * 0.15) * 100);
+    const canHarass = gameState.level >= 2;
+    return (
+        <div className="card anim-slide-left" style={{ borderColor: 'rgba(240,194,74,0.45)' }}>
+            <div className="p-2.5">
+                <div className="flex items-center gap-2">
+                    <CreaturePortrait species={adults[0].species} size={54} height={36} />
+                    <div className="min-w-0 flex-1">
+                        <div className="font-bold text-[13.5px]">{adults[0].species} herd</div>
+                        <div className="text-[11.5px] text-ink-muted leading-snug">{adults.length} adult{adults.length > 1 ? 's' : ''} guarding {young.length} young. Charge the herd to split it and leave a calf behind.</div>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                    <button type="button" className="btn btn-primary flex-1" disabled={!canHarass} title={canHarass ? 'Costs 8 energy. The adults may lash out with their tails. Each try wears them down; a pack helps a lot.' : 'You are too small to take on a herd'}
+                        onClick={(e) => { e.stopPropagation(); dispatch({ type: 'HARASS' }); }}>
+                        <Icon name="harass" size={14} />Harass the herd<span className="pixel text-[11px] opacity-80">{odds}%</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SmallFry = ({ list, dispatch }) => {
+    const bySpecies = [...new Set(list.map((c) => c.species))];
+    return (
+        <div className="rounded-xl px-2.5 py-2" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--line)' }}>
+            <div className="label mb-1">Small fry: hardly worth your time</div>
+            <div className="flex flex-wrap gap-1.5">
+                {bySpecies.map((sp) => {
+                    const of = list.filter((c) => c.species === sp);
+                    return (
+                        <button key={sp} type="button" className="chip !pl-1 hover:text-ink" title="Snap one up"
+                            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'ATTACK_CREATURE', creatureId: of[0].id }); }}>
+                            <CreaturePortrait species={sp} size={26} height={18} />{sp}{of.length > 1 ? ` ×${of.length}` : ''}
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );
@@ -171,6 +223,11 @@ const CreaturesPanel = ({ gameState, dispatch }) => {
         for (const c of gameState.creatures.get(n) || []) nearby.push(c);
     }
     const dangerNear = nearby.filter((c) => creatureThreat(c) > pf || c.chasing > 0);
+    // once you are big, bugs and lizards collapse into one line
+    const fry = gameState.level >= 2 ? creatures.filter((c) => preyMass(c) < gameState.weight * 0.02 && !c.chasing) : [];
+    const worth = creatures.filter((c) => !fry.includes(c));
+    const herdAdults = creatures.filter(isBigGiant);
+    const herdYoung = creatures.filter((c) => GIANT_SPECIES.has(c.species) && !isBigGiant(c));
     const chasers = [...nearby, ...creatures].filter((c) => c.chasing > 0);
     if (!creatures.length && !carcasses.length && !poi && !dangerNear.length) return null;
 
@@ -185,7 +242,9 @@ const CreaturesPanel = ({ gameState, dispatch }) => {
             </div>
             <div className="p-2.5 space-y-2 overflow-y-auto scroll-thin">
                 {poi && <PoiCard poi={poi} dispatch={dispatch} />}
-                {creatures.map((c) => <CreatureCard key={c.id} creature={c} gameState={gameState} dispatch={dispatch} />)}
+                {herdAdults.length > 0 && herdYoung.length > 0 && <HerdCard adults={herdAdults} young={herdYoung} gameState={gameState} dispatch={dispatch} />}
+                {worth.map((c) => <CreatureCard key={c.id} creature={c} gameState={gameState} dispatch={dispatch} guarded={GIANT_SPECIES.has(c.species) && !isBigGiant(c) && herdAdults.some((a) => a.species === c.species)} />)}
+                {fry.length > 0 && <SmallFry list={fry} dispatch={dispatch} />}
                 {carcasses.map((c) => <CarcassCard key={c.id} carcass={c} gameState={gameState} dispatch={dispatch} />)}
                 {dangerNear.length > 0 && (
                     <div className="rounded-xl px-2.5 py-2" style={{ background: 'rgba(239,95,85,0.08)', border: '1px solid rgba(239,95,85,0.3)' }}>

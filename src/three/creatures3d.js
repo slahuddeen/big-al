@@ -109,7 +109,37 @@ const BIPED_DEFAULTS = {
     skullWidth: [1, 0.75], // skull width at back / middle
     tailDepth: 1, tailBase: 1, // tall narrow tails (>1), thick-based tails
     clawScale: 1, crouch: 0, // hand claws, bent-kneed stance
-    mane: null, backRidge: null, jowl: 0
+    mane: null, backRidge: null, jowl: 0,
+    bristles: null // { h, color, tip }: a crest of long filaments from the shoulders to the tail tip
+};
+
+// A dense crest of long filaments along a lofted spine, from h0 at the first section to h1 at the last
+const bristleRow = (mb, sections, from, to, p, h0, h1, rand) => {
+    const n = sections.length;
+    const last = Math.min(n, to) - 1;
+    const steps = 3; // filament tufts between each pair of sections
+    for (let i = from; i <= last; i++) {
+        const A = sections[i];
+        const B = sections[Math.min(n - 1, i + 1)];
+        for (let j = 0; j < (i === last ? 1 : steps); j++) {
+            const f = j / steps;
+            const px = A.p[0] + (B.p[0] - A.p[0]) * f;
+            const py = A.p[1] + (A.yOff ?? 0) + A.rh * 0.84 + (B.p[1] + (B.yOff ?? 0) + B.rh * 0.84 - A.p[1] - (A.yOff ?? 0) - A.rh * 0.84) * f;
+            const rw = A.rw + (B.rw - A.rw) * f;
+            const t = last > from ? (i + f - from) / (last - from) : 0;
+            const h = h0 + (h1 - h0) * t;
+            for (let k = 0; k < 5; k++) {
+                const z = (k / 4 - 0.5) * rw * 0.8;
+                const len = h * (0.7 + rand() * 0.5) * (1 - Math.abs(z) / Math.max(1e-4, rw) * 0.5);
+                const base = [px + (rand() - 0.5) * 0.01, py - Math.abs(z) * 0.3, z];
+                // filaments sweep backwards and splay out to the sides like a brush
+                const tip = [base[0] - len * (0.6 + rand() * 0.2), base[1] + len * 0.75, z * 2.4 + (rand() - 0.5) * len * 0.25];
+                const r = rand();
+                const col = r < 0.22 ? p.bristles.tip : r < 0.7 ? p.bristles.color : shade(p.bristles.color, 0.75);
+                cone(mb, base, tip, Math.max(0.003, rw * 0.13), col, { sides: 3, rand, capBase: false, squash: 0.45 });
+            }
+        }
+    }
 };
 
 export const buildBiped = (spec, ctx) => {
@@ -120,7 +150,7 @@ export const buildBiped = (spec, ctx) => {
     const { body, parts } = model;
     const H = p.hipH;
     const L = p.bodyLen;
-    const stripes = p.stripes ? { every: 2, offset: 1, color: C.stripe } : null;
+    const stripes = p.stripes ? { every: p.stripeEvery ?? 2, offset: 1, color: C.stripe } : null;
 
     // ---- torso ----
     const tb = new MeshBuilder();
@@ -150,6 +180,7 @@ export const buildBiped = (spec, ctx) => {
             slab(tb, [[s.p[0] - L * 0.06, s.p[1] + s.rh * 0.8, 0], [s.p[0] + L * 0.06, s.p[1] + s.rh * 0.8, 0], [s.p[0] + L * 0.02, s.p[1] + s.rh * 0.85 + h, 0], [s.p[0] - L * 0.04, s.p[1] + s.rh * 0.85 + h, 0]], p.bodyR * 0.18, p.backRidge.color);
         });
     }
+    if (p.bristles) bristleRow(tb, torso, 0, 7, p, p.bristles.h * 0.9, p.bristles.h * 0.45, rand);
     if (p.osteoderms) {
         torso.forEach((s, i) => {
             if (i === 0 || i > 7) return;
@@ -174,13 +205,25 @@ export const buildBiped = (spec, ctx) => {
             cone(t1, [s.p[0], s.p[1] + s.rh * 0.9, 0], [s.p[0] - 0.006, s.p[1] + s.rh * 0.9 + p.bodyH * 0.18, 0], p.bodyR * 0.1, p.osteoderms, { sides: 4, rand });
         });
     }
+    if (p.bristles) bristleRow(t1, tail1Keys, 0, 5, p, p.bristles.h, p.bristles.h * 1.05, rand);
     addMesh(tail1, t1, ctx);
     const tail2 = group(tail1, -T * 0.5, -0.025 + p.tailLift, 0);
     const t2 = new MeshBuilder();
-    loft(t2, resample([
+    const tail2Keys = resample([
         { p: [0.004, 0, 0], rw: p.tailR * 0.5 / Math.sqrt(TD), rh: p.tailR * 0.6 * TD },
         { p: [-T * 0.5, -0.012 + p.tailLift * 0.6, 0], rw: 0.006, rh: 0.006 * TD }
-    ], 5), { sides: 6, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand, capStart: false, tipEnd: 0.012 });
+    ], 5);
+    loft(t2, tail2Keys, { sides: 6, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand, capStart: false, tipEnd: 0.012 });
+    if (p.bristles) {
+        // the crest carries on to a long brush at the tail tip
+        bristleRow(t2, tail2Keys, 0, 5, p, p.bristles.h * 1.05, p.bristles.h * 0.8, rand);
+        const tipP = tail2Keys[4].p;
+        for (let k = 0; k < 14; k++) {
+            const a = (k / 13 - 0.5) * 1.6;
+            const bx = tipP[0] + 0.01 + rand() * 0.06;
+            cone(t2, [bx, tipP[1], 0], [bx - p.bristles.h * (1.1 + rand() * 0.6), tipP[1] + Math.sin(a) * p.bristles.h * 0.6, (rand() - 0.5) * p.bristles.h * 0.6], 0.006, k % 3 ? p.bristles.color : p.bristles.tip, { sides: 3, rand, capBase: false, squash: 0.5 });
+        }
+    }
     if (p.tailFan) {
         const fx = -T * 0.5;
         slab(t2, [[-T * 0.12, 0.0, 0.014], [fx * 0.8, 0.004, p.tailFan.w], [fx * 1.12, 0.008, p.tailFan.w * 0.5], [fx * 1.18, 0.006, 0], [fx * 1.12, 0.008, -p.tailFan.w * 0.5], [fx * 0.8, 0.004, -p.tailFan.w], [-T * 0.12, 0.0, -0.014]], 0.012, p.tailFan.color, { edgeColor: shade(p.tailFan.color, 0.85) });
@@ -208,6 +251,15 @@ export const buildBiped = (spec, ctx) => {
             const bx = nx * t - L * 0.15 * (1 - t);
             const by = ny * t + p.neckR * 1.1;
             slab(nb, [[bx - 0.015, by, 0], [bx + 0.02, by, 0], [bx - 0.03, by + p.mane.h * (0.7 + (i % 2) * 0.4), 0]], p.neckR * 0.9, i % 2 ? p.mane.color : shade(p.mane.color, 0.85));
+        }
+    }
+    if (p.bristles) {
+        for (let i = 0; i < 3; i++) {
+            const t = 0.05 + i * 0.12;
+            const bx = nx * t;
+            const by = ny * t + p.neckR * 1.2;
+            const len = p.bristles.h * (0.35 - i * 0.08);
+            for (const z of [-0.6, 0, 0.6]) cone(nb, [bx, by, z * p.neckR * 0.4], [bx - len * 0.6, by + len * 0.8, z * p.neckR * 0.8], 0.003, p.bristles.color, { sides: 3, rand, capBase: false });
         }
     }
     if (p.wattle) {
@@ -978,7 +1030,9 @@ export const SPECIES_MODELS = {
     Ornitholestes: { build: buildBiped, spec: { name: 'Ornitholestes', hipH: 0.32, bodyLen: 0.24, bodyR: 0.065, bodyH: 0.075, neckLen: 0.12, neckR: 0.036, neckS: 0.5, chestDrop: 0.02, headLen: 0.12, headH: 0.075, headW: 0.05, skull: [1.05, 0.95, 0.6], snout: 0.6, tailLen: 0.55, armLen: 0.17, armR: 0.015, clawScale: 1.6, fluff: 0.2, mane: { h: 0.045, color: '#8a3a10' }, crest: { h: 0.02, color: '#f0a040' }, spots: '#8a3a10', colors: { body: '#d0601a', belly: '#f09a50', back: '#a8460e', eye: '#f0d040' } } },
     // --- ornithopods ---
     Camptosaurus: { build: buildBiped, spec: { name: 'Camptosaurus', hipH: 0.3, bodyLen: 0.32, bodyR: 0.1, bodyH: 0.11, neckLen: 0.12, neckR: 0.05, neckUp: 0.5, headLen: 0.15, headH: 0.065, headW: 0.05, snout: 0.55, tailLen: 0.48, tailR: 0.075, thighR: 0.065, armLen: 0.2, armR: 0.022, teeth: false, beak: '#3a3020', colors: { body: '#4f7a3a', belly: '#c0a060', back: '#3a5a2a', claw: '#3a3020', eye: '#e0a020' } } },
-    Dryosaurus: { build: buildBiped, spec: { name: 'Dryosaurus', hipH: 0.34, bodyR: 0.075, bodyH: 0.085, neckLen: 0.12, neckR: 0.035, neckUp: 0.65, headLen: 0.12, headH: 0.055, headW: 0.042, snout: 0.5, tailLen: 0.55, tailR: 0.055, thighR: 0.055, armLen: 0.09, teeth: false, beak: '#4a4020', eyeScale: 1.3, spots: '#7a9030', colors: { body: '#a8c050', belly: '#eee8b0', back: '#88a040', eye: '#f0c030' } } },
+    // slender beaked runner: long shins, small head held low on a long neck, striped ochre hide and a
+    // russet bristle crest from the shoulders to a brush at the tail tip
+    Dryosaurus: { build: buildBiped, spec: { name: 'Dryosaurus', hipH: 0.37, bodyLen: 0.3, bodyR: 0.074, bodyH: 0.1, chestDepth: 1.05, chestDrop: -0.018, neckLen: 0.19, neckR: 0.028, neckUp: 0.4, headTilt: -0.28, headLen: 0.115, headH: 0.05, headW: 0.034, skull: [0.95, 0.74, 0.44], skullWidth: [0.95, 0.68], snout: 0.38, tailLen: 0.56, tailR: 0.052, tailLift: 0.05, thighR: 0.06, armLen: 0.085, armR: 0.012, clawScale: 0.6, teeth: false, beak: '#3a3a40', eyeScale: 1.25, stripes: true, stripeEvery: 3, bristles: { h: 0.11, color: '#a8381c', tip: '#e06a3a' }, colors: { body: '#9c8444', belly: '#c4b6a2', back: '#8a6a34', stripe: '#6a4a1e', neck: '#94803e', throat: '#c8bcb0', head: '#b8782e', headTop: '#a06424', shin: '#a88a46', claw: '#2a2420', eye: '#2a1a10' } } },
     Othnielia: { build: buildBiped, spec: { name: 'Othnielia', hipH: 0.28, bodyR: 0.07, bodyH: 0.075, neckLen: 0.1, neckR: 0.035, neckUp: 0.6, headLen: 0.11, headH: 0.055, headW: 0.045, snout: 0.5, tailLen: 0.55, tailR: 0.05, thighR: 0.05, armLen: 0.08, teeth: false, beak: '#2a3a4a', eyeScale: 1.3, stripes: true, colors: { body: '#6a9a34', belly: '#d8d080', back: '#4a7a24', stripe: '#3a6020', head: '#3a9ad8', headTop: '#2a7ac0', eye: '#f0d040' } } },
     // --- pterosaurs ---
     Harpactognathus: { build: buildPterosaur, spec: { name: 'Harpactognathus', bodyLen: 0.12, bodyR: 0.038, neckLen: 0.05, headLen: 0.16, headH: 0.035, headW: 0.026, wingSpan: 0.95, wingChord: 0.14, tailLen: 0.4, tailVane: '#3ad0e8', crest: { type: 'snout', h: 0.03, color: '#5ab0f0' }, wingBand: '#2a4a9a', colors: { body: '#2a6ab0', belly: '#6aa0d8', back: '#1a4a8a', membrane: '#1a3a7a', head: '#2f78c8', beak: '#d8d8c8' } } },
