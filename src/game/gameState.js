@@ -4,13 +4,11 @@ import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA, HABITAT_SPECIES } from '../data/species.js';
 import { calculateFiercenessRatio, calculateAgilityRatio, calculateInjuries, calculateEnergyGain } from '../utils/combatUtils.js';
 import { calculateVisibility } from '../utils/visibilitySystem.js';
-import { generateTerrainFeatures, generateTerrain, applyEcologicalPostProcessing } from '../utils/terrainGeneration.js';
-import { executeCreatureBehavior } from '../utils/creatureBehaviors.js'; // Import the new behavior system
+import { generateTerrainFeatures, generateTerrain } from '../utils/terrainGeneration.js';
+import { executeCreatureBehavior } from '../utils/creatureBehaviors.js';
 import {
     MAX_WEIGHT,
     HEALING_RATE,
-    ENERGY_PER_BODYWEIGHT,
-    ROAMING_RATE,
     MAX_NOTIFICATIONS,
     NOTIFICATION_AUTO_DISMISS_TIME,
     THOUGHTS
@@ -18,20 +16,27 @@ import {
 
 // Enhanced Big Al level system with adjusted thresholds for 300g start
 export const LEVEL_NAMES = ['', 'hatchling', 'juvenile', 'sub-adult', 'adult'];
-export const LEVEL_WEIGHTS = [0, 15, 600, 2200, 2700]; // Adjusted thresholds for 300g start
+// FIXED: the adult threshold used to be 2200kg while MAX_WEIGHT is 2100kg, so adulthood was unreachable
+export const LEVEL_WEIGHTS = [0, 15, 600, 1800, MAX_WEIGHT];
 
 // Enhanced prey size categories for better scaling with updated pterosaurs
 export const PREY_SIZE_CATEGORIES = {
     'tiny': ['Dragonfly', 'Centipede', 'Cricket', 'Scorpion'],
-    'small': ['Frog', 'Lizard', 'Mammal', 'Fish', 'Sphenodontian', 'Mesadactylus'],
+    'small': ['Frog', 'Lizard', 'Mammal', 'Fish', 'Sphenodontian', 'Mesadactylus', 'Turtle', 'Snake', 'Rhamphorhynchus'],
     'medium': ['Dryosaurus', 'Othnielia', 'Harpactognathus', 'Injured Pterosaur', 'Compsognathus', 'Coelurus', 'Hesperornithoides'],
-    'large': ['Ornitholestes', 'Juvenile Allosaurus', 'Crocodile', 'Camptosaurus', 'Kepodactylus'],
-    'huge': ['Stegosaurus', 'Male Allosaurus', 'Female Allosaurus', 'Ceratosaurus', 'Torvosaurus', 'Diplodocus', 'Brachiosaurus']
+    'large': ['Ornitholestes', 'Juvenile Allosaurus', 'Crocodile', 'Camptosaurus', 'Kepodactylus', 'Kentrosaurus', 'Tuojiangosaurus'],
+    'huge': ['Stegosaurus', 'Male Allosaurus', 'Female Allosaurus', 'Ceratosaurus', 'Torvosaurus', 'Diplodocus', 'Brachiosaurus', 'Camarasaurus', 'Saurophaganax']
 };
 
 // Enhanced behavior log size limit and max creatures per hex
 const MAX_BEHAVIOR_LOG_SIZE = 15;
 const MAX_CREATURES_PER_HEX = 5; // Maximum 5 creatures per hex tile
+const MAX_AMBIENT_CREATURES = 40; // cap for creatures populated around the player
+const AMBIENT_RESPAWN_TURNS = 8; // a hex in sight is re-rolled for wildlife at most this often
+const CREATURE_CULL_DISTANCE = 9; // creatures this far from the player are forgotten
+const CARCASS_DECAY_TURNS = 15;
+
+const uid = (prefix) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 // ENHANCED size-based spawn multipliers - MORE VARIETY FOR EARLY GAME!
 const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
@@ -65,6 +70,45 @@ const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
     return multiplier;
 };
 
+// Roll which creatures appear on a hex of the given terrain
+const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_HEX, existing = 0 } = {}) => {
+    const speciesDistribution = HABITAT_SPECIES[terrain] || {};
+    const spawned = [];
+    let spawnAttempts = 0;
+    const maxSpawnAttempts = 10; // Prevent infinite loops
+
+    for (const species of Object.keys(speciesDistribution)) {
+        if (existing + spawned.length >= max || spawnAttempts >= maxSpawnAttempts) break;
+        spawnAttempts++;
+
+        // Enhanced size-based multiplier
+        let encounterChance = speciesDistribution[species] * getPreySizeMultiplier(state.level, state.weight, species) * chanceScale;
+
+        // Enhanced danger scaling for small predators
+        if (state.level <= 2 && ['Male Allosaurus', 'Female Allosaurus', 'Stegosaurus', 'Torvosaurus', 'Saurophaganax'].includes(species)) {
+            encounterChance *= 0.05; // Much lower chance of apex predators
+        }
+
+        if (Math.random() < encounterChance) {
+            const speciesData = SPECIES_DATA[species];
+            const minAge = speciesData.minimumAge || 0.1;
+            spawned.push({
+                id: uid(species),
+                species,
+                size: minAge + (1 - minAge) * Math.random(),
+                behavior: 'neutral',
+                spawnTurn: state.moveNumber,
+                lastBehaviorTurn: state.moveNumber, // Track when behavior was last executed
+                lastSeenTurn: state.moveNumber,
+                health: 100,
+                status: 'normal',
+                energy: 100
+            });
+        }
+    }
+    return spawned;
+};
+
 export const initialGameState = {
     player: { q: 0, r: 0 },
     hexes: new Map(),
@@ -79,12 +123,12 @@ export const initialGameState = {
     score: 0,
     moveNumber: 0,
 
-    decision: '',
-    levelData: '',
-
     // Creatures system
     creatures: new Map(),
-    creatureBehaviorLog: [], // New: Track creature actions
+    creatureBehaviorLog: [], // Track creature actions (each entry has an id for the 3D view)
+    carcasses: new Map(), // hexKey -> [{ id, species, size, turn }]
+    populatedAt: new Map(), // hexKey -> turn the hex was last rolled for ambient wildlife
+    lastPlayerAction: null, // { id, type, creatureId, outcome } - drives 3D attack animations
 
     // Linear features for advanced terrain generation
     linearFeatures: [],
@@ -92,7 +136,7 @@ export const initialGameState = {
 
     // Notifications and events
     notifications: [],
-    currentThought: "You are a tiny hatchling... but those bugs look delicious!",
+    currentThought: "You crack out of your egg... those bugs look delicious!",
 
     // Game state
     gamePhase: 'exploring',
@@ -101,50 +145,46 @@ export const initialGameState = {
 };
 
 // Helper function to check if a creature should attempt escape - REDUCED ESCAPE CHANCES
-const attemptCreatureEscape = (speciesData, creatureSize, playerWeight, playerLevel) => {
+const attemptCreatureEscape = (speciesName, speciesData, creatureSize, playerWeight, playerLevel) => {
     // REDUCED escape chances - more catchable prey!
     const escapeBaseChance = {
-        'Dragonfly': 0.2,        // Reduced from 0.4 - still quick but catchable
-        'Cricket': 0.15,         // Reduced from 0.25 - hoppers but manageable
-        'Centipede': 0.05,       // Reduced from 0.1 - slow ground dwellers
-        'Mammal': 0.1,           // Reduced from 0.2 - nervous but catchable
-        'Scorpion': 0.08,        // Reduced from 0.15 - defensive but slow
-        'Frog': 0.12,            // Reduced from 0.2 - can leap but not too far
-        'Lizard': 0.15,          // Reduced from 0.25 - quick but huntable
-        'Mesadactylus': 0.25,    // Reduced from 0.5 - still skittish but more catchable
-        'Harpactognathus': 0.18, // Reduced from 0.3 - agile but huntable
-        'Kepodactylus': 0.08,    // Reduced from 0.15 - large and less agile
-        'Compsognathus': 0.12,   // Small theropod - quick but catchable
-        'Coelurus': 0.15,        // Gracile predator - agile
-        'Hesperornithoides': 0.18, // Smart troodontid - harder to catch
+        'Dragonfly': 0.2,
+        'Cricket': 0.15,
+        'Centipede': 0.05,
+        'Mammal': 0.1,
+        'Scorpion': 0.08,
+        'Frog': 0.12,
+        'Lizard': 0.15,
+        'Mesadactylus': 0.25,
+        'Harpactognathus': 0.18,
+        'Kepodactylus': 0.08,
+        'Compsognathus': 0.12,
+        'Coelurus': 0.15,
+        'Hesperornithoides': 0.18,
     };
-
-    const speciesName = Object.keys(SPECIES_DATA).find(name =>
-        SPECIES_DATA[name] === speciesData
-    );
 
     let baseEscape = escapeBaseChance[speciesName] || 0.08; // Lower default
 
     // REDUCED size penalties - less harsh on hatchlings
     const sizeRatio = (speciesData.weight * creatureSize) / playerWeight;
     if (sizeRatio < 0.01) {
-        baseEscape += 0.15; // Reduced from 0.3 - still harder but not impossible
+        baseEscape += 0.15;
     } else if (sizeRatio < 0.1) {
-        baseEscape += 0.08; // Reduced from 0.15
+        baseEscape += 0.08;
     }
 
     // REDUCED hatchling penalty - they're still predators!
     if (playerLevel === 1) {
-        baseEscape += 0.1; // Reduced from 0.2 - hatchlings can hunt!
+        baseEscape += 0.1;
     }
 
-    return Math.random() < Math.min(0.5, baseEscape); // Reduced cap from 0.7 to 0.5
+    return Math.random() < Math.min(0.5, baseEscape);
 };
 
 // Helper function to add notifications with limits
 const addNotification = (notifications, newNotification) => {
     const notification = {
-        id: Date.now(),
+        id: uid('n'),
         timestamp: Date.now(),
         ...newNotification
     };
@@ -158,139 +198,144 @@ const addNotification = (notifications, newNotification) => {
     return updatedNotifications;
 };
 
-// Check if player should level up
+// Check if player should level up (can skip several levels after a huge meal)
 const checkLevelUp = (weight, currentLevel) => {
-    if (currentLevel < LEVEL_WEIGHTS.length - 1 && weight > LEVEL_WEIGHTS[currentLevel]) {
-        return currentLevel + 1;
-    }
-    return currentLevel;
+    let level = currentLevel;
+    while (level < LEVEL_WEIGHTS.length - 1 && weight >= LEVEL_WEIGHTS[level]) level++;
+    return level;
 };
 
-// ENHANCED: Process creature behaviors with improved logging and cooldowns
-const processCreatureBehaviors = (gameState, dispatch) => {
-    const newCreatures = new Map(gameState.creatures);
-    const behaviorLog = [];
-    let behaviorCount = 0;
-    let successfulBehaviors = 0;
+// Level-up messages, shared by moving, hunting and scavenging
+const applyGrowth = (level, weight, notifications) => {
+    const newLevel = checkLevelUp(weight, level);
+    if (newLevel <= level) return { level, notifications };
+    let n = addNotification(notifications, {
+        type: 'success',
+        message: `🎉 Congratulations! You've grown into a ${LEVEL_NAMES[newLevel]}! 🎉`
+    });
+    const advice = {
+        2: "🎖️ Independence achieved! Bugs are getting less satisfying - hunt lizards and frogs!",
+        3: "💪 Sub-adult power! Small prey won't cut it anymore - target medium creatures!",
+        4: "👑 Apex predator! Only large prey will sustain your massive frame now!"
+    };
+    if (advice[newLevel]) n = addNotification(n, { type: 'success', message: advice[newLevel] });
+    return { level: newLevel, notifications: n };
+};
 
-    // Process all creatures on the map
+// Feeding: shared by hunting and scavenging
+const feed = (state, energyGain, preySize, weightFactor = 1) => {
+    const newEnergy = Math.min(100, state.energy + energyGain);
+    if (newEnergy >= 90 && energyGain > 8) {
+        const weightGain = (energyGain * 0.015) * Math.pow(preySize, 0.8) * weightFactor;
+        return {
+            energy: 100,
+            weight: Math.min(MAX_WEIGHT, state.weight + weightGain),
+            score: state.score + Math.round(weightGain * 150),
+            weightGain
+        };
+    }
+    return { energy: newEnergy, weight: state.weight, score: state.score + Math.round(energyGain * 1.5), weightGain: 0 };
+};
+
+const removeCreature = (creaturesMap, hexKey, creatureId) => {
+    const list = (creaturesMap.get(hexKey) || []).filter((c) => c.id !== creatureId);
+    const out = new Map(creaturesMap);
+    if (list.length > 0) out.set(hexKey, list);
+    else out.delete(hexKey);
+    return out;
+};
+
+const ATTACK_ACTIONS = new Set([
+    'attack_player', 'ambush_attack', 'territorial_attack', 'defensive_attack', 'aerial_attack',
+    'swoop_attack', 'rival_attack', 'casual_defense', 'defensive_strike'
+]);
+const MOVE_ACTIONS = new Set(['move', 'flee', 'roam', 'move_to_preferred', 'hunt_from_above', 'chase_competitor']);
+const DISPLAY_ACTIONS = new Set(['warning', 'intimidate', 'defensive_posture']);
+
+// ENHANCED: Process creature behaviors.
+// FIXED: this used to mutate the previous state inside the reducer: creature
+// objects (so React StrictMode's double-invocation put creatures on cooldown)
+// and the per-hex arrays (a creature moving into a hex not yet processed was
+// pushed onto that array and then acted a second time in the same tick).
+// The new map is now rebuilt from scratch.
+const processCreatureBehaviors = (gameState) => {
+    const placements = [];
+    const killed = new Set();
+    const carcasses = new Map(gameState.carcasses || []);
+    const behaviorLog = [];
+    const player = gameState.player;
+
     for (const [hexKey, creatures] of gameState.creatures.entries()) {
         const [q, r] = hexKey.split(',').map(Number);
         const hex = { q, r };
-        const updatedCreatures = [];
 
-        for (const creature of creatures) {
-            behaviorCount++;
+        for (const original of creatures) {
+            if (killed.has(original.id)) continue;
+            const creature = { ...original };
+            let destKey = hexKey;
             try {
-                const behavior = executeCreatureBehavior(creature, hex, gameState, dispatch);
-
+                const behavior = executeCreatureBehavior(creature, hex, gameState);
                 if (behavior) {
-                    successfulBehaviors++;
-
-                    // Add debug logging in development
-                    if (process.env.NODE_ENV === 'development') {
-                        console.log(`🦖 ${creature.species} executed: ${behavior.action}`);
-                    }
-
-                    switch (behavior.action) {
-                        case 'attack_player':
-                        case 'ambush_attack':
-                        case 'territorial_attack':
-                        case 'defensive_attack':
-                        case 'aerial_attack':
-                        case 'swoop_attack':
-                        case 'rival_attack':
-                        case 'casual_defense':
-                        case 'defensive_strike':
-                            // Creature attacks player
-                            if (hexDistance(hex, gameState.player) <= 1) {
+                    if (ATTACK_ACTIONS.has(behavior.action)) {
+                        if (hexDistance(hex, player) <= 1) {
+                            behaviorLog.push({
+                                id: uid('log'), type: 'creature_attack', creature: creature.species, creatureId: creature.id,
+                                hexKey, message: behavior.message, damage: behavior.damage
+                            });
+                        }
+                    } else if (MOVE_ACTIONS.has(behavior.action) && behavior.target) {
+                        const targetKey = `${behavior.target.q},${behavior.target.r}`;
+                        const targetHex = gameState.hexes.get(targetKey);
+                        if (targetHex && TERRAIN_TYPES[targetHex.terrain].passable) {
+                            destKey = targetKey;
+                            if (behavior.message) {
                                 behaviorLog.push({
-                                    type: 'creature_attack',
-                                    creature: creature.species,
-                                    message: behavior.message,
-                                    damage: behavior.damage
+                                    id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id,
+                                    hexKey: targetKey, message: behavior.message, near: hexDistance(behavior.target, player) <= 1
                                 });
                             }
-                            updatedCreatures.push(creature);
-                            break;
-
-                        case 'move':
-                        case 'flee':
-                        case 'roam':
-                        case 'move_to_preferred':
-                        case 'hunt_from_above':
-                        case 'chase_competitor':
-                            // Move creature to new hex
-                            if (behavior.target) {
-                                const targetKey = `${behavior.target.q},${behavior.target.r}`;
-                                const targetHex = gameState.hexes.get(targetKey);
-                                const targetCreatures = newCreatures.get(targetKey) || [];
-
-                                // FIXED: Check if target hex has room for more creatures
-                                if (targetHex && TERRAIN_TYPES[targetHex.terrain].passable && targetCreatures.length < MAX_CREATURES_PER_HEX) {
-                                    // Remove from current hex (will be added to target hex)
-                                    targetCreatures.push(creature);
-                                    newCreatures.set(targetKey, targetCreatures);
-
-                                    if (behavior.message) {
-                                        behaviorLog.push({
-                                            type: 'creature_movement',
-                                            creature: creature.species,
-                                            message: behavior.message
-                                        });
-                                    }
-                                } else {
-                                    // Can't move (no room or impassable), stay in place
-                                    updatedCreatures.push(creature);
+                            // NEW: predators that swoop on prey can actually catch it
+                            if (behavior.action === 'hunt_from_above' && behavior.preyId && !killed.has(behavior.preyId) && Math.random() < 0.5) {
+                                const prey = (gameState.creatures.get(targetKey) || []).find((c) => c.id === behavior.preyId);
+                                if (prey) {
+                                    killed.add(prey.id);
+                                    const list = [...(carcasses.get(targetKey) || []), { id: uid('carcass'), species: prey.species, size: prey.size, turn: gameState.moveNumber }];
+                                    carcasses.set(targetKey, list.slice(-3));
+                                    behaviorLog.push({
+                                        id: uid('log'), type: 'creature_hunt', creature: creature.species, creatureId: creature.id, victimId: prey.id,
+                                        hexKey: targetKey, message: `The ${creature.species} catches a ${prey.species}!`,
+                                        near: hexDistance(behavior.target, player) <= 2
+                                    });
                                 }
-                            } else {
-                                updatedCreatures.push(creature);
                             }
-                            break;
-
-                        case 'warning':
-                        case 'intimidate':
-                        case 'defensive_posture':
-                            // Display message
-                            if (hexDistance(hex, gameState.player) <= 2) {
-                                behaviorLog.push({
-                                    type: 'creature_display',
-                                    creature: creature.species,
-                                    message: behavior.message
-                                });
-                            }
-                            updatedCreatures.push(creature);
-                            break;
-
-                        default:
-                            // Default: creature stays in place
-                            updatedCreatures.push(creature);
-                            break;
+                        }
+                    } else if (DISPLAY_ACTIONS.has(behavior.action)) {
+                        if (hexDistance(hex, player) <= 2) {
+                            behaviorLog.push({
+                                id: uid('log'), type: 'creature_display', creature: creature.species, creatureId: creature.id,
+                                hexKey, message: behavior.message
+                            });
+                        }
                     }
-                } else {
-                    // No behavior executed, creature stays
-                    updatedCreatures.push(creature);
                 }
             } catch (error) {
                 console.error('Error processing creature behavior:', error);
-                updatedCreatures.push(creature); // Keep creature if behavior fails
             }
-        }
-
-        // Update creatures in current hex
-        if (updatedCreatures.length > 0) {
-            newCreatures.set(hexKey, updatedCreatures);
-        } else {
-            newCreatures.delete(hexKey);
+            placements.push({ creature, key: destKey, origin: hexKey });
         }
     }
 
-    // Log behavior statistics in development
-    if (process.env.NODE_ENV === 'development' && behaviorCount > 0) {
-        console.log(`🧠 Creature AI: ${successfulBehaviors}/${behaviorCount} behaviors executed`);
+    const newCreatures = new Map();
+    for (const p of placements) {
+        if (killed.has(p.creature.id)) continue;
+        let key = p.key;
+        if (key !== p.origin && (newCreatures.get(key) || []).length >= MAX_CREATURES_PER_HEX) key = p.origin;
+        const list = newCreatures.get(key) || [];
+        list.push(p.creature);
+        newCreatures.set(key, list);
     }
 
-    return { creatures: newCreatures, behaviorLog };
+    return { creatures: newCreatures, behaviorLog, carcasses };
 };
 
 // ENHANCED: Apply creature behavior results to game state
@@ -300,7 +345,7 @@ const applyCreatureBehaviorResults = (gameState, behaviorLog) => {
 
     for (const log of behaviorLog) {
         switch (log.type) {
-            case 'creature_attack':
+            case 'creature_attack': {
                 // Creature attacked player
                 const damage = Math.round(log.damage * 0.5); // Reduce creature attack damage
                 newState.fitness = Math.max(0, newState.fitness - damage);
@@ -312,36 +357,51 @@ const applyCreatureBehaviorResults = (gameState, behaviorLog) => {
                 });
 
                 // Check for death
-                if (newState.fitness <= 0) {
+                if (newState.fitness <= 0 && !newState.gameOver) {
                     newState.gameOver = true;
                     newState.gamePhase = 'dead';
                     newState.deathReason = 'combat';
                     newState.currentThought = `The ${log.creature} proved too dangerous...`;
                 }
                 break;
+            }
 
             case 'creature_movement':
-                // Only show movement notifications for important events
-                if (hexDistance({ q: 0, r: 0 }, gameState.player) <= 2) {
-                    newNotifications = addNotification(newNotifications, {
-                        type: 'warning',
-                        message: log.message
-                    });
+                // FIXED: used to measure distance from the map origin instead of the creature
+                if (log.near) {
+                    newNotifications = addNotification(newNotifications, { type: 'warning', message: log.message });
+                }
+                break;
+
+            case 'creature_hunt':
+                if (log.near) {
+                    newNotifications = addNotification(newNotifications, { type: 'info', message: `${log.message} Something to scavenge...` });
+                    newState.currentThought = "You smell fresh carrion nearby...";
                 }
                 break;
 
             case 'creature_display':
-                // Show threatening displays
-                newNotifications = addNotification(newNotifications, {
-                    type: 'warning',
-                    message: log.message
-                });
+                newNotifications = addNotification(newNotifications, { type: 'warning', message: log.message });
+                break;
+
+            default:
                 break;
         }
     }
 
     newState.notifications = newNotifications;
     return newState;
+};
+
+const withBehaviors = (state, behaviorResult) => {
+    const behaviorState = applyCreatureBehaviorResults(state, behaviorResult.behaviorLog);
+    const combinedBehaviorLog = [...(state.creatureBehaviorLog || []), ...behaviorResult.behaviorLog];
+    return {
+        ...behaviorState,
+        creatures: behaviorResult.creatures,
+        carcasses: behaviorResult.carcasses,
+        creatureBehaviorLog: combinedBehaviorLog.slice(-MAX_BEHAVIOR_LOG_SIZE)
+    };
 };
 
 export const gameReducer = (state, action) => {
@@ -366,6 +426,7 @@ export const gameReducer = (state, action) => {
             if (targetHex.terrain === 'quicksand') {
                 return {
                     ...state,
+                    player: { q: target.q, r: target.r },
                     gameOver: true,
                     gamePhase: 'dead',
                     deathReason: 'sank',
@@ -383,6 +444,7 @@ export const gameReducer = (state, action) => {
             if (terrain.minWeight > 0 && state.weight < terrain.minWeight) {
                 return {
                     ...state,
+                    player: { q: target.q, r: target.r },
                     gameOver: true,
                     gamePhase: 'dead',
                     deathReason: terrain.name === 'River' ? 'drowned' : 'sank',
@@ -398,22 +460,21 @@ export const gameReducer = (state, action) => {
                 };
             }
 
-            // Enhanced movement costs - scale better with 300g baseline
-            const baseEnergyCost = terrain.energyCost;
-            // Cap energy scaling for large dinosaurs
-            const sizeMultiplier = Math.max(0.4, Math.min(2.0, Math.pow(state.weight / 150, 0.4))); const energyCost = Math.round(baseEnergyCost * sizeMultiplier);
+            // Enhanced movement costs - scale better with 300g baseline (capped for large dinosaurs)
+            const sizeMultiplier = Math.max(0.4, Math.min(2.0, Math.pow(state.weight / 150, 0.4)));
+            const energyCost = Math.round(terrain.energyCost * sizeMultiplier);
 
-            let newEnergy = Math.max(0, state.energy - energyCost);
+            const newEnergy = Math.max(0, state.energy - energyCost);
             let newFitness = state.fitness;
 
             // Enhanced weight loss - adjusted for 300g start
             const metabolismRate = 0.0008 + (0.04 / Math.max(1, Math.pow(state.weight, 0.5)));
-            let newWeight = Math.max(0.15, state.weight - metabolismRate); // Minimum 150g
+            const newWeight = Math.max(0.15, state.weight - metabolismRate); // Minimum 150g
             let newNotifications = [...state.notifications];
 
             // Terrain-based fitness loss
             if (terrain.fitnessRisk > 0 && Math.random() < terrain.fitnessRisk) {
-                const damage = Math.round(12 * Math.max(0.5, state.weight / 100)); // Scale damage appropriately
+                const damage = Math.round(12 * Math.max(0.5, state.weight / 100));
                 newFitness = Math.max(0, state.fitness - damage);
                 newNotifications = addNotification(newNotifications, {
                     type: 'injury',
@@ -424,35 +485,9 @@ export const gameReducer = (state, action) => {
             // Natural healing
             newFitness = Math.min(100, newFitness + HEALING_RATE);
 
-            // Check for level progression
-            const newLevel = checkLevelUp(newWeight, state.level);
-            let levelUpNotification = null;
-
-            if (newLevel > state.level) {
-                levelUpNotification = {
-                    type: 'success',
-                    message: `🎉 Congratulations! You've grown into a ${LEVEL_NAMES[newLevel]}! 🎉`
-                };
-                newNotifications = addNotification(newNotifications, levelUpNotification);
-
-                // Enhanced level-up advice
-                if (newLevel === 2) {
-                    newNotifications = addNotification(newNotifications, {
-                        type: 'success',
-                        message: "🎖️ Independence achieved! Bugs are getting less satisfying - hunt lizards and frogs!"
-                    });
-                } else if (newLevel === 3) {
-                    newNotifications = addNotification(newNotifications, {
-                        type: 'success',
-                        message: "💪 Sub-adult power! Small prey won't cut it anymore - target medium creatures!"
-                    });
-                } else if (newLevel === 4) {
-                    newNotifications = addNotification(newNotifications, {
-                        type: 'success',
-                        message: "👑 Apex predator! Only large prey will sustain your massive frame now!"
-                    });
-                }
-            }
+            const growth = applyGrowth(state.level, newWeight, newNotifications);
+            const newLevel = growth.level;
+            newNotifications = growth.notifications;
 
             // Check for death conditions
             if (newEnergy <= 0) {
@@ -485,19 +520,26 @@ export const gameReducer = (state, action) => {
                 };
             }
 
-            // ENHANCED: Process creature behaviors first
-            const behaviorResult = processCreatureBehaviors({
+            // Carcasses rot away
+            const carcasses = new Map();
+            for (const [key, list] of state.carcasses || []) {
+                const fresh = list.filter((c) => state.moveNumber + 1 - c.turn <= CARCASS_DECAY_TURNS);
+                if (fresh.length) carcasses.set(key, fresh);
+            }
+
+            // ENHANCED: Process creature behaviors with the player at the new position
+            const movedState = {
                 ...state,
                 player: { q: target.q, r: target.r },
-                moveNumber: state.moveNumber + 1
-            });
-
-            // Apply behavior results
-            let behaviorState = applyCreatureBehaviorResults(state, behaviorResult.behaviorLog);
-
-            // FIXED: Limit behavior log size to prevent memory issues
-            const combinedBehaviorLog = [...(state.creatureBehaviorLog || []), ...behaviorResult.behaviorLog];
-            const limitedBehaviorLog = combinedBehaviorLog.slice(-MAX_BEHAVIOR_LOG_SIZE);
+                moveNumber: state.moveNumber + 1,
+                level: newLevel,
+                energy: newEnergy,
+                fitness: newFitness,
+                weight: newWeight,
+                carcasses,
+                notifications: newNotifications
+            };
+            const behaviorState = withBehaviors(movedState, processCreatureBehaviors(movedState));
 
             // Generate appropriate thought for new level and size
             let newThought = THOUGHTS[Math.floor(Math.random() * THOUGHTS.length)];
@@ -522,44 +564,41 @@ export const gameReducer = (state, action) => {
 
             return {
                 ...behaviorState,
-                player: { q: target.q, r: target.r },
-                level: newLevel,
-                energy: newEnergy,
-                fitness: newFitness,
-                weight: newWeight,
-                moveNumber: state.moveNumber + 1,
                 selectedHex: null,
-                hoveredHex: null,
-                creatures: behaviorResult.creatures,
-                creatureBehaviorLog: limitedBehaviorLog, // Use limited log
-                notifications: behaviorState.notifications,
-                currentThought: newThought
+                currentThought: behaviorState.gameOver ? behaviorState.currentThought : newThought
             };
         }
 
-        case 'GENERATE_HEX': {
-            const { q, r } = action;
-            const key = `${q},${r}`;
-
-            if (state.hexes.has(key)) return state;
-
-            const terrain = generateTerrain(q, r, state.hexes, state.linearFeatures);
-
-            const newHex = {
-                q, r, terrain,
-                visited: false,
-                visible: false,
-                discovered: false,
-                inRange: false
-            };
-
+        // Batch hex generation (one dispatch instead of hundreds)
+        case 'GENERATE_HEXES': {
             const newHexes = new Map(state.hexes);
-            newHexes.set(key, newHex);
+            let changed = false;
+            for (const { q, r } of action.coords) {
+                const key = `${q},${r}`;
+                if (newHexes.has(key)) continue;
+                // NEW: Big Al starts life in a nest, like the original game
+                let terrain = (q === 0 && r === 0) ? 'nest' : generateTerrain(q, r, newHexes, state.linearFeatures);
+                // FIXED: rivers/mountains placed right next to the nest could trap (or drown) a new hatchling
+                if (hexDistance({ q, r }, { q: 0, r: 0 }) === 1 && ['river', 'lake', 'mountains', 'volcanic', 'quicksand', 'lavafield'].includes(terrain)) {
+                    terrain = Math.random() < 0.5 ? 'openwoods' : 'plains';
+                }
 
-            const processedHexes = applyEcologicalPostProcessing(newHexes, state.linearFeatures);
+                // Occasional lakes next to rivers.
+                // FIXED: this post-process used to re-run over the whole map on every
+                // generated hex, so already-discovered riverbanks kept turning into lakes.
+                if (terrain === 'riverbank' && Math.random() < 0.15 &&
+                    getHexNeighbors({ q, r }).some((n) => newHexes.get(`${n.q},${n.r}`)?.terrain === 'river')) {
+                    terrain = 'lake';
+                }
 
-            return { ...state, hexes: processedHexes };
+                newHexes.set(key, { q, r, terrain, visited: false, visible: false, discovered: false, inRange: false, inSight: false });
+                changed = true;
+            }
+            return changed ? { ...state, hexes: newHexes } : state;
         }
+
+        case 'GENERATE_HEX':
+            return gameReducer(state, { type: 'GENERATE_HEXES', coords: [{ q: action.q, r: action.r }] });
 
         case 'UPDATE_VISIBILITY': {
             const newHexes = calculateVisibility(state.player, state.hexes);
@@ -567,16 +606,9 @@ export const gameReducer = (state, action) => {
             // ENHANCED: Update lastSeenTurn for creatures in currently visible hexes
             const newCreatures = new Map(state.creatures);
             for (const [hexKey, creatures] of newCreatures.entries()) {
-                const [q, r] = hexKey.split(',').map(Number);
                 const hex = newHexes.get(hexKey);
-
-                if (hex && hex.visible && hex.inRange) {
-                    // Update lastSeenTurn for all creatures in visible hexes
-                    const updatedCreatures = creatures.map(creature => ({
-                        ...creature,
-                        lastSeenTurn: state.moveNumber
-                    }));
-                    newCreatures.set(hexKey, updatedCreatures);
+                if (hex && hex.inSight) {
+                    newCreatures.set(hexKey, creatures.map(creature => ({ ...creature, lastSeenTurn: state.moveNumber })));
                 }
             }
 
@@ -588,80 +620,47 @@ export const gameReducer = (state, action) => {
 
             const playerKey = `${state.player.q},${state.player.r}`;
             const playerHex = state.hexes.get(playerKey);
-
             if (!playerHex) return state;
 
-            const speciesDistribution = HABITAT_SPECIES[playerHex.terrain] || {};
-            const speciesNames = Object.keys(speciesDistribution);
             const currentCreatures = state.creatures.get(playerKey) || [];
+            if (currentCreatures.length >= MAX_CREATURES_PER_HEX) return state;
 
-            // FIXED: Check if we've already reached the maximum creatures per hex
-            if (currentCreatures.length >= MAX_CREATURES_PER_HEX) {
-                return state; // No more spawning if at max capacity
+            const spawned = rollSpawns(playerHex.terrain, state, { existing: currentCreatures.length });
+            if (spawned.length === 0) return state;
+
+            const newCreaturesMap = new Map(state.creatures);
+            newCreaturesMap.set(playerKey, [...currentCreatures, ...spawned]);
+            return { ...state, creatures: newCreaturesMap };
+        }
+
+        // NEW: fill the hexes you can see with wildlife so the world feels alive,
+        // and forget creatures that are far behind you.
+        case 'POPULATE_NEARBY': {
+            if (state.gameOver) return state;
+            const playerKey = `${state.player.q},${state.player.r}`;
+            const newCreatures = new Map();
+            let total = 0;
+            for (const [key, list] of state.creatures) {
+                const [q, r] = key.split(',').map(Number);
+                if (hexDistance({ q, r }, state.player) > CREATURE_CULL_DISTANCE) continue;
+                newCreatures.set(key, list);
+                total += list.length;
             }
-
-            if (speciesNames.length > 0) {
-                const newCreatures = [...currentCreatures];
-                let spawnAttempts = 0;
-                const maxSpawnAttempts = 10; // Prevent infinite loops
-
-                for (const species of speciesNames) {
-                    // FIXED: Stop spawning if we reach the creature limit
-                    if (newCreatures.length >= MAX_CREATURES_PER_HEX) {
-                        break;
-                    }
-
-                    // Prevent too many spawn attempts
-                    if (spawnAttempts >= maxSpawnAttempts) {
-                        break;
-                    }
-                    spawnAttempts++;
-
-                    let baseEncounterChance = speciesDistribution[species];
-
-                    // Enhanced size-based multiplier
-                    const sizeMultiplier = getPreySizeMultiplier(state.level, state.weight, species);
-                    let encounterChance = baseEncounterChance * sizeMultiplier;
-
-                    // Enhanced danger scaling for small predators
-                    if (state.level <= 2 && ['Male Allosaurus', 'Female Allosaurus', 'Stegosaurus', 'Torvosaurus'].includes(species)) {
-                        encounterChance *= 0.05; // Much lower chance of apex predators
-                    }
-
-                    if (Math.random() < encounterChance) {
-                        const speciesData = SPECIES_DATA[species];
-                        const minAge = speciesData.minimumAge || 0.1;
-                        const creature = {
-                            id: `${species}-${Date.now()}-${Math.random()}`,
-                            species,
-                            size: minAge + (1 - minAge) * Math.random(),
-                            behavior: 'neutral',
-                            spawnTurn: state.moveNumber,
-                            lastBehaviorTurn: state.moveNumber, // Track when behavior was last executed
-                            lastSeenTurn: state.moveNumber, // ADDED: Track when creature was last seen by player
-                            // ENHANCED: Add status tracking
-                            health: 100,
-                            status: 'normal', // normal, injured, fleeing, aggressive
-                            energy: 100
-                        };
-                        newCreatures.push(creature);
-
-                        // FIXED: Stop if we reach the limit
-                        if (newCreatures.length >= MAX_CREATURES_PER_HEX) {
-                            break;
-                        }
-                    }
+            const populatedAt = new Map(state.populatedAt || []);
+            for (const [key, hex] of state.hexes) {
+                if (total >= MAX_AMBIENT_CREATURES) break;
+                if (!hex.inSight || key === playerKey) continue;
+                if ((newCreatures.get(key) || []).length > 0) continue;
+                const last = populatedAt.get(key);
+                if (last !== undefined && state.moveNumber - last < AMBIENT_RESPAWN_TURNS) continue;
+                populatedAt.set(key, state.moveNumber);
+                const spawned = rollSpawns(hex.terrain, state, { chanceScale: 0.4, max: 2 });
+                if (spawned.length) {
+                    newCreatures.set(key, spawned);
+                    total += spawned.length;
                 }
-
-                const newCreaturesMap = new Map(state.creatures);
-                if (newCreatures.length > 0) {
-                    newCreaturesMap.set(playerKey, newCreatures);
-                }
-
-                return { ...state, creatures: newCreaturesMap };
             }
-
-            return state;
+            return { ...state, creatures: newCreatures, populatedAt };
         }
 
         case 'ATTACK_CREATURE': {
@@ -671,163 +670,143 @@ export const gameReducer = (state, action) => {
             const playerKey = `${state.player.q},${state.player.r}`;
             const creatures = state.creatures.get(playerKey) || [];
             const targetCreature = creatures.find(c => c.id === creatureId);
-
             if (!targetCreature) return state;
 
             const speciesData = SPECIES_DATA[targetCreature.species];
-
-            let newState = { ...state };
+            let newState = { ...state, creatures: removeCreature(state.creatures, playerKey, creatureId) };
             let newNotifications = [...state.notifications];
-            let combatLog = [];
+            const combatLog = [];
+            let outcome;
 
-            // NEW: Check if creature escapes before combat!
-            if (attemptCreatureEscape(speciesData, targetCreature.size, state.weight, state.level)) {
+            // Check if creature escapes before combat!
+            if (attemptCreatureEscape(targetCreature.species, speciesData, targetCreature.size, state.weight, state.level)) {
+                outcome = 'escape';
                 combatLog.push(`The ${targetCreature.species} darts away before you can catch it!`);
-
-                // Remove the escaped creature and use some energy
-                const updatedCreatures = creatures.filter(c => c.id !== creatureId);
-                const newCreaturesMap = new Map(state.creatures);
-                if (updatedCreatures.length > 0) {
-                    newCreaturesMap.set(playerKey, updatedCreatures);
-                } else {
-                    newCreaturesMap.delete(playerKey);
-                }
-
-                newState.creatures = newCreaturesMap;
                 newState.energy = Math.max(0, state.energy - 4); // Small energy cost for failed hunt
-
-                newNotifications = addNotification(newNotifications, {
-                    type: 'warning',
-                    message: combatLog[0]
-                });
-
-                newState.notifications = newNotifications;
                 newState.currentThought = "Too slow! Need to be more careful hunting.";
+            } else {
+                const fiercenessRatio = calculateFiercenessRatio(state.weight, state.fitness, speciesData, targetCreature.size);
+                const agilityRatio = calculateAgilityRatio(state.weight, speciesData);
 
-                return newState;
-            }
-
-            // If creature didn't escape, proceed with normal combat
-            const fiercenessRatio = calculateFiercenessRatio(state.weight, state.fitness, speciesData, targetCreature.size);
-            const agilityRatio = calculateAgilityRatio(state.weight, speciesData);
-
-            // Enhanced combat system
-            if (fiercenessRatio < 1) {
-                if (agilityRatio < 1) {
+                if (fiercenessRatio < 1 && agilityRatio < 1) {
                     // Successfully caught and killed
+                    outcome = 'kill';
                     combatLog.push(`You successfully hunt the ${targetCreature.species}!`);
 
                     const injuryAmount = calculateInjuries(fiercenessRatio);
-                    if (injuryAmount > 3) { // Lower threshold for smaller dinosaurs
+                    if (injuryAmount > 3) {
                         newState.fitness = Math.max(0, state.fitness - injuryAmount);
                         combatLog.push(`The struggle causes minor injuries (-${Math.round(injuryAmount)} fitness)`);
                     }
 
-                    // Remove the killed creature
-                    const updatedCreatures = creatures.filter(c => c.id !== creatureId);
-                    const newCreaturesMap = new Map(state.creatures);
-                    if (updatedCreatures.length > 0) {
-                        newCreaturesMap.set(playerKey, updatedCreatures);
-                    } else {
-                        newCreaturesMap.delete(playerKey);
-                    }
-                    newState.creatures = newCreaturesMap;
-
-                    // Enhanced energy system with better scaling for 300g hatchling
                     const energyGain = calculateEnergyGain(speciesData, targetCreature.size, state.weight, state.level);
-                    const newEnergy = Math.min(100, state.energy + energyGain);
+                    const fed = feed(state, energyGain, targetCreature.size);
+                    newState.energy = fed.energy;
+                    newState.weight = fed.weight;
+                    newState.score = fed.score;
 
-                    // Weight gain when well-fed - better scaling for hatchling
-                    if (newEnergy >= 90 && energyGain > 8) { // Lower threshold for meaningful meals
-                        const weightGain = (energyGain * 0.015) * Math.pow(targetCreature.size, 0.8); // Better scaling
-                        newState.weight = Math.min(MAX_WEIGHT, state.weight + weightGain);
-                        newState.energy = 100;
-                        newState.score = state.score + Math.round(weightGain * 150);
-
-                        combatLog.push(`You devour the ${targetCreature.species}! (+${Math.round(weightGain * 1000)}g weight, full energy)`);
+                    if (fed.weightGain > 0) {
+                        combatLog.push(`You devour the ${targetCreature.species}! (+${Math.round(fed.weightGain * 1000)}g weight, full energy)`);
+                    } else if (energyGain < 3) {
+                        combatLog.push(`You eat the ${targetCreature.species}, but it's barely a snack (+${Math.round(energyGain)} energy)`);
+                    } else if (energyGain < 10) {
+                        combatLog.push(`You eat the ${targetCreature.species} (+${Math.round(energyGain)} energy)`);
+                    } else if (energyGain < 20) {
+                        combatLog.push(`You enjoy the ${targetCreature.species}! (+${Math.round(energyGain)} energy)`);
                     } else {
-                        newState.energy = newEnergy;
-                        newState.score = state.score + Math.round(energyGain * 1.5);
-
-                        // Enhanced feedback about energy gain
-                        if (energyGain < 3) {
-                            combatLog.push(`You eat the ${targetCreature.species}, but it's barely a snack (+${Math.round(energyGain)} energy)`);
-                        } else if (energyGain < 10) {
-                            combatLog.push(`You eat the ${targetCreature.species} (+${Math.round(energyGain)} energy)`);
-                        } else if (energyGain < 20) {
-                            combatLog.push(`You enjoy the ${targetCreature.species}! (+${Math.round(energyGain)} energy)`);
-                        } else {
-                            combatLog.push(`You feast on the ${targetCreature.species}! (+${Math.round(energyGain)} energy)`);
-                        }
+                        combatLog.push(`You feast on the ${targetCreature.species}! (+${Math.round(energyGain)} energy)`);
                     }
 
-                } else {
+                    const growth = applyGrowth(state.level, newState.weight, newNotifications);
+                    newState.level = growth.level;
+                    newNotifications = growth.notifications;
+                } else if (fiercenessRatio < 1) {
+                    outcome = 'escape';
                     combatLog.push(`The ${targetCreature.species} escapes your clumsy attack!`);
                     newState.energy = Math.max(0, state.energy - 5);
-
-                    const updatedCreatures = creatures.filter(c => c.id !== creatureId);
-                    const newCreaturesMap = new Map(state.creatures);
-                    if (updatedCreatures.length > 0) {
-                        newCreaturesMap.set(playerKey, updatedCreatures);
-                    } else {
-                        newCreaturesMap.delete(playerKey);
-                    }
-                    newState.creatures = newCreaturesMap;
-                }
-            } else {
-                // Dangerous combat - enhanced penalties for small dinosaurs
-                const injuries = calculateInjuries(fiercenessRatio) * (state.level <= 2 ? 1.8 : 1);
-                newState.fitness = Math.max(0, state.fitness - injuries);
-                newState.energy = Math.max(0, state.energy - 12);
-                combatLog.push(`The ${targetCreature.species} ${speciesData.injury}!`);
-                combatLog.push(`You take ${Math.round(injuries)} damage!`);
-
-                const updatedCreatures = creatures.filter(c => c.id !== creatureId);
-                const newCreaturesMap = new Map(state.creatures);
-                if (updatedCreatures.length > 0) {
-                    newCreaturesMap.set(playerKey, updatedCreatures);
                 } else {
-                    newCreaturesMap.delete(playerKey);
-                }
-                newState.creatures = newCreaturesMap;
+                    // Dangerous combat - enhanced penalties for small dinosaurs
+                    outcome = 'hurt';
+                    const injuries = calculateInjuries(fiercenessRatio) * (state.level <= 2 ? 1.8 : 1);
+                    newState.fitness = Math.max(0, state.fitness - injuries);
+                    newState.energy = Math.max(0, state.energy - 12);
+                    combatLog.push(`The ${targetCreature.species} ${speciesData.injury}!`);
+                    combatLog.push(`You take ${Math.round(injuries)} damage!`);
 
-                if (newState.fitness <= 0) {
-                    newState.gameOver = true;
-                    newState.gamePhase = 'dead';
-                    newState.deathReason = 'combat';
+                    if (newState.fitness <= 0) {
+                        newState.gameOver = true;
+                        newState.gamePhase = 'dead';
+                        newState.deathReason = 'combat';
+                    }
+                }
+                newState.currentThought = combatLog[0] || "The hunt continues...";
+                if (newState.gameOver) {
                     newState.currentThought = state.level === 1 ?
                         `The ${targetCreature.species} was too dangerous for a small hatchling...` :
                         `The ${targetCreature.species} proved too powerful...`;
                 }
             }
 
-            newNotifications = addNotification(newNotifications, {
+            newState.notifications = addNotification(newNotifications, {
                 type: 'combat',
                 message: combatLog.join(' ')
             });
-
-            newState.notifications = newNotifications;
-            newState.currentThought = combatLog[0] || "The hunt continues...";
-
+            newState.lastPlayerAction = { id: uid('act'), type: 'attack', creatureId, outcome };
             return newState;
         }
 
-        // FIXED: Make PROCESS_CREATURE_BEHAVIORS functional
-        case 'PROCESS_CREATURE_BEHAVIORS': {
+        // NEW: eat what other predators left behind
+        case 'SCAVENGE': {
             if (state.gameOver) return state;
+            const playerKey = `${state.player.q},${state.player.r}`;
+            const list = (state.carcasses || new Map()).get(playerKey) || [];
+            const carcass = list.find((c) => c.id === action.carcassId);
+            if (!carcass) return state;
 
-            const behaviorResult = processCreatureBehaviors(state);
-            const behaviorState = applyCreatureBehaviorResults(state, behaviorResult.behaviorLog);
+            const speciesData = SPECIES_DATA[carcass.species];
+            const freshness = Math.max(0.3, 1 - (state.moveNumber - carcass.turn) / CARCASS_DECAY_TURNS);
+            const energyGain = Math.max(2, Math.round(calculateEnergyGain(speciesData, carcass.size, state.weight, state.level) * 0.6 * freshness));
+            const fed = feed(state, energyGain, carcass.size, 0.7);
+            const growth = applyGrowth(state.level, fed.weight, state.notifications);
 
-            // Limit behavior log here too
-            const combinedBehaviorLog = [...(state.creatureBehaviorLog || []), ...behaviorResult.behaviorLog];
-            const limitedBehaviorLog = combinedBehaviorLog.slice(-MAX_BEHAVIOR_LOG_SIZE);
+            const carcasses = new Map(state.carcasses);
+            const rest = list.filter((c) => c.id !== carcass.id);
+            if (rest.length) carcasses.set(playerKey, rest);
+            else carcasses.delete(playerKey);
 
             return {
-                ...behaviorState,
-                creatures: behaviorResult.creatures,
-                creatureBehaviorLog: limitedBehaviorLog
+                ...state,
+                carcasses,
+                energy: fed.energy,
+                weight: fed.weight,
+                score: fed.score,
+                level: growth.level,
+                notifications: addNotification(growth.notifications, {
+                    type: 'success',
+                    message: `You scavenge the ${carcass.species} carcass (+${energyGain} energy${fed.weightGain > 0 ? `, +${Math.round(fed.weightGain * 1000)}g` : ''})`
+                }),
+                currentThought: freshness > 0.6 ? "Still warm. Free food is the best food." : "A bit ripe... but food is food.",
+                lastPlayerAction: { id: uid('act'), type: 'scavenge', carcassId: carcass.id }
             };
+        }
+
+        // Dev helper (window.spawnCreature in development builds)
+        case 'DEBUG_SPAWN': {
+            const key = action.hexKey || `${state.player.q},${state.player.r}`;
+            if (!SPECIES_DATA[action.species]) return state;
+            const c = {
+                id: uid(action.species), species: action.species, size: action.size ?? 1, behavior: 'neutral',
+                spawnTurn: state.moveNumber, lastBehaviorTurn: state.moveNumber, lastSeenTurn: state.moveNumber,
+                health: 100, status: 'normal', energy: 100
+            };
+            const creatures = new Map(state.creatures);
+            creatures.set(key, [...(creatures.get(key) || []), c]);
+            return { ...state, creatures };
+        }
+
+        case 'PROCESS_CREATURE_BEHAVIORS': {
+            if (state.gameOver) return state;
+            return withBehaviors(state, processCreatureBehaviors(state));
         }
 
         case 'DISMISS_NOTIFICATION': {
@@ -839,18 +818,18 @@ export const gameReducer = (state, action) => {
 
         case 'AUTO_DISMISS_NOTIFICATIONS': {
             const now = Date.now();
-            return {
-                ...state,
-                notifications: state.notifications.filter(n =>
-                    (now - n.timestamp) < NOTIFICATION_AUTO_DISMISS_TIME
-                )
-            };
+            const kept = state.notifications.filter(n => (now - n.timestamp) < NOTIFICATION_AUTO_DISMISS_TIME);
+            // Avoid re-rendering every second when nothing expired
+            return kept.length === state.notifications.length ? state : { ...state, notifications: kept };
         }
 
         case 'RESTART_GAME': {
             return {
                 ...initialGameState,
-                hexes: new Map()
+                hexes: new Map(),
+                creatures: new Map(),
+                carcasses: new Map(),
+                populatedAt: new Map()
             };
         }
 
@@ -863,7 +842,7 @@ export const gameReducer = (state, action) => {
         }
 
         case 'CLEAR_HOVER': {
-            return { ...state, hoveredHex: null };
+            return state.hoveredHex ? { ...state, hoveredHex: null } : state;
         }
 
         default:

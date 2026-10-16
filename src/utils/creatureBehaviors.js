@@ -421,23 +421,28 @@ const soarToHighGround = (creature, currentHex, gameState) => {
     return stayNearPreferredTerrain(creature, currentHex, gameState, highTerrains);
 };
 
+const PREY_BEHAVIORS = ['passive', 'skittish', 'defensive'];
+
 const huntFromAbove = (creature, currentHex, gameState) => {
-    // Look for prey in nearby hexes
-    const neighbors = getHexNeighbors(currentHex);
-    for (const neighbor of neighbors) {
-        const neighborKey = `${neighbor.q},${neighbor.r}`;
-        const creatures = gameState.creatures.get(neighborKey) || [];
+    // Look for prey on this hex and the neighbouring ones
+    const hunterWeight = SPECIES_DATA[creature.species].weight * (creature.size || 1);
+    const candidates = [currentHex, ...getHexNeighbors(currentHex)];
+    for (const hex of candidates) {
+        const hexKey = `${hex.q},${hex.r}`;
+        const creatures = gameState.creatures.get(hexKey) || [];
         const prey = creatures.find(c => {
+            if (c.id === creature.id) return false;
             const preyData = SPECIES_DATA[c.species];
-            return preyData && preyData.behaviorType === 'passive' &&
-                preyData.weight < SPECIES_DATA[creature.species].weight;
+            return preyData && PREY_BEHAVIORS.includes(preyData.behaviorType) &&
+                preyData.weight * (c.size || 1) < hunterWeight * 0.5;
         });
 
         if (prey) {
             return {
                 action: 'hunt_from_above',
-                target: neighbor,
-                message: `The ${creature.species} spots prey from above!`
+                target: hex,
+                preyId: prey.id,
+                message: `The ${creature.species} spots a ${prey.species}!`
             };
         }
     }

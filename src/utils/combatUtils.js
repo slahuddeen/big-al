@@ -16,7 +16,8 @@ const safeLog10 = (value) => {
     return Math.log10(safeValue);
 };
 
-export const calculateFiercenessRatio = (playerWeight, playerFitness, speciesData, speciesSize, packSize = 1) => {
+// `random` adds the combat dice roll; previews pass false so the odds shown don't flicker
+export const calculateFiercenessRatio = (playerWeight, playerFitness, speciesData, speciesSize, packSize = 1, random = true) => {
     // Validate inputs
     const safePlayerWeight = safeNumber(playerWeight, 0.3); // Updated baseline to 300g
     const safePlayerFitness = safeNumber(playerFitness, 100);
@@ -26,7 +27,7 @@ export const calculateFiercenessRatio = (playerWeight, playerFitness, speciesDat
     // Validate species data
     const safeDanger = safeNumber(speciesData?.danger, 0);
 
-    const chance = safeNumber((Math.random() * 2 - 1) * BEHAVIOR_RANDOMNESS + 1, 1);
+    const chance = random ? safeNumber((Math.random() * 2 - 1) * BEHAVIOR_RANDOMNESS + 1, 1) : 1;
     const playerFierceness = safePlayerWeight * (safeLog10(Math.max(1, safePlayerFitness)) / 2);
     const speciesDanger = safeDanger * (safeSpeciesSize / safePackSize) * chance;
 
@@ -34,7 +35,7 @@ export const calculateFiercenessRatio = (playerWeight, playerFitness, speciesDat
     return safeNumber(ratio, 0.1);
 };
 
-export const calculateAgilityRatio = (playerWeight, speciesData) => {
+export const calculateAgilityRatio = (playerWeight, speciesData, random = true) => {
     // Validate inputs
     const safePlayerWeight = safeNumber(playerWeight, 0.3); // Updated baseline to 300g
 
@@ -42,7 +43,7 @@ export const calculateAgilityRatio = (playerWeight, speciesData) => {
     const safeDifficulty = safeNumber(speciesData?.difficulty, 0.5);
     const safeSpeciesWeight = safeNumber(speciesData?.weight, 1);
 
-    const chance = safeNumber((Math.random() * 2 - 1) * BEHAVIOR_RANDOMNESS + 1, 1);
+    const chance = random ? safeNumber((Math.random() * 2 - 1) * BEHAVIOR_RANDOMNESS + 1, 1) : 1;
 
     // Enhanced agility calculation starting from 300g baseline
     const logWeight = safeLog10(safePlayerWeight) - safeLog10(0.3); // Start from 300g hatchling weight
@@ -87,8 +88,8 @@ export const calculateSuccessChance = (playerWeight, playerFitness, speciesData,
             return 50;
         }
 
-        const fiercenessRatio = calculateFiercenessRatio(safePlayerWeight, safePlayerFitness, speciesData, safeCreatureSize);
-        const agilityRatio = calculateAgilityRatio(safePlayerWeight, speciesData);
+        const fiercenessRatio = calculateFiercenessRatio(safePlayerWeight, safePlayerFitness, speciesData, safeCreatureSize, 1, false);
+        const agilityRatio = calculateAgilityRatio(safePlayerWeight, speciesData, false);
 
         // Validate calculated ratios
         const safeFiercenessRatio = safeNumber(fiercenessRatio, 0.5);

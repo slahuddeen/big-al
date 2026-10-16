@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { SPECIES_DATA } from '../data/species.js';
-import ImageWithFallback from './ImageWithFallback.jsx';
+import CreaturePortrait from './CreaturePortrait.jsx';
 
 const HoverTooltip = ({ hex, mousePos, creatures }) => {
     if (!hex) return null;
@@ -19,18 +19,8 @@ const HoverTooltip = ({ hex, mousePos, creatures }) => {
             }}
         >
             <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 flex items-center justify-center">
-                    <ImageWithFallback
-                        src={terrain.image}
-                        fallback={terrain.emoji}
-                        alt={terrain.name}
-                        style={{
-                            width: '24px',
-                            height: '24px',
-                            objectFit: 'contain',
-                            fontSize: '1.2rem'
-                        }}
-                    />
+                <div className="w-6 h-6 flex items-center justify-center rounded-md text-base" style={{ background: terrain.color }}>
+                    {terrain.emoji}
                 </div>
                 <div>
                     <div className="font-bold">{terrain.name}</div>
@@ -48,25 +38,12 @@ const HoverTooltip = ({ hex, mousePos, creatures }) => {
             {creatures && creatures.length > 0 && (
                 <div className="border-t border-gray-600 pt-2">
                     <div className="text-xs font-bold text-amber-400 mb-1">Creatures:</div>
-                    {creatures.map((creature, index) => {
-                        const speciesData = SPECIES_DATA[creature.species];
+                    {creatures.map((creature) => {
                         return (
                             <div key={creature.id} className="text-xs flex items-center gap-1 mb-1">
-                                <div className="w-4 h-4 flex items-center justify-center">
-                                    <ImageWithFallback
-                                        src={speciesData.image}
-                                        fallback={speciesData.emoji}
-                                        alt={creature.species}
-                                        style={{
-                                            width: '16px',
-                                            height: '16px',
-                                            objectFit: 'contain',
-                                            fontSize: '0.8rem'
-                                        }}
-                                    />
-                                </div>
+                                <CreaturePortrait species={creature.species} size={28} />
                                 <span>{creature.species}</span>
-                                <span className="text-gray-400">({(creature.size * 100).toFixed(0)}%)</span>
+                                <span className="text-gray-400">({(creature.size * 100).toFixed(0)}% grown)</span>
                             </div>
                         );
                     })}

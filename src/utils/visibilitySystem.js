@@ -13,6 +13,7 @@ export const calculateVisibility = (playerPos, hexes) => {
     for (const hex of newHexes.values()) {
         hex.visible = false;
         hex.inRange = false;
+        hex.inSight = false; // in range AND in line of sight this turn
         // Keep discovered state - once discovered, always discovered
     }
 
@@ -23,6 +24,7 @@ export const calculateVisibility = (playerPos, hexes) => {
         playerHex.visited = true;
         playerHex.discovered = true; // New discovery state
         playerHex.inRange = true;
+        playerHex.inSight = true;
     }
 
     // Calculate current visibility range
@@ -51,6 +53,7 @@ export const calculateVisibility = (playerPos, hexes) => {
 
                     if (hasLOS) {
                         hex.visible = true;
+                        hex.inSight = true;
                         hex.discovered = true; // Mark as discovered when first seen
                     }
                 }

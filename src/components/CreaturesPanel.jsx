@@ -1,13 +1,14 @@
-﻿import React from 'react';
+import React from 'react';
 import { SPECIES_DATA } from '../data/species.js';
-import { calculateFiercenessRatio, calculateAgilityRatio, calculateSuccessChance, calculateEnergyGain, debugCombatCalculations } from '../utils/combatUtils.js';
-import ImageWithFallback from './ImageWithFallback.jsx';
+import { calculateFiercenessRatio, calculateAgilityRatio, calculateSuccessChance, calculateEnergyGain } from '../utils/combatUtils.js';
+import CreaturePortrait from './CreaturePortrait.jsx';
 
 const CreaturesPanel = ({ gameState, dispatch }) => {
     const playerKey = `${gameState.player.q},${gameState.player.r}`;
     const creatures = gameState.creatures.get(playerKey) || [];
+    const carcasses = (gameState.carcasses && gameState.carcasses.get(playerKey)) || [];
 
-    if (creatures.length === 0 || gameState.gameOver) return null;
+    if ((creatures.length === 0 && carcasses.length === 0) || gameState.gameOver) return null;
 
     // NEW: Calculate energy gain preview using the safe function
     const calculateEnergyPreview = (speciesData, creatureSize) => {
@@ -48,7 +49,7 @@ const CreaturesPanel = ({ gameState, dispatch }) => {
                     🎯 Creatures Present
                 </h3>
                 <div className="text-center text-sm text-gray-400">
-                    {creatures.length} creature{creatures.length !== 1 ? 's' : ''} detected
+                    {creatures.length} creature{creatures.length !== 1 ? 's' : ''} detected{carcasses.length > 0 ? ` · ${carcasses.length} carcass${carcasses.length !== 1 ? 'es' : ''}` : ''}
                 </div>
             </div>
 
@@ -63,8 +64,9 @@ const CreaturesPanel = ({ gameState, dispatch }) => {
                         return null;
                     }
 
-                    const fiercenessRatio = calculateFiercenessRatio(gameState.weight, gameState.fitness, speciesData, creature.size);
-                    const agilityRatio = calculateAgilityRatio(gameState.weight, speciesData);
+                    // Deterministic preview (no dice roll) so the numbers don't flicker
+                    const fiercenessRatio = calculateFiercenessRatio(gameState.weight, gameState.fitness, speciesData, creature.size, 1, false);
+                    const agilityRatio = calculateAgilityRatio(gameState.weight, speciesData, false);
                     const successChance = calculateSuccessChance(gameState.weight, gameState.fitness, speciesData, creature.size);
 
                     // Validate calculated values
@@ -135,17 +137,11 @@ const CreaturesPanel = ({ gameState, dispatch }) => {
                         >
                             {/* Large Creature Image Section */}
                             <div className="relative h-32 bg-gradient-to-b from-transparent via-transparent to-black bg-opacity-50 flex items-center justify-center gradient-overlay">
-                                <ImageWithFallback
-                                    src={speciesData.image}
-                                    fallback={speciesData.emoji}
-                                    alt={creature.species}
-                                    className="object-contain creature-image-hover"
-                                    style={{
-                                        width: '140px',
-                                        height: '140px',
-                                        fontSize: '5rem',
-                                        filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.8))'
-                                    }}
+                                <CreaturePortrait
+                                    species={creature.species}
+                                    size={150}
+                                    className="creature-image-hover"
+                                    style={{ filter: 'drop-shadow(2px 4px 4px rgba(0,0,0,0.6))' }}
                                 />
 
                                 {/* Success Chance Overlay */}
@@ -266,6 +262,31 @@ const CreaturesPanel = ({ gameState, dispatch }) => {
                                         {speciesData.description}
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {/* NEW: carcasses left by other predators can be scavenged safely */}
+                {carcasses.map((carcass) => {
+                    const speciesData = SPECIES_DATA[carcass.species];
+                    if (!speciesData) return null;
+                    const age = gameState.moveNumber - carcass.turn;
+                    return (
+                        <div key={carcass.id} className="rounded-xl border-2 border-rose-700 bg-rose-950 bg-opacity-40 p-3 flex items-center gap-3">
+                            <div className="relative">
+                                <CreaturePortrait species={carcass.species} size={72} style={{ filter: 'grayscale(0.7) brightness(0.7)', transform: 'rotate(160deg) scaleX(-1)' }} />
+                                <span className="absolute -bottom-1 -right-1 text-lg">🦴</span>
+                            </div>
+                            <div className="flex-1">
+                                <div className="font-bold text-rose-200">{carcass.species} carcass</div>
+                                <div className="text-xs text-gray-400 mb-2">{age <= 2 ? 'Fresh kill' : age <= 8 ? 'Getting ripe' : 'Rotting'} · no fight needed</div>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SCAVENGE', carcassId: carcass.id }); }}
+                                    className="w-full bg-rose-700 hover:bg-rose-600 text-white py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95"
+                                >
+                                    🍖 Scavenge
+                                </button>
                             </div>
                         </div>
                     );

@@ -1,0 +1,61 @@
+// ==================== SHARED MATERIALS ====================
+import * as THREE from 'three';
+
+export const sharedUniforms = {
+    uTime: { value: 0 }
+};
+
+// Foliage vertices carry a `sway` attribute (0 = rooted, 1 = free tip). The
+// vertex shader pushes them around with a gentle wind so forests feel alive.
+const addSway = (material, key) => {
+    material.onBeforeCompile = (shader) => {
+        shader.uniforms.uTime = sharedUniforms.uTime;
+        shader.vertexShader = 'attribute float sway;\nuniform float uTime;\n' +
+            shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                `#include <begin_vertex>
+                vec4 swWorld = modelMatrix * vec4(transformed, 1.0);
+                float swPhase = uTime * 1.7 + swWorld.x * 0.8 + swWorld.z * 0.6;
+                transformed.x += sin(swPhase) * sway * 0.05;
+                transformed.z += cos(swPhase * 0.83) * sway * 0.035;`
+            );
+    };
+    material.customProgramCacheKey = () => key;
+    return material;
+};
+
+const addWaves = (material, key) => {
+    material.onBeforeCompile = (shader) => {
+        shader.uniforms.uTime = sharedUniforms.uTime;
+        shader.vertexShader = 'uniform float uTime;\n' +
+            shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                `#include <begin_vertex>
+                vec4 wvWorld = modelMatrix * vec4(transformed, 1.0);
+                transformed.y += sin(uTime * 2.1 + wvWorld.x * 4.0 + wvWorld.z * 2.5) * 0.012
+                               + cos(uTime * 1.4 + wvWorld.z * 3.3) * 0.008;`
+            );
+    };
+    material.customProgramCacheKey = () => key;
+    return material;
+};
+
+export const createMaterials = () => {
+    const terrain = addSway(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 'terrain-lit');
+    const terrainFog = addSway(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, color: '#6c7590' }), 'terrain-fog');
+    const water = addWaves(new THREE.MeshPhongMaterial({
+        vertexColors: true, flatShading: true, transparent: true, opacity: 0.86,
+        shininess: 90, specular: '#cfefff'
+    }), 'water-lit');
+    const waterFog = addWaves(new THREE.MeshPhongMaterial({
+        vertexColors: true, flatShading: true, transparent: true, opacity: 0.86,
+        shininess: 30, color: '#6c7590'
+    }), 'water-fog');
+    const lava = new THREE.MeshBasicMaterial({ vertexColors: true });
+    const lavaFog = new THREE.MeshBasicMaterial({ vertexColors: true, color: '#8a5a50' });
+    const creature = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    const wing = new THREE.MeshLambertMaterial({
+        vertexColors: true, flatShading: true, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false
+    });
+    return { terrain, terrainFog, water, waterFog, lava, lavaFog, creature, wing };
+};

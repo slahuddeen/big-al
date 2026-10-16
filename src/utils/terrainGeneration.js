@@ -214,8 +214,13 @@ export const generateTerrain = (q, r, existingHexes, linearFeatures = []) => {
         return 'openwoods';
     }
 
-    // Analyze neighbors for ecological rules
-    const neighborTypes = existingNeighbors.map(h => h.terrain);
+    // Rare nesting grounds away from water and peaks (previously 'nest' could never generate)
+    if (Math.random() < 0.012 && !existingNeighbors.some(h => ['river', 'lake', 'mountains', 'volcanic', 'nest'].includes(h.terrain))) {
+        return 'nest';
+    }
+
+    // Analyze neighbors for ecological rules (nests are treated as open woods so they don't spread)
+    const neighborTypes = existingNeighbors.map(h => h.terrain === 'nest' ? 'openwoods' : h.terrain);
     const terrainCounts = {};
     neighborTypes.forEach(t => terrainCounts[t] = (terrainCounts[t] || 0) + 1);
 

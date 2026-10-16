@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { SPECIES_DATA } from '../data/species.js';
-import ImageWithFallback from './ImageWithFallback.jsx';
+import CreaturePortrait from './CreaturePortrait.jsx';
 
 const CreatureActivityPanel = ({ gameState }) => {
     // Only show if there are recent creature activities
@@ -9,7 +9,7 @@ const CreatureActivityPanel = ({ gameState }) => {
     }
 
     // Show recent activities from the last few turns
-    const recentActivities = gameState.creatureBehaviorLog.slice(-3); // Last 3 activities
+    const recentActivities = gameState.creatureBehaviorLog.slice(-3).reverse(); // Last 3 activities, newest first
 
     return (
         <div className="absolute bottom-4 right-4 w-72 bg-black bg-opacity-85 backdrop-blur-md rounded-lg border-2 border-green-600 text-white text-sm">
@@ -24,14 +24,9 @@ const CreatureActivityPanel = ({ gameState }) => {
                     const speciesData = SPECIES_DATA[activity.creature];
 
                     return (
-                        <div key={index} className="flex items-center space-x-2 text-xs">
-                            <div className="w-6 h-6 flex-shrink-0">
-                                <ImageWithFallback
-                                    src={speciesData?.image}
-                                    fallback={speciesData?.emoji || "🦴"}
-                                    alt={activity.creature}
-                                    className="w-full h-full object-contain"
-                                />
+                        <div key={activity.id || index} className="flex items-center space-x-2 text-xs">
+                            <div className="w-8 h-6 flex-shrink-0 flex items-center justify-center">
+                                <CreaturePortrait species={activity.creature} size={32} />
                             </div>
 
                             <div className="flex-1">
@@ -69,6 +64,8 @@ const getActivityColor = (activityType) => {
             return 'text-blue-400';
         case 'creature_display':
             return 'text-yellow-400';
+        case 'creature_hunt':
+            return 'text-rose-400';
         default:
             return 'text-white';
     }
@@ -82,6 +79,8 @@ const getActivityIcon = (activityType) => {
             return '🏃';
         case 'creature_display':
             return '👁️';
+        case 'creature_hunt':
+            return '🍖';
         default:
             return '🌿';
     }

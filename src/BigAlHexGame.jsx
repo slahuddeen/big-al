@@ -1,460 +1,300 @@
-﻿// ==================== UNCONSTRAINED CAMERA SYSTEM ====================
-import React, { useReducer, useEffect, useCallback, useState, useMemo } from 'react';
-import { hexDistance, getHexNeighbors, hexToPixel } from './utils/hexMath.js';
-import { TERRAIN_TYPES, getBackgroundGradient } from './data/terrain.js';
+﻿// ==================== BIG AL: ISOMETRIC 3D WORLD ====================
+import React, { useReducer, useEffect, useCallback, useState, useMemo, useRef } from 'react';
+import { hexDistance, getHexNeighbors } from './utils/hexMath.js';
+import { TERRAIN_TYPES } from './data/terrain.js';
+import { SPECIES_DATA } from './data/species.js';
 import { getTimeOfDay } from './game/gameConstants.js';
 import { initialGameState, gameReducer } from './game/gameState.js';
-import CreatureActivityPanel from './components/CreatureActivityPanel.jsx';
+import { calculateFiercenessRatio } from './utils/combatUtils.js';
+import { phaseIndex } from './three/WorldRenderer.js';
 // Component imports
-import HexTile from './components/HexTile.jsx';
+import WorldView from './components/WorldView.jsx';
 import StatusPanel from './components/StatusPanel.jsx';
 import CreaturesPanel from './components/CreaturesPanel.jsx';
+import CreatureActivityPanel from './components/CreatureActivityPanel.jsx';
 import NotificationSystem from './components/NotificationSystem.jsx';
 import DeathScreen from './components/DeathScreen.jsx';
 import HoverTooltip from './components/HoverTooltip.jsx';
-import ImageWithFallback from './components/ImageWithFallback.jsx';
+
+const GENERATION_RADIUS = 8;
+const TRAVEL_STEP_MS = 650;
+const MAX_PATH = 24;
+
+// Sky behind the (transparent) 3D canvas for each turn of the day/night cycle
+const SKIES = [
+    'radial-gradient(ellipse at 30% 0%, #ffe3b8 0%, #b9dcf5 45%, #8cc4e8 100%)', // morning
+    'radial-gradient(ellipse at 50% 0%, #f4fbff 0%, #a6d8f5 45%, #6fb6e6 100%)', // noon
+    'radial-gradient(ellipse at 70% 0%, #ffd29a 0%, #f2a27a 40%, #8a6aa8 100%)', // evening
+    'radial-gradient(ellipse at 50% 0%, #3a4a8a 0%, #1c2350 50%, #0b0f26 100%)', // night
+    'radial-gradient(ellipse at 40% 0%, #6a4a9a 0%, #2c2456 50%, #120e2a 100%)' // pre-dawn
+];
+
+const keyOf = (h) => `${h.q},${h.r}`;
+
+const isWalkable = (hex, weight) => {
+    if (!hex || !hex.discovered) return false;
+    const t = TERRAIN_TYPES[hex.terrain];
+    if (!t.passable || hex.terrain === 'quicksand') return false;
+    if (t.minWeight > 0 && weight < t.minWeight) return false;
+    return true;
+};
+
+// Breadth-first path over discovered, safe terrain
+const findPath = (hexes, from, to, weight) => {
+    const goalKey = keyOf(to);
+    if (!isWalkable(hexes.get(goalKey), weight)) return null;
+    const startKey = keyOf(from);
+    const prev = new Map([[startKey, null]]);
+    const queue = [from];
+    while (queue.length) {
+        const cur = queue.shift();
+        const ck = keyOf(cur);
+        if (ck === goalKey) break;
+        for (const n of getHexNeighbors(cur)) {
+            const nk = keyOf(n);
+            if (prev.has(nk) || !isWalkable(hexes.get(nk), weight)) continue;
+            if (hexDistance(n, from) > MAX_PATH) continue;
+            prev.set(nk, ck);
+            queue.push(n);
+        }
+    }
+    if (!prev.has(goalKey)) return null;
+    const path = [];
+    for (let k = goalKey; k && k !== startKey; k = prev.get(k)) {
+        const [q, r] = k.split(',').map(Number);
+        path.unshift({ q, r });
+    }
+    return path.length ? path : null;
+};
 
 const BigAlHexGame = () => {
     const [gameState, dispatch] = useReducer(gameReducer, initialGameState);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const [travelPath, setTravelPath] = useState([]);
+    const worldRef = useRef(null);
+    const fitnessAtTravelStart = useRef(null);
 
-    // ============ UNCONSTRAINED MAP DRAGGING STATE ============
-    const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 });
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-    const [dragStartOffset, setDragStartOffset] = useState({ x: 0, y: 0 });
-
-    // ============ MAP BOUNDS (FOR INFO ONLY - NO CONSTRAINTS) ============
-    const mapBounds = useMemo(() => {
-        if (gameState.hexes.size === 0) {
-            return { minX: -500, maxX: 500, minY: -500, maxY: 500 };
-        }
-
-        let minX = Infinity, maxX = -Infinity;
-        let minY = Infinity, maxY = -Infinity;
-
-        // Calculate actual pixel bounds by converting each hex position
-        for (const hex of gameState.hexes.values()) {
-            const pixel = hexToPixel(hex.q, hex.r);
-            minX = Math.min(minX, pixel.x);
-            maxX = Math.max(maxX, pixel.x);
-            minY = Math.min(minY, pixel.y);
-            maxY = Math.max(maxY, pixel.y);
-        }
-
-        // Add padding for hex size
-        const hexSize = 42;
-        const padding = hexSize * 1.5;
-
-        return {
-            minX: minX - padding,
-            maxX: maxX + padding,
-            minY: minY - padding,
-            maxY: maxY + padding
-        };
-    }, [gameState.hexes]);
-
-    // ============ UNCONSTRAINED DRAGGING EVENT HANDLERS ============
-    const handleMouseDown = useCallback((e) => {
-        // Allow dragging unless clicking on hex tiles or UI elements
-        if (!e.target.closest('.hex-tile') && !e.target.closest('[data-no-drag]')) {
-            setIsDragging(true);
-            setDragStart({ x: e.clientX, y: e.clientY });
-            setDragStartOffset({ ...cameraOffset });
-            e.preventDefault();
-        }
-    }, [cameraOffset]);
-
-    const handleMouseMove = useCallback((e) => {
-        // Update mouse position for tooltips
-        setMousePos({ x: e.clientX, y: e.clientY });
-
-        // Handle map dragging - NO CONSTRAINTS
-        if (isDragging) {
-            const deltaX = e.clientX - dragStart.x;
-            const deltaY = e.clientY - dragStart.y;
-
-            const newOffset = {
-                x: dragStartOffset.x + deltaX,
-                y: dragStartOffset.y + deltaY
-            };
-
-            // Apply NO constraints - camera can move anywhere
-            setCameraOffset(newOffset);
-        }
-    }, [isDragging, dragStart, dragStartOffset]);
-
-    const handleMouseUp = useCallback(() => {
-        setIsDragging(false);
-    }, []);
-
-    const handleMouseLeave = useCallback(() => {
-        setIsDragging(false);
-    }, []);
-
-    // ============ UNCONSTRAINED KEYBOARD SHORTCUTS ============
-    useEffect(() => {
-        const handleKeyPress = (e) => {
-            // Reset camera with 'R' key
-            if (e.key.toLowerCase() === 'r' && !e.ctrlKey) {
-                setCameraOffset({ x: 0, y: 0 });
-                console.log("🎥 Camera reset to center");
-            }
-
-            // Center on player with 'C' key
-            if (e.key.toLowerCase() === 'c' && !e.ctrlKey) {
-                const playerPixel = hexToPixel(gameState.player.q, gameState.player.r);
-                setCameraOffset({ x: -playerPixel.x, y: -playerPixel.y });
-                console.log("🎯 Camera centered on player");
-            }
-
-            // Show full map bounds with 'F' key
-            if (e.key.toLowerCase() === 'f' && !e.ctrlKey) {
-                const centerX = (mapBounds.minX + mapBounds.maxX) / 2;
-                const centerY = (mapBounds.minY + mapBounds.maxY) / 2;
-                setCameraOffset({ x: -centerX, y: -centerY });
-                console.log("🗺️ Camera showing full map");
-            }
-
-            // Arrow keys for precise camera movement - NO CONSTRAINTS
-            const moveDistance = 100;
-            let newOffset = { ...cameraOffset };
-
-            if (e.key === 'ArrowUp') {
-                newOffset.y += moveDistance;
-                e.preventDefault();
-            } else if (e.key === 'ArrowDown') {
-                newOffset.y -= moveDistance;
-                e.preventDefault();
-            } else if (e.key === 'ArrowLeft') {
-                newOffset.x += moveDistance;
-                e.preventDefault();
-            } else if (e.key === 'ArrowRight') {
-                newOffset.x -= moveDistance;
-                e.preventDefault();
-            }
-
-            if (newOffset.x !== cameraOffset.x || newOffset.y !== cameraOffset.y) {
-                // NO constraints applied
-                setCameraOffset(newOffset);
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyPress);
-        return () => window.removeEventListener('keydown', handleKeyPress);
-    }, [cameraOffset, gameState.player, mapBounds]);
-
-    // ============ HEX INTERACTION HANDLERS ============
-    const handleHexClick = useCallback((hex) => {
-        if (isDragging) return; // Don't process hex clicks while dragging
-
-        if (gameState.gameOver) return;
-
-        const distance = hexDistance(gameState.player, hex);
-        const terrain = TERRAIN_TYPES[hex.terrain];
-
-        if (distance === 0) {
-            dispatch({ type: 'SELECT_HEX', hex });
-        } else if (distance === 1 && hex.visible && terrain.passable) {
-            dispatch({ type: 'MOVE_PLAYER', target: { q: hex.q, r: hex.r } });
-        } else {
-            dispatch({ type: 'SELECT_HEX', hex });
-        }
-    }, [gameState.player, gameState.gameOver, isDragging]);
-
-    const handleHexHover = useCallback((hex) => {
-        if (!isDragging) { // Only show hover when not dragging
-            dispatch({ type: 'HOVER_HEX', hex });
-        }
-    }, [isDragging]);
-
-    const handleHexLeave = useCallback(() => {
-        if (!isDragging) {
-            dispatch({ type: 'CLEAR_HOVER' });
-        }
-    }, [isDragging]);
-
-    // ============ HEX MOUSE EVENTS ============
-    const handleHexMouseDown = useCallback((e) => {
-        // Prevent map dragging when clicking on hexes
-        e.stopPropagation();
-    }, []);
-
-    // ENHANCED: Independent creature behavior processing
-    useEffect(() => {
-        if (!gameState.gameOver && gameState.creatures.size > 0) {
-            const creatureTurnTimer = setInterval(() => {
-                // Only process if there are creatures and player isn't moving rapidly
-                const totalCreatures = Array.from(gameState.creatures.values())
-                    .reduce((total, creatures) => total + creatures.length, 0);
-
-                if (totalCreatures > 0) {
-                    // Add some randomness to make creature turns feel more natural
-                    if (Math.random() < 0.8) { // 80% chance to process behaviors each cycle
-                        dispatch({ type: 'PROCESS_CREATURE_BEHAVIORS' });
-                    }
-                }
-            }, 4000); // Creatures act every 4 seconds
-
-            return () => clearInterval(creatureTurnTimer);
-        }
-    }, [gameState.gameOver, gameState.creatures.size]);
-
-    // ENHANCED: Debug functions for development
-    useEffect(() => {
-        if (process.env.NODE_ENV === 'development') {
-            // Add debug functions to window for testing
-            window.testCreatureBehavior = (species) => {
-                console.log(`🧪 Testing ${species} behavior...`);
-                dispatch({ type: 'PROCESS_CREATURE_BEHAVIORS' });
-            };
-
-            window.listCreatures = () => {
-                const allCreatures = [];
-                for (const [hex, creatures] of gameState.creatures.entries()) {
-                    creatures.forEach(c => {
-                        allCreatures.push(`${c.species} at ${hex}`);
-                    });
-                }
-                console.log('🦖 Current creatures:', allCreatures);
-                return allCreatures;
-            };
-
-            window.showBehaviorLog = () => {
-                console.log('🧠 Recent behaviors:', gameState.creatureBehaviorLog);
-                return gameState.creatureBehaviorLog;
-            };
-
-            window.forceBehaviorUpdate = () => {
-                console.log('🔄 Forcing creature behavior update...');
-                dispatch({ type: 'PROCESS_CREATURE_BEHAVIORS' });
-            };
-        }
-
-        // Cleanup debug functions
-        return () => {
-            if (process.env.NODE_ENV === 'development') {
-                delete window.testCreatureBehavior;
-                delete window.listCreatures;
-                delete window.showBehaviorLog;
-                delete window.forceBehaviorUpdate;
-            }
-        };
-    }, [gameState.creatures, gameState.creatureBehaviorLog]);
-
-    // Generate terrain features first
+    // ============ WORLD GENERATION ============
     useEffect(() => {
         if (!gameState.mapGenerated) {
             dispatch({ type: 'GENERATE_TERRAIN_FEATURES' });
         }
     }, [gameState.mapGenerated]);
 
-    // Generate initial hexes around player
     useEffect(() => {
         if (!gameState.linearFeatures.length) return;
-
-        const maxRange = 8; // Increased range for better exploration
-        const hexesToGenerate = new Set();
-
-        // Generate hexes around current player position
-        for (let dq = -maxRange; dq <= maxRange; dq++) {
-            for (let dr = -maxRange; dr <= maxRange; dr++) {
-                if (Math.abs(dq + dr) <= maxRange) {
-                    const hexQ = gameState.player.q + dq;
-                    const hexR = gameState.player.r + dr;
-                    const hexKey = `${hexQ},${hexR}`;
-                    hexesToGenerate.add(hexKey);
-                }
+        const coords = [];
+        for (let dq = -GENERATION_RADIUS; dq <= GENERATION_RADIUS; dq++) {
+            for (let dr = -GENERATION_RADIUS; dr <= GENERATION_RADIUS; dr++) {
+                if (Math.abs(dq + dr) > GENERATION_RADIUS) continue;
+                const q = gameState.player.q + dq;
+                const r = gameState.player.r + dr;
+                if (!gameState.hexes.has(`${q},${r}`)) coords.push({ q, r });
             }
         }
-
-        // Check which hexes need to be generated (don't already exist)
-        for (const hexKey of hexesToGenerate) {
-            if (!gameState.hexes.has(hexKey)) {
-                const [q, r] = hexKey.split(',').map(Number);
-                dispatch({ type: 'GENERATE_HEX', q, r });
-            }
-        }
-
+        // Generate closest hexes first so neighbour-based rules flow outward
+        coords.sort((a, b) => hexDistance(a, gameState.player) - hexDistance(b, gameState.player));
+        if (coords.length) dispatch({ type: 'GENERATE_HEXES', coords });
         // IMPORTANT: Don't remove old hexes! Keep all discovered hexes forever
-        // The visibility system will handle showing/hiding them appropriately
-
     }, [gameState.player.q, gameState.player.r, gameState.linearFeatures]);
 
-    // Update visibility when player moves
+    // Update visibility (and fill the visible area with wildlife) when the player moves
     useEffect(() => {
         dispatch({ type: 'UPDATE_VISIBILITY' });
+        if (gameState.hexes.size > 0) dispatch({ type: 'POPULATE_NEARBY' });
     }, [gameState.player.q, gameState.player.r, gameState.hexes.size]);
 
-    // Spawn creatures when moving to new location
+    // Spawn creatures on your tile when moving to a new location
     useEffect(() => {
         if (gameState.moveNumber > 0 && gameState.gamePhase === 'exploring') {
-            setTimeout(() => {
-                dispatch({ type: 'SPAWN_CREATURES' });
-            }, 500);
+            const id = setTimeout(() => dispatch({ type: 'SPAWN_CREATURES' }), 500);
+            return () => clearTimeout(id);
         }
+        return undefined;
     }, [gameState.player.q, gameState.player.r, gameState.moveNumber]);
 
-    // ============ HELPER FUNCTIONS ============
-    const getVisibleHexes = () => {
-        return Array.from(gameState.hexes.values()).filter(hex => hex.visible);
-    };
+    // Creatures keep living between your moves
+    const hasCreatures = gameState.creatures.size > 0;
+    useEffect(() => {
+        if (gameState.gameOver || !hasCreatures) return undefined;
+        const timer = setInterval(() => {
+            if (Math.random() < 0.8) dispatch({ type: 'PROCESS_CREATURE_BEHAVIORS' });
+        }, 4000);
+        return () => clearInterval(timer);
+    }, [gameState.gameOver, hasCreatures]);
 
-    const getMovableHexes = () => {
-        if (gameState.gameOver) return [];
-        const neighbors = getHexNeighbors(gameState.player);
-        return neighbors.filter(neighbor => {
-            const key = `${neighbor.q},${neighbor.r}`;
-            const hex = gameState.hexes.get(key);
-            return hex && hex.visible && TERRAIN_TYPES[hex.terrain].passable;
-        });
-    };
-
-    const movableHexes = getMovableHexes();
-
-    // Get current terrain and time info
-    const currentHex = gameState.hexes.get(`${gameState.player.q},${gameState.player.r}`);
-    const currentTerrain = currentHex ? currentHex.terrain : 'plains';
-    const timeInfo = getTimeOfDay(gameState.moveNumber);
-
-    // ============ MAP BOUNDS INDICATOR ============
-    const getBoundsInfo = () => {
-        const totalHexes = gameState.hexes.size;
-        const bounds = mapBounds;
-        return {
-            totalHexes,
-            mapWidth: Math.round(bounds.maxX - bounds.minX),
-            mapHeight: Math.round(bounds.maxY - bounds.minY)
+    // ============ DEBUG HELPERS ============
+    useEffect(() => {
+        if (process.env.NODE_ENV !== 'development') return undefined;
+        window.listCreatures = () => {
+            const all = [];
+            for (const [hex, creatures] of gameState.creatures.entries()) creatures.forEach(c => all.push(`${c.species} at ${hex}`));
+            console.log('🦖 Current creatures:', all);
+            return all;
         };
-    };
+        window.showBehaviorLog = () => gameState.creatureBehaviorLog;
+        window.forceBehaviorUpdate = () => dispatch({ type: 'PROCESS_CREATURE_BEHAVIORS' });
+        window.bigAl = { state: gameState, dispatch };
+        window.spawnCreature = (species, hexKey, size) => dispatch({ type: 'DEBUG_SPAWN', species, hexKey, size });
+        return () => {
+            delete window.listCreatures;
+            delete window.showBehaviorLog;
+            delete window.forceBehaviorUpdate;
+            delete window.bigAl;
+            delete window.spawnCreature;
+        };
+    }, [gameState]);
 
-    const boundsInfo = getBoundsInfo();
+    // ============ MOVEMENT ============
+    const movableHexes = useMemo(() => {
+        if (gameState.gameOver) return [];
+        return getHexNeighbors(gameState.player).filter(n => {
+            const hex = gameState.hexes.get(keyOf(n));
+            return hex && hex.discovered && TERRAIN_TYPES[hex.terrain].passable;
+        });
+    }, [gameState.player, gameState.hexes, gameState.gameOver]);
 
-    // FIXED: Calculate ecosystem activity level - updates properly when creatures change
+    const handleHexClick = useCallback((key) => {
+        const hex = gameState.hexes.get(key);
+        if (!hex || gameState.gameOver) return;
+        const distance = hexDistance(gameState.player, hex);
+        const terrain = TERRAIN_TYPES[hex.terrain];
+
+        if (distance === 0) {
+            setTravelPath([]);
+            dispatch({ type: 'SELECT_HEX', hex });
+        } else if (distance === 1 && hex.discovered && terrain.passable) {
+            setTravelPath([]);
+            dispatch({ type: 'MOVE_PLAYER', target: { q: hex.q, r: hex.r } });
+        } else {
+            // NEW: click a far-away tile to walk there over safe, explored ground
+            const path = hex.discovered ? findPath(gameState.hexes, gameState.player, hex, gameState.weight) : null;
+            if (path) {
+                fitnessAtTravelStart.current = gameState.fitness;
+                setTravelPath(path);
+            }
+            dispatch({ type: 'SELECT_HEX', hex });
+        }
+    }, [gameState.hexes, gameState.player, gameState.gameOver, gameState.weight, gameState.fitness]);
+
+    const handleHexHover = useCallback((key) => {
+        if (!key) {
+            dispatch({ type: 'CLEAR_HOVER' });
+            return;
+        }
+        const hex = gameState.hexes.get(key);
+        if (hex) dispatch({ type: 'HOVER_HEX', hex });
+    }, [gameState.hexes]);
+
+    // Auto-travel along the chosen path, one step at a time. Stops when
+    // something dangerous shows up, when hurt, or when getting hungry.
+    useEffect(() => {
+        if (!travelPath.length) return undefined;
+        if (gameState.gameOver) {
+            setTravelPath([]);
+            return undefined;
+        }
+        const id = setTimeout(() => {
+            const here = gameState.creatures.get(keyOf(gameState.player)) || [];
+            const danger = here.some(c => {
+                const sd = SPECIES_DATA[c.species];
+                return sd && calculateFiercenessRatio(gameState.weight, gameState.fitness, sd, c.size, 1, false) >= 1;
+            });
+            const hurt = fitnessAtTravelStart.current !== null && gameState.fitness < fitnessAtTravelStart.current - 5;
+            const next = travelPath[0];
+            if (danger || hurt || gameState.energy < 20 || hexDistance(next, gameState.player) !== 1) {
+                setTravelPath([]);
+                return;
+            }
+            dispatch({ type: 'MOVE_PLAYER', target: next });
+            setTravelPath(travelPath.slice(1));
+        }, TRAVEL_STEP_MS);
+        return () => clearTimeout(id);
+    }, [travelPath, gameState.player, gameState.gameOver]);
+
+    // Path preview to the hovered tile
+    const previewPath = useMemo(() => {
+        if (travelPath.length) return travelPath;
+        const h = gameState.hoveredHex;
+        if (!h || gameState.gameOver || hexDistance(h, gameState.player) <= 1) return [];
+        return findPath(gameState.hexes, gameState.player, h, gameState.weight) || [];
+    }, [travelPath, gameState.hoveredHex, gameState.player, gameState.hexes, gameState.weight, gameState.gameOver]);
+
+    // ============ HUD INFO ============
+    const timeInfo = getTimeOfDay(gameState.moveNumber);
+    const sky = SKIES[phaseIndex(gameState.moveNumber)];
+
     const ecosystemInfo = useMemo(() => {
-        const totalCreatures = Array.from(gameState.creatures.values())
-            .reduce((total, creatures) => total + creatures.length, 0);
-        const recentBehaviors = gameState.creatureBehaviorLog?.length || 0;
-
+        const totalCreatures = Array.from(gameState.creatures.values()).reduce((total, c) => total + c.length, 0);
         return {
             totalCreatures,
-            recentBehaviors,
-            activityLevel: totalCreatures === 0 ? 'silent' :
-                totalCreatures < 5 ? 'quiet' :
-                    totalCreatures < 15 ? 'active' : 'bustling'
+            activityLevel: totalCreatures === 0 ? 'silent' : totalCreatures < 5 ? 'quiet' : totalCreatures < 15 ? 'active' : 'bustling'
         };
-    }, [gameState.creatures, gameState.creatureBehaviorLog]); // Dependencies ensure updates
+    }, [gameState.creatures]);
+
+    const hoveredCreatures = gameState.hoveredHex && gameState.hexes.get(keyOf(gameState.hoveredHex))?.inSight
+        ? gameState.creatures.get(keyOf(gameState.hoveredHex))
+        : null;
 
     return (
         <div
-            className={`w-full h-screen bg-gradient-to-b ${getBackgroundGradient(currentTerrain, timeInfo)} relative overflow-hidden transition-all duration-1000 ${isDragging ? 'cursor-grabbing' : 'cursor-default'}`}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseLeave}
-            style={{ userSelect: 'none' }} // Prevent text selection while dragging
+            className="w-full h-screen relative overflow-hidden transition-[background] duration-1000"
+            style={{ background: sky, userSelect: 'none' }}
+            onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
         >
-            {/* Status Panel */}
-            <div data-no-drag>
-                <StatusPanel gameState={gameState} />
-            </div>
-
-            {/* Creatures Panel */}
-            <div data-no-drag>
-                <CreaturesPanel gameState={gameState} dispatch={dispatch} />
-            </div>
-
-            {/* ENHANCED: Creature Activity Panel */}
-            <div data-no-drag>
-                <CreatureActivityPanel gameState={gameState} />
-            </div>
-
-            {/* Camera Controls Info - Unlimited Movement */}
-            <div className="absolute bottom-4 left-4 bg-black bg-opacity-80 text-white text-xs p-3 rounded-lg border border-amber-600" data-no-drag>
-                <div className="font-bold text-amber-400 mb-2">🎮 Camera Controls (Unlimited)</div>
-                <div className="space-y-1">
-                    <div>🖱️ <strong>Drag</strong> anywhere to explore freely</div>
-                    <div>⌨️ <strong>Arrow Keys</strong> for precise movement</div>
-                    <div>📹 <strong>R</strong> - Reset to center</div>
-                    <div>🎯 <strong>C</strong> - Center on player</div>
-                    <div>🗺️ <strong>F</strong> - Show full map center</div>
-                </div>
-
-                {/* Map info */}
-                <div className="mt-2 pt-2 border-t border-amber-600 text-gray-300">
-                    <div>Map: {boundsInfo.totalHexes} hexes explored</div>
-                    <div>Size: {Math.round(boundsInfo.mapWidth / 100)}×{Math.round(boundsInfo.mapHeight / 100)} units</div>
-                    <div>Ecosystem: {ecosystemInfo.totalCreatures} creatures ({ecosystemInfo.activityLevel})</div>
-                    {ecosystemInfo.recentBehaviors > 0 && (
-                        <div className="text-green-400">
-                            🧠 {ecosystemInfo.recentBehaviors} recent behaviors
-                        </div>
-                    )}
-                    {isDragging && <div className="text-yellow-400 animate-pulse">📷 Free roaming...</div>}
-
-                    {/* Show current camera offset */}
-                    <div className="mt-2 pt-2 border-t border-amber-500 text-xs">
-                        <div className="text-amber-400 font-bold">📍 Camera Position:</div>
-                        <div>Offset: ({Math.round(cameraOffset.x)}, {Math.round(cameraOffset.y)})</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Hex World with No Viewport Clipping */}
-            <div className="absolute inset-0">
-                <div
-                    className="relative"
-                    style={{
-                        // Large container to prevent clipping
-                        width: '400vw',
-                        height: '400vh',
-                        // Center the large container in the viewport
-                        left: '50%',
-                        top: '50%',
-                        transform: `translate(-50%, -50%) translate(${cameraOffset.x}px, ${cameraOffset.y}px)`,
-                        transition: isDragging ? 'none' : 'transform 0.3s ease-out'
-                    }}
-                >
-                    {getVisibleHexes().map((hex) => {
-                        const isPlayer = hex.q === gameState.player.q && hex.r === gameState.player.r;
-                        const isSelected = gameState.selectedHex?.q === hex.q && gameState.selectedHex?.r === hex.r;
-                        const isMovable = movableHexes.some(m => m.q === hex.q && m.r === hex.r);
-                        const isHovered = gameState.hoveredHex?.q === hex.q && gameState.hoveredHex?.r === hex.r;
-                        const hexKey = `${hex.q},${hex.r}`;
-                        const hexCreatures = gameState.creatures.get(hexKey) || [];
-
-                        return (
-                            <HexTile
-                                key={`${hex.q}-${hex.r}`}
-                                hex={hex}
-                                isPlayer={isPlayer}
-                                isSelected={isSelected}
-                                isMovable={isMovable}
-                                isHovered={isHovered}
-                                isNight={timeInfo.isNight}
-                                creatures={hexCreatures}
-                                gameState={gameState}
-                                onClick={handleHexClick}
-                                onHover={handleHexHover}
-                                onLeave={handleHexLeave}
-                                onMouseDown={handleHexMouseDown}
-                            />
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Hover Tooltip */}
-            <HoverTooltip
-                hex={gameState.hoveredHex}
-                mousePos={mousePos}
-                creatures={gameState.hoveredHex ? gameState.creatures.get(`${gameState.hoveredHex.q},${gameState.hoveredHex.r}`) : null}
+            {/* 3D world */}
+            <WorldView
+                ref={worldRef}
+                gameState={gameState}
+                movable={movableHexes}
+                path={previewPath}
+                onHexClick={handleHexClick}
+                onHexHover={handleHexHover}
             />
 
-            {/* Death Screen */}
-            <DeathScreen gameState={gameState} dispatch={dispatch} />
+            {/* soft vignette to frame the diorama */}
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.35) 100%)' }} />
 
-            {/* Notification System */}
+            <StatusPanel gameState={gameState} />
+            <CreaturesPanel gameState={gameState} dispatch={dispatch} />
+            <CreatureActivityPanel gameState={gameState} />
+
+            {/* Thought bubble */}
+            {!gameState.gameOver && gameState.currentThought && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none" style={{ maxWidth: '36rem' }}>
+                    <div className="thought-bubble px-4 py-2 rounded-2xl text-sm italic text-amber-50 bg-black bg-opacity-70 border border-amber-500 shadow-lg">
+                        💭 {gameState.currentThought}
+                        {travelPath.length > 0 && <span className="not-italic text-amber-300"> · travelling ({travelPath.length} more)</span>}
+                    </div>
+                </div>
+            )}
+
+            {/* Camera controls */}
+            <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 text-white text-xs p-3 rounded-xl border border-amber-600 space-y-2" style={{ width: '14rem' }}>
+                <div className="flex gap-1">
+                    {[
+                        ['⟲', 'Rotate left (Q)', () => worldRef.current?.rotate(-1)],
+                        ['⟳', 'Rotate right (E)', () => worldRef.current?.rotate(1)],
+                        ['＋', 'Zoom in (+)', () => worldRef.current?.zoom(1.25)],
+                        ['－', 'Zoom out (-)', () => worldRef.current?.zoom(0.8)],
+                        ['🎯', 'Center on Big Al (C)', () => worldRef.current?.center()]
+                    ].map(([label, title, fn]) => (
+                        <button key={title} title={title} onClick={fn}
+                            className="flex-1 bg-amber-700 hover:bg-amber-600 active:scale-95 rounded-md py-1 text-base transition">
+                            {label}
+                        </button>
+                    ))}
+                </div>
+                <div className="text-gray-300 leading-snug">
+                    Click a tile to move · click further to travel · drag / WASD to pan · wheel to zoom
+                </div>
+                <div className="pt-1 border-t border-amber-700 text-gray-400">
+                    {timeInfo.isNight ? '🌙' : '☀️'} Ecosystem: {ecosystemInfo.totalCreatures} creatures ({ecosystemInfo.activityLevel})
+                </div>
+            </div>
+
+            <HoverTooltip hex={gameState.hoveredHex} mousePos={mousePos} creatures={hoveredCreatures} />
+            <DeathScreen gameState={gameState} dispatch={dispatch} />
             <NotificationSystem gameState={gameState} dispatch={dispatch} />
         </div>
     );

@@ -1,6 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { getTimeOfDay, DAY_LENGTH, NIGHT_LENGTH } from '../game/gameConstants.js';
 import { LEVEL_NAMES, LEVEL_WEIGHTS } from '../game/gameState.js';
+import CreaturePortrait from './CreaturePortrait.jsx';
 
 const StatusPanel = ({ gameState }) => {
     const getStatusColor = (value, thresholds = [30, 70]) => {
@@ -72,10 +73,14 @@ const StatusPanel = ({ gameState }) => {
     };
 
     return (
-        <div className="absolute top-4 left-4 bg-black bg-opacity-90 backdrop-blur-sm rounded-xl border-2 border-amber-600 p-4 text-white">
-            <h3 className="font-bold mb-3 text-lg text-amber-400">
-                {getLevelEmoji(gameState.level)} Big Al - {LEVEL_NAMES[gameState.level] || 'Unknown'}
-            </h3>
+        <div className="absolute top-4 left-4 bg-black bg-opacity-80 backdrop-blur-sm rounded-xl border-2 border-amber-600 p-4 text-white w-60">
+            <div className="flex items-center gap-2 mb-3">
+                <CreaturePortrait species="Big Al" level={gameState.level} size={56} />
+                <h3 className="font-bold text-lg text-amber-400 leading-tight">
+                    Big Al<br />
+                    <span className="text-sm text-amber-200">{getLevelEmoji(gameState.level)} {LEVEL_NAMES[gameState.level] || 'Unknown'}</span>
+                </h3>
+            </div>
 
             <div className="space-y-2 mb-4">
                 {/* Enhanced Weight and Level Progress for 300g baseline */}
