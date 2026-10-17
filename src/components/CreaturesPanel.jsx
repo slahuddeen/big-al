@@ -209,7 +209,22 @@ const PoiCard = ({ poi, dispatch }) => {
 };
 
 // Everything on Big Al's area, plus a glance at what's next door
-const CreaturesPanel = ({ gameState, dispatch }) => {
+// What is in Spino's area, for the phone's "area" button
+export const areaInfo = (gameState) => {
+    const here = gameState.cells.get(gameState.player);
+    const creatures = gameState.creatures.get(gameState.player) || [];
+    const pf = playerFierceness(gameState);
+    let danger = creatures.some((c) => creatureThreat(c) > pf || c.chasing > 0);
+    for (const n of here?.neighbors || []) {
+        if (!gameState.cells.get(n)?.inSight) continue;
+        if ((gameState.creatures.get(n) || []).some((c) => (creatureThreat(c) > pf || c.chasing > 0) && canEnter(gameState, gameState.player, c))) danger = true;
+    }
+    const carcasses = (gameState.carcasses.get(gameState.player) || []).length;
+    const poi = gameState.pois.get(gameState.player);
+    return { count: creatures.length, danger, carcasses, poi, any: creatures.length > 0 || carcasses > 0 || !!poi || danger };
+};
+
+const CreaturesPanel = ({ gameState, dispatch, sheet = false }) => {
     if (gameState.gameOver) return null;
     const playerKey = gameState.player;
     const here = gameState.cells.get(playerKey);
@@ -233,15 +248,15 @@ const CreaturesPanel = ({ gameState, dispatch }) => {
     if (!creatures.length && !carcasses.length && !poi && !dangerNear.length) return null;
 
     return (
-        <div className="panel w-[340px] max-w-[calc(100vw-32px)] max-h-[calc(100vh-300px)] flex flex-col anim-slide-left" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="px-3 pt-2.5 pb-2 flex items-center justify-between border-b border-[color:var(--line)]">
+        <div className={sheet ? 'flex flex-col min-h-0' : 'panel w-[340px] max-w-[calc(100vw-32px)] max-h-[calc(100vh-300px)] flex flex-col anim-slide-left'} onMouseDown={(e) => e.stopPropagation()}>
+            {!sheet && <div className="px-3 pt-2.5 pb-2 flex items-center justify-between border-b border-[color:var(--line)]">
                 <div>
                     <div className="label">Your area</div>
                     <div className="panel-title text-[16px] leading-tight">{TERRAIN_TYPES[here.terrain].name}</div>
                 </div>
                 {creatures.length > 0 && <span className="chip"><Icon name="paw" size={12} />{creatures.length} here</span>}
-            </div>
-            <div className="p-2.5 space-y-2 overflow-y-auto scroll-thin">
+            </div>}
+            <div className={sheet ? 'space-y-2' : 'p-2.5 space-y-2 overflow-y-auto scroll-thin'}>
                 {poi && <PoiCard poi={poi} dispatch={dispatch} />}
                 {herdAdults.length > 0 && herdYoung.length > 0 && <HerdCard adults={herdAdults} young={herdYoung} gameState={gameState} dispatch={dispatch} />}
                 {worth.map((c) => <CreatureCard key={c.id} creature={c} gameState={gameState} dispatch={dispatch} guarded={GIANT_SPECIES.has(c.species) && !isBigGiant(c) && herdAdults.some((a) => a.species === c.species)} />)}

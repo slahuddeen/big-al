@@ -17,7 +17,7 @@ renderer.setPixelRatio(Math.min(2, devicePixelRatio));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#9ccfe8');
+scene.background = new THREE.Color(params.get('bg') ? `#${params.get('bg')}` : '#9ccfe8');
 scene.add(new THREE.HemisphereLight('#dff2ff', '#6b5a3a', 1.4));
 const sun = new THREE.DirectionalLight('#fff4dd', 2.2);
 sun.position.set(6, 10, 4);
@@ -42,6 +42,7 @@ if (view === 'creatures') {
         model.root.rotation.y = Number(params.get('yaw') ?? -0.5);
         scene.add(model.root);
         items.push({ model, name, x, z });
+        if (params.get('pad') === '0') return;
         const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.04, 6), new THREE.MeshLambertMaterial({ color: '#8fbf3f' }));
         pad.position.set(x, -0.02, z);
         pad.receiveShadow = true;

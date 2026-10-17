@@ -15,11 +15,12 @@ const HoverTooltip = ({ hex, mousePos, creatures, gameState, pathLength }) => {
     const terrain = TERRAIN_TYPES[cell.terrain];
     const poi = gameState.journal.landmarks[gameState.pois.get(hex.key)?.id] ? gameState.pois.get(hex.key) : null;
     const scent = (gameState.scent || []).filter((s) => s.key === hex.key && s.hidden);
-    const left = Math.min(mousePos.x + 16, window.innerWidth - 280);
+    const left = Math.max(8, Math.min(mousePos.x + 16, window.innerWidth - 268));
+    const top = Math.max(8, Math.min(mousePos.y + 18, window.innerHeight - 320));
     const blocked = !terrain.passable || cell.terrain === 'quicksand';
     const thirst = thirstFactor(cell.terrain);
     return (
-        <div className="fixed panel p-2.5 w-[260px] pointer-events-none z-[60]" style={{ left, top: mousePos.y + 18 }}>
+        <div className="fixed panel p-2.5 w-[260px] pointer-events-none z-[60]" style={{ left, top }}>
             <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: terrain.color, boxShadow: '0 0 0 1px rgba(0,0,0,0.4)' }} />
                 <span className="font-bold text-[14px]">{terrain.name}</span>

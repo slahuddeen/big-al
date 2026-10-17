@@ -3,19 +3,21 @@ import { WorldRenderer } from '../three/WorldRenderer.js';
 
 // React wrapper around the Three.js world. Game state flows in through props;
 // clicks and hovers flow back out as hex keys.
-const WorldView = forwardRef(({ gameState, movable, path, onHexClick, onHexHover }, ref) => {
+const WorldView = forwardRef(({ gameState, movable, path, onHexClick, onHexHover, onHexHold, onTouchStart }, ref) => {
     const containerRef = useRef(null);
     const rendererRef = useRef(null);
     const callbacks = useRef({});
     const [error, setError] = useState(null);
-    callbacks.current = { onHexClick, onHexHover };
+    callbacks.current = { onHexClick, onHexHover, onHexHold, onTouchStart };
 
     useEffect(() => {
         let renderer;
         try {
             renderer = new WorldRenderer(containerRef.current, {
                 onHexClick: (key) => callbacks.current.onHexClick?.(key),
-                onHexHover: (key) => callbacks.current.onHexHover?.(key)
+                onHexHover: (key) => callbacks.current.onHexHover?.(key),
+                onHexHold: (key, x, y) => callbacks.current.onHexHold?.(key, x, y),
+                onTouchStart: () => callbacks.current.onTouchStart?.()
             });
         } catch (e) {
             console.error('Failed to start the 3D renderer', e);
@@ -39,7 +41,8 @@ const WorldView = forwardRef(({ gameState, movable, path, onHexClick, onHexHover
         zoom: (f) => rendererRef.current?.zoomBy(f),
         center: () => rendererRef.current?.centerOnPlayer(),
         lookAt: (x, z) => rendererRef.current?.lookAt(x, z),
-        reset: () => rendererRef.current?.resetView()
+        reset: () => rendererRef.current?.resetView(),
+        shift: (f) => rendererRef.current?.setViewShift(f)
     }), []);
 
     return (

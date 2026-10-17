@@ -27,7 +27,7 @@ const Meter = ({ icon, label, value, color }) => {
 const PASSIVE_ICONS = { tiny: 'leaf', legs: 'legs', hide: 'shield', apex: 'crown' };
 
 // Big Al's portrait, growth stage and survival meters
-const StatusPanel = ({ gameState }) => {
+const StatusPanel = ({ gameState, sheet = false }) => {
     const { level, weight } = gameState;
     const maxLevel = level >= LEVEL_WEIGHTS.length - 1;
     const from = LEVEL_WEIGHTS[level - 1] || 0;
@@ -37,7 +37,7 @@ const StatusPanel = ({ gameState }) => {
     const passives = PASSIVES.filter((p) => hasPassive(gameState, p.id));
 
     return (
-        <div className="panel p-3 w-[264px] anim-fade">
+        <div className={sheet ? 'p-1' : 'panel p-3 w-[264px] anim-fade'}>
             <div className="flex gap-3 items-center">
                 <div className="relative w-[72px] h-[64px] rounded-xl overflow-hidden flex items-end justify-center shrink-0"
                     style={{ background: 'radial-gradient(90% 80% at 50% 90%, rgba(124,207,106,0.35), rgba(0,0,0,0.25))', border: '1px solid var(--line)' }}>

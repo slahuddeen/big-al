@@ -19,6 +19,10 @@ import HoverTooltip from './components/HoverTooltip.jsx';
 import Journal from './components/Journal.jsx';
 import IntroOverlay from './components/IntroOverlay.jsx';
 import Icon from './components/Icon.jsx';
+import MobileHud from './components/MobileHud.jsx';
+import BottomSheet from './components/BottomSheet.jsx';
+import { areaInfo } from './components/CreaturesPanel.jsx';
+import useMobile from './hooks/useMobile.js';
 
 const TRAVEL_STEP_MS = 650;
 const MAX_PATH = 40;
@@ -61,6 +65,9 @@ const BigAlHexGame = () => {
     const [sleepFx, setSleepFx] = useState(null);
     const [hurtFx, setHurtFx] = useState(null);
     const [journalSeen, setJournalSeen] = useState(0);
+    const mobile = useMobile();
+    const [sheet, setSheet] = useState(null); // phone: 'area' | 'status' | 'map'
+    const [hold, setHold] = useState(null); // phone: area info from press-and-hold
     const worldRef = useRef(null);
     const fitnessAtTravelStart = useRef(null);
     const lastFitness = useRef(gameState.fitness);
@@ -246,6 +253,21 @@ const BigAlHexGame = () => {
         setJournalSeen(journalCount);
     };
 
+    // phone: press and hold an area to see what is there
+    const handleHexHold = useCallback((key, x, y) => setHold({ key, x, y }), []);
+    const handleTouchStart = useCallback(() => setHold(null), []);
+    useEffect(() => {
+        if (!hold) return undefined;
+        const id = setTimeout(() => setHold(null), 5000);
+        return () => clearTimeout(id);
+    }, [hold]);
+    const area = areaInfo(gameState);
+    // keep Spino in view above the animal sheet
+    useEffect(() => {
+        worldRef.current?.shift(mobile && sheet === 'area' ? 0.26 : 0);
+    }, [mobile, sheet]);
+    const heldHex = hold ? gameState.cells.get(hold.key) : null;
+
     const hoveredCreatures = gameState.hoveredHex && gameState.cells.get(gameState.hoveredHex.key)?.inSight
         ? gameState.creatures.get(gameState.hoveredHex.key)
         : null;
@@ -258,8 +280,8 @@ const BigAlHexGame = () => {
 
     return (
         <div
-            className="w-full h-screen relative overflow-hidden"
-            style={{ userSelect: 'none', background: '#0d100c' }}
+            className="w-full relative overflow-hidden"
+            style={{ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', background: '#0d100c', height: '100dvh' }}
             onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
         >
             {/* 3D world */}
@@ -270,6 +292,8 @@ const BigAlHexGame = () => {
                 path={previewPath}
                 onHexClick={handleHexClick}
                 onHexHover={handleHexHover}
+                onHexHold={handleHexHold}
+                onTouchStart={handleTouchStart}
             />
 
             {sleepFx && (
@@ -279,7 +303,56 @@ const BigAlHexGame = () => {
             )}
             {hurtFx && <div key={hurtFx} className="hurt-flash" />}
 
-            {started && (
+            {started && mobile && (
+                <>
+                    <MobileHud gameState={gameState} onOpen={() => setSheet('status')} />
+                    <div className="absolute inset-x-2 flex flex-col items-center pointer-events-none z-[41]" style={{ top: 'calc(max(8px, env(safe-area-inset-top)) + 64px)' }}>
+                        <NotificationSystem gameState={gameState} dispatch={dispatch} />
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 px-2 safe-bottom flex flex-col gap-1.5 pointer-events-none z-[40]">
+                        <div className="flex items-end justify-between gap-2">
+                            <div className="flex gap-1.5 pointer-events-auto">
+                                <button type="button" className="btn panel fab" onClick={() => setSheet('map')} aria-label="Map"><Icon name="map" size={16} /></button>
+                                <button type="button" className="btn panel fab" onClick={camera.center} aria-label="Centre on Spino"><Icon name="target" size={16} /></button>
+                            </div>
+                            {!gameState.gameOver && area.any && (
+                                <button type="button" className={`btn panel fab pointer-events-auto ${area.danger ? 'danger' : ''}`} onClick={() => setSheet('area')}>
+                                    <Icon name={area.danger ? 'warn' : 'paw'} size={16} />
+                                    {area.count > 0 ? `${area.count} here` : area.danger ? 'Danger' : 'Look'}
+                                </button>
+                            )}
+                        </div>
+                        {!gameState.gameOver && gameState.currentThought && (
+                            <div className="panel px-3 py-1.5 text-center anim-fade self-center max-w-full" key={gameState.currentThought}>
+                                <span className="italic text-[12.5px] text-ink">{gameState.currentThought}</span>
+                                {travelPath.length > 0 && <span className="text-[11.5px] ml-2" style={{ color: 'var(--accent)' }}>{travelPath.length} to go</span>}
+                                {gameState.dashArmed && <span className="text-[11.5px] ml-2 font-semibold" style={{ color: 'var(--accent)' }}>Dash ready: tap an area</span>}
+                            </div>
+                        )}
+                        <div className="pointer-events-auto"><ActionBar compact gameState={gameState} dispatch={dispatch} onJournal={openJournal} journalNew={journalCount > journalSeen} /></div>
+                    </div>
+
+                    <BottomSheet open={sheet === 'area'} onClose={() => setSheet(null)} title={gameState.cells.get(gameState.player) ? TERRAIN_TYPES[gameState.cells.get(gameState.player).terrain].name : 'Your area'} height="58dvh">
+                        {area.any ? <CreaturesPanel sheet gameState={gameState} dispatch={dispatch} /> : <div className="text-[13px] text-ink-muted p-2">Nothing here now.</div>}
+                    </BottomSheet>
+                    <BottomSheet open={sheet === 'status'} onClose={() => setSheet(null)} title="Status and goals" height="80dvh" dim>
+                        <StatusPanel sheet gameState={gameState} />
+                    </BottomSheet>
+                    <BottomSheet open={sheet === 'map'} onClose={() => setSheet(null)} title="Map" height="85dvh" dim>
+                        <div className="flex flex-col items-center gap-2">
+                            <Minimap gameState={gameState} camera={camera} onLook={(x, z) => { camera.look(x, z); setSheet(null); }} />
+                            <EventLog gameState={gameState} />
+                        </div>
+                    </BottomSheet>
+
+                    {heldHex && !journalOpen && (
+                        <HoverTooltip hex={heldHex} mousePos={{ x: hold.x, y: hold.y }} creatures={heldHex.inSight ? gameState.creatures.get(hold.key) : null} gameState={gameState} pathLength={0} />
+                    )}
+                    {journalOpen && <Journal gameState={gameState} onClose={() => setJournalOpen(false)} />}
+                    <DeathScreen gameState={gameState} dispatch={dispatch} />
+                </>
+            )}
+            {started && !mobile && (
                 <>
                     <div className="absolute top-4 left-4 pointer-events-auto"><StatusPanel gameState={gameState} /></div>
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none">
@@ -306,7 +379,7 @@ const BigAlHexGame = () => {
                     <DeathScreen gameState={gameState} dispatch={dispatch} />
                 </>
             )}
-            {!started && <IntroOverlay onStart={() => setStarted(true)} />}
+            {!started && <IntroOverlay mobile={mobile} onStart={() => setStarted(true)} />}
         </div>
     );
 };

@@ -24,6 +24,9 @@ const DETAIL_RADIUS = 13; // cells closer than this to the camera target get ful
 const PLAYER_CELL_GROW = 0.18; // Big Al's cell swells into a little stage so animals fit around him
 const CAM_DIST = 40;
 const BASE_HALF_H = 3.6;
+// On a tall, narrow (portrait phone) screen show more height so the view is not
+// only a cell or two wide
+const baseHalfH = (aspect) => (aspect < 1 ? BASE_HALF_H * Math.pow(1 / Math.max(0.42, aspect), 0.55) : BASE_HALF_H);
 const DEFAULT_EL = 0.64;
 const DEFAULT_AZ = Math.PI / 4 + Math.PI / 12;
 const easeOutBack = (t) => {
@@ -106,7 +109,9 @@ export class WorldRenderer {
 
         // ---- renderer ----
         this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
-        this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+        // phones and tablets: fewer pixels and a smaller shadow map keep the frame rate up
+        this.touchDevice = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+        this.renderer.setPixelRatio(Math.min(this.touchDevice ? 1.5 : 2, window.devicePixelRatio || 1));
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         const canvas = this.renderer.domElement;
@@ -123,7 +128,7 @@ export class WorldRenderer {
         this.scene.add(this.hemi);
         this.sun = new THREE.DirectionalLight('#fff4e2', 2.4);
         this.sun.castShadow = true;
-        this.sun.shadow.mapSize.set(2048, 2048);
+        this.sun.shadow.mapSize.set(this.touchDevice ? 1024 : 2048, this.touchDevice ? 1024 : 2048);
         Object.assign(this.sun.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11, near: 1, far: 70 });
         this.sun.shadow.bias = -0.0004;
         this.sun.shadow.normalBias = 0.02;
@@ -275,6 +280,11 @@ export class WorldRenderer {
 
     rotate(dir) {
         this.cam.azGoal += (dir * Math.PI) / 4;
+    }
+
+    // fraction of the screen height to move the view centre up by (0 = centred)
+    setViewShift(f) {
+        this.viewShift = Math.max(0, Math.min(0.4, f));
     }
 
     zoomBy(f) {
@@ -1978,12 +1988,16 @@ export class WorldRenderer {
         c.az = c.az + (c.azGoal - c.az) * damp(dt, 6);
         c.el = c.el + (c.elGoal - c.el) * damp(dt, 6);
         c.zoom = c.zoom + (c.zoomGoal - c.zoom) * damp(dt, 8);
-        const halfH = BASE_HALF_H / c.zoom;
-        if (c.lastZoom !== c.zoom || c.lastAspect !== c.aspect) {
+        const halfH = baseHalfH(c.aspect) / c.zoom;
+        // a phone sheet covering the bottom of the screen pushes the view up so Spino stays in sight
+        c.shift = (c.shift ?? 0) + ((this.viewShift ?? 0) - (c.shift ?? 0)) * damp(dt, 8);
+        if (Math.abs(c.shift - (this.viewShift ?? 0)) < 1e-4) c.shift = this.viewShift ?? 0;
+        if (c.lastZoom !== c.zoom || c.lastAspect !== c.aspect || c.lastShift !== c.shift) {
             this.camera.left = -halfH * c.aspect;
             this.camera.right = halfH * c.aspect;
-            this.camera.top = halfH;
-            this.camera.bottom = -halfH;
+            this.camera.top = halfH * (1 - 2 * c.shift);
+            this.camera.bottom = -halfH * (1 + 2 * c.shift);
+            c.lastShift = c.shift;
             this.camera.updateProjectionMatrix();
             c.lastZoom = c.zoom;
             c.lastAspect = c.aspect;
@@ -2012,7 +2026,46 @@ export class WorldRenderer {
 
     bindInput() {
         const el = this.renderer.domElement;
+        // touch: one finger pans (a tap moves, press and hold shows what is there);
+        // two fingers pinch to zoom, twist to rotate and slide up or down to tilt
+        this.touches = new Map();
+        const pinchInfo = () => {
+            const [a, b] = [...this.touches.values()];
+            return { dist: Math.hypot(b.x - a.x, b.y - a.y), angle: Math.atan2(b.y - a.y, b.x - a.x), midY: (a.y + b.y) / 2 };
+        };
+        const cancelHold = () => {
+            if (this.holdTimer) clearTimeout(this.holdTimer);
+            this.holdTimer = null;
+        };
         this.onPointerDown = (e) => {
+            if (e.pointerType === 'touch') {
+                this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                el.setPointerCapture?.(e.pointerId);
+                this.cb.onTouchStart?.();
+                if (this.touches.size === 2) {
+                    cancelHold();
+                    this.pointer.down = null;
+                    this.pointer.mode = 'pinch';
+                    this.pinch = pinchInfo();
+                    return;
+                }
+                if (this.touches.size > 2) return;
+                // a single finger: remember where, and start the hold timer
+                const rect = el.getBoundingClientRect();
+                this.pointer.ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+                this.pointer.down = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, orbit: false, button: 0, touch: true };
+                this.pointer.mode = null;
+                cancelHold();
+                this.holdTimer = setTimeout(() => {
+                    this.holdTimer = null;
+                    const d = this.pointer.down;
+                    if (!d || this.pointer.mode) return;
+                    d.held = true;
+                    const key = this.pick();
+                    if (key) this.cb.onHexHold?.(key, d.x0, d.y0);
+                }, 450);
+                return;
+            }
             // left drag pans; right / middle drag (or shift + left) orbits
             const orbit = e.button === 2 || e.button === 1 || (e.button === 0 && e.shiftKey);
             if (e.pointerType === 'mouse' && e.button !== 0 && !orbit) return;
@@ -2022,22 +2075,42 @@ export class WorldRenderer {
         };
         this.onPointerMove = (e) => {
             const rect = el.getBoundingClientRect();
-            this.pointer.x = e.clientX;
-            this.pointer.y = e.clientY;
-            this.pointer.ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
-            this.pointer.inside = true;
-            this.pointer.dirty = true;
+            if (e.pointerType === 'touch') {
+                if (!this.touches.has(e.pointerId)) return;
+                this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                if (this.pointer.mode === 'pinch') {
+                    if (this.touches.size < 2) return;
+                    const now = pinchInfo();
+                    const prev = this.pinch;
+                    if (prev.dist > 10) this.zoomBy(now.dist / prev.dist);
+                    let da = now.angle - prev.angle;
+                    if (da > Math.PI) da -= Math.PI * 2;
+                    if (da < -Math.PI) da += Math.PI * 2;
+                    this.cam.azGoal -= da;
+                    this.cam.elGoal = Math.max(0.32, Math.min(1.3, this.cam.elGoal + (now.midY - prev.midY) * 0.004));
+                    this.cam.zoom = this.cam.zoomGoal; // pinches follow the fingers
+                    this.pinch = now;
+                    return;
+                }
+            } else {
+                this.pointer.x = e.clientX;
+                this.pointer.y = e.clientY;
+                this.pointer.ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+                this.pointer.inside = true;
+                this.pointer.dirty = true;
+            }
             const d = this.pointer.down;
             if (!d) return;
             const dx = e.clientX - d.x;
             const dy = e.clientY - d.y;
-            if (!this.pointer.mode && Math.hypot(dx, dy) > 5) {
+            if (!this.pointer.mode && Math.hypot(dx, dy) > (d.touch ? 9 : 5)) {
                 this.pointer.mode = d.orbit ? 'orbit' : 'pan';
+                cancelHold();
                 if (!d.orbit) this.cam.follow = false;
                 el.style.cursor = d.orbit ? 'ew-resize' : 'grabbing';
             }
             if (this.pointer.mode === 'pan') {
-                const worldPerPx = (2 * BASE_HALF_H / this.cam.zoom) / rect.height;
+                const worldPerPx = (2 * baseHalfH(this.cam.aspect) / this.cam.zoom) / rect.height;
                 this.panBy(-dx * worldPerPx, dy * worldPerPx / Math.sin(this.cam.el));
                 // drag follows the hand immediately
                 this.cam.target.copy(this.cam.goal);
@@ -2050,7 +2123,24 @@ export class WorldRenderer {
                 d.y = e.clientY;
             }
         };
-        this.onPointerUp = () => {
+        this.onPointerUp = (e) => {
+            if (e && e.pointerType === 'touch') {
+                this.touches.delete(e.pointerId);
+                cancelHold();
+                if (this.pointer.mode === 'pinch') {
+                    // stay in pinch mode until every finger is lifted, so nothing gets tapped by accident
+                    if (this.touches.size === 0) this.pointer.mode = null;
+                    return;
+                }
+                const d = this.pointer.down;
+                this.pointer.down = null;
+                if (d && !this.pointer.mode && !d.held && e.type === 'pointerup') {
+                    const key = this.pick();
+                    if (key) this.cb.onHexClick?.(key);
+                }
+                this.pointer.mode = null;
+                return;
+            }
             const d = this.pointer.down;
             this.pointer.down = null;
             if (d && !this.pointer.mode && d.button === 0) {
@@ -2059,6 +2149,14 @@ export class WorldRenderer {
             }
             this.pointer.mode = null;
             el.style.cursor = '';
+        };
+        // belt and braces: when the last finger lifts, forget every touch even if a
+        // pointerup went missing, so the next tap is not mistaken for a pinch
+        this.onTouchEnd = (e) => {
+            if (e.touches.length === 0 && this.touches.size) {
+                this.touches.clear();
+                if (this.pointer.mode === 'pinch') this.pointer.mode = null;
+            }
         };
         this.onPointerLeave = () => {
             this.pointer.inside = false;
@@ -2090,6 +2188,9 @@ export class WorldRenderer {
         el.addEventListener('pointerdown', this.onPointerDown);
         el.addEventListener('pointermove', this.onPointerMove);
         el.addEventListener('pointerup', this.onPointerUp);
+        el.addEventListener('pointercancel', this.onPointerUp);
+        el.addEventListener('touchend', this.onTouchEnd);
+        el.addEventListener('touchcancel', this.onTouchEnd);
         el.addEventListener('pointerleave', this.onPointerLeave);
         el.addEventListener('wheel', this.onWheel, { passive: false });
         el.addEventListener('contextmenu', this.onContextMenu);
@@ -2103,7 +2204,11 @@ export class WorldRenderer {
         el.removeEventListener('pointerdown', this.onPointerDown);
         el.removeEventListener('pointermove', this.onPointerMove);
         el.removeEventListener('pointerup', this.onPointerUp);
+        el.removeEventListener('pointercancel', this.onPointerUp);
+        el.removeEventListener('touchend', this.onTouchEnd);
+        el.removeEventListener('touchcancel', this.onTouchEnd);
         el.removeEventListener('pointerleave', this.onPointerLeave);
+        if (this.holdTimer) clearTimeout(this.holdTimer);
         el.removeEventListener('wheel', this.onWheel);
         el.removeEventListener('contextmenu', this.onContextMenu);
         window.removeEventListener('keydown', this.onKeyDown);

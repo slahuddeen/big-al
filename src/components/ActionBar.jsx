@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ABILITIES, abilityUnlocked, cooldownLeft } from '../game/abilities.js';
 import { WATER_SOURCES, shelterOf } from '../game/environment.js';
 import { LEVEL_NAMES, sleepBlockers, canDrink, hideChance, raining, canHideHere } from '../game/gameState.js';
@@ -45,19 +45,20 @@ export const getActions = (gameState) => {
     ];
 };
 
-const Slot = ({ action, hotkey, onClick }) => {
+const Slot = ({ action, hotkey, onClick, compact = false, onExplain }) => {
     const [hover, setHover] = useState(false);
     const disabled = !!action.reason && !action.armed;
     return (
-        <div className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+        <div className="relative" onMouseEnter={() => !compact && setHover(true)} onMouseLeave={() => setHover(false)}>
             <button
                 type="button"
-                className={`action-slot ${disabled ? 'disabled' : ''} ${action.armed ? 'armed' : ''}`}
-                onClick={() => !disabled && onClick()}
+                className={`action-slot ${compact ? 'compact' : ''} ${disabled ? 'disabled' : ''} ${action.armed ? 'armed' : ''}`}
+                // on a phone there is no hover: tapping a locked button explains why instead
+                onClick={() => (disabled ? onExplain?.(action) : onClick())}
                 aria-label={action.label}
             >
-                <span className="hotkey">{hotkey}</span>
-                <Icon name={action.unlocked ? action.icon : 'lock'} size={24} style={{ color: action.armed ? 'var(--accent)' : 'var(--ink)' }} />
+                {!compact && <span className="hotkey">{hotkey}</span>}
+                <Icon name={action.unlocked ? action.icon : 'lock'} size={compact ? 21 : 24} style={{ color: action.armed ? 'var(--accent)' : 'var(--ink)' }} />
                 <span className="slot-label">{action.label}</span>
                 {action.unlocked && action.cooldown > 0 && <span className="cooldown">{action.cooldown}</span>}
             </button>
@@ -76,7 +77,13 @@ const Slot = ({ action, hotkey, onClick }) => {
     );
 };
 
-const ActionBar = ({ gameState, dispatch, onJournal, journalNew }) => {
+const ActionBar = ({ gameState, dispatch, onJournal, journalNew, compact = false }) => {
+    const [explain, setExplain] = useState(null);
+    useEffect(() => {
+        if (!explain) return undefined;
+        const id = setTimeout(() => setExplain(null), 2600);
+        return () => clearTimeout(id);
+    }, [explain]);
     if (gameState.gameOver) return null;
     const actions = getActions(gameState);
     const run = (a) => {
@@ -85,11 +92,27 @@ const ActionBar = ({ gameState, dispatch, onJournal, journalNew }) => {
         else if (a.id === 'hide') dispatch({ type: 'HIDE' });
         else dispatch({ type: 'USE_ABILITY', ability: a.id });
     };
+    const journal = { id: 'journal', icon: 'book', label: 'Journal', unlocked: true, desc: `Your field journal: species you've seen, habitats, landmarks and how you grow.${journalNew ? ' New entries!' : ''}` };
+    if (compact) {
+        return (
+            <div className="panel relative p-1.5 grid grid-cols-7 gap-1 w-full" onMouseDown={(e) => e.stopPropagation()}>
+                {explain && (
+                    <div className="absolute left-1.5 right-1.5 bottom-full mb-1.5 panel px-3 py-2 text-[12.5px] anim-fade pointer-events-none">
+                        <span className="font-bold">{explain.label}: </span>
+                        <span style={{ color: 'var(--warn)' }}>{explain.reason}</span>
+                    </div>
+                )}
+                {actions.map((a, i) => <Slot key={a.id} action={a} hotkey={i + 1} compact onExplain={setExplain} onClick={() => run(a)} />)}
+                <Slot action={journal} compact onClick={onJournal} />
+                {journalNew && <span className="absolute top-1 right-2 w-2.5 h-2.5 rounded-full" style={{ background: 'var(--accent)', boxShadow: '0 0 8px var(--accent)' }} />}
+            </div>
+        );
+    }
     return (
         <div className="panel relative p-2 flex gap-2 items-center anim-slide-down" onMouseDown={(e) => e.stopPropagation()}>
             {actions.map((a, i) => <Slot key={a.id} action={a} hotkey={i + 1} onClick={() => run(a)} />)}
             <div className="w-px self-stretch bg-[color:var(--line)] mx-0.5" />
-            <Slot action={{ id: 'journal', icon: 'book', label: 'Journal', unlocked: true, desc: `Your field journal: species you've seen, habitats, landmarks and how you grow.${journalNew ? ' New entries!' : ''}` }} hotkey="J" onClick={onJournal} />
+            <Slot action={journal} hotkey="J" onClick={onJournal} />
             {journalNew && <span className="absolute -top-1 right-2 w-2.5 h-2.5 rounded-full" style={{ background: 'var(--accent)', boxShadow: '0 0 8px var(--accent)' }} />}
         </div>
     );
