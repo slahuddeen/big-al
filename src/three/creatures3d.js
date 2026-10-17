@@ -783,6 +783,17 @@ export const buildSprawler = (spec, ctx) => {
     if (p.nose) blob(hb, [hl * 1.02, -hh * 0.12, 0], hh * 0.16, p.nose, { detail: 1, jitter: 0, faceVary: 0 });
     if (p.ears) for (const s of [-1, 1]) blob(hb, [hl * 0.12, hh * 0.85, s * hw * 0.7], hh * 0.32, p.ears, { scale: [0.5, 1, 1], jitter: 0.1, rand });
     if (p.teeth) teethRow(hb, hl * 0.4, hl * 0.95, -hh * 0.3, hw * p.snout * 0.9, hh * 0.08, 7);
+    if (p.tusks) {
+        // BoarCroc: big fang-like teeth jutting up and down out of the jaws
+        for (const sd of [-1, 1]) {
+            for (const [x, up] of [[0.62, true], [0.78, false], [0.9, true]]) {
+                const y0 = -hh * 0.18;
+                cone(hb, [hl * x, y0, sd * hw * p.snout * 0.85], [hl * (x + 0.04), y0 + (up ? 1 : -1) * hh * 0.85, sd * hw * p.snout * 1.05], hh * 0.12, p.tusks, { sides: 4 });
+            }
+        }
+        // rough, armoured snout
+        for (let i = 0; i < 4; i++) blob(hb, [hl * (0.45 + i * 0.12), hh * 0.25, 0], hh * 0.16, shade(C.head ?? C.body, 0.85), { jitter: 0.3, rand, scale: [1.3, 0.6, 1.2] });
+    }
     addMesh(head, hb, ctx);
     parts.head = head;
 
@@ -1039,6 +1050,13 @@ export const buildCentipede = (spec, ctx) => {
             }
         }
         if (i === n - 1) for (const s of [-1, 1]) limb(mb, [-segL, 0, s * 0.01], [-segL - 0.06, 0.004, s * 0.035], 0.003, 0.0015, C.legs, { sides: 3 });
+        if (spec.hindLegs && i === 5) {
+            // two tiny hind legs, all that is left of a four-legged ancestor
+            for (const sd of [-1, 1]) {
+                limb(mb, [-segL * 0.5, -0.006, sd * 0.02], [-segL * 0.75, -0.02, sd * 0.045], 0.006, 0.004, spec.hindLegs, { sides: 3 });
+                cone(mb, [-segL * 0.75, -0.02, sd * 0.045], [-segL * 0.85, -0.024, sd * 0.05], 0.004, '#2a2420', { sides: 3 });
+            }
+        }
         addMesh(seg, mb, ctx);
         parts.segs.push(seg);
         parent = seg;
@@ -1217,6 +1235,7 @@ export const buildFish = (spec, ctx) => {
     const tailX = -L * 0.4;
     const mb = new MeshBuilder();
     const keys = [
+        ...(p.beakLen ? [{ p: [nose + p.beakLen, Y - D * 0.05, 0], rw: W * 0.15, rh: D * 0.12 }, { p: [nose + p.beakLen * 0.4, Y - D * 0.04, 0], rw: W * 0.24, rh: D * 0.2 }] : []),
         { p: [nose, Y - D * 0.05, 0], rw: W * 0.4, rh: D * 0.35 * flat },
         { p: [nose - L * 0.18, Y, 0], rw: W, rh: D * flat },
         { p: [nose - L * 0.5, Y, 0], rw: W * 0.9, rh: D * 0.9 * flat },
@@ -1232,7 +1251,7 @@ export const buildFish = (spec, ctx) => {
         }
     }
     eyes(mb, nose - L * 0.08, Y + D * 0.25 * flat, W * 0.7, D * 0.14, C.eye ?? '#f0e0a0', '#111');
-    if (p.teeth) teethRow(mb, nose - L * 0.12, nose - 0.005, Y - D * 0.18, W * 0.4, D * 0.08, 5);
+    if (p.teeth) teethRow(mb, nose - L * 0.12, nose - 0.005 + (p.beakLen || 0) * 0.9, Y - D * 0.18, W * 0.3, D * 0.08, p.beakLen ? 8 : 5);
     if (p.saw) {
         // long flat rostrum lined with barbed teeth
         const r0 = [nose - 0.01, Y - D * 0.05, 0];
@@ -1375,20 +1394,29 @@ export const SPECIES_MODELS = {
     Mawsonia: { build: buildFish, spec: { len: 0.44, depth: 0.1, width: 0.05, tail: 'diphycercal', dorsal: 'lobed', lobed: true, spots: '#e8ecf0', swimSpeed: 4, colors: { body: '#3a5a8e', belly: '#8aa2c4', back: '#26406a', fin: '#2e4a78', eye: '#e8d060' } } },
     Onchopristis: { build: buildFish, spec: { len: 0.5, depth: 0.05, width: 0.09, flat: true, saw: { len: 0.32 }, tail: 'shark', dorsal: 'shark', swimSpeed: 5, colors: { body: '#c4a676', belly: '#f2e8d2', back: '#9a7c50', fin: '#a88a5a', snout: '#b49660' } } },
     'River Plesiosaur': { build: buildPlesiosaur, spec: { colors: { body: '#4a6a7e', belly: '#d8e2e4', back: '#30485a', spots: '#26384a', flipper: '#3a5466', eye: '#f0c040' } } },
+    Obaichthys: { build: buildFish, spec: { len: 0.44, depth: 0.05, width: 0.04, beakLen: 0.16, tail: 'round', teeth: true, spots: '#2a2a1a', swimSpeed: 5, colors: { body: '#b8a04a', belly: '#f0e4b0', back: '#6a5a2a', fin: '#8a6a2a', eye: '#f0d040' } } },
+    Simoliophis: { build: buildSnake, spec: { colors: { body: '#c8c0a0', belly: '#f0ead6', band: '#3a4a52', head: '#a8a088' } } },
+    Pachyrhachis: { build: buildSnake, spec: { hindLegs: '#6a7a4a', colors: { body: '#7a9a5a', belly: '#e8e4b8', band: '#2a3a24', head: '#6a8a4a' } } },
     Hamadachelys: { build: buildTurtle, spec: { colors: { shell: '#5a6a3a', scute: '#c8a040', plastron: '#e8d8a8', skin: '#6a7a5a' } } },
     Lapparentophis: { build: buildSnake, spec: { colors: { body: '#e8c040', belly: '#f4e4a8', band: '#1e1a16', head: '#d0a030' } } },
     // --- crocodiles ---
     Araripesuchus: { build: buildSprawler, spec: { name: 'Araripesuchus', upright: true, bodyLen: 0.28, bodyR: 0.055, bodyH: 0.05, legH: 0.09, legR: 0.016, headLen: 0.12, headH: 0.045, headW: 0.04, snout: 0.5, tailLen: 0.5, tailR: 0.04, teeth: true, stripes: true, scutes: '#5a3a1e', colors: { body: '#c8783a', belly: '#f0d0a0', back: '#8a4a22', stripe: '#5a2e14', eye: '#f0d040' } } },
+    // BoarCroc: long legs held under the body, a blunt armoured snout and tusks
+    Kaprosuchus: { build: buildSprawler, spec: { name: 'Kaprosuchus', upright: true, bodyLen: 0.3, bodyR: 0.06, bodyH: 0.055, legH: 0.11, legR: 0.02, headLen: 0.17, headH: 0.06, headW: 0.05, snout: 0.75, tailLen: 0.48, tailR: 0.045, teeth: false, tusks: '#f2ecd8', stripes: true, scutes: '#3a2a1e', colors: { body: '#6a5a8a', belly: '#e0d4c0', back: '#3e3456', stripe: '#d8a040', head: '#5a4a7a', eye: '#f0e060' } } },
     Laganosuchus: { build: buildSprawler, spec: { name: 'Laganosuchus', bodyLen: 0.32, bodyR: 0.08, bodyH: 0.04, legH: 0.03, sprawl: 0.09, legR: 0.02, headLen: 0.22, headH: 0.025, headW: 0.085, snout: 0.85, tailLen: 0.48, tailR: 0.05, teeth: true, scutes: '#4a4a2e', colors: { body: '#7a7a4a', belly: '#d4c89a', back: '#55552e', snout: '#8a8a56', eye: '#e8c020' } } },
     Elosuchus: { build: buildSprawler, spec: { name: 'Elosuchus', bodyLen: 0.32, bodyR: 0.07, bodyH: 0.045, legH: 0.035, sprawl: 0.08, legR: 0.02, headLen: 0.3, headH: 0.035, headW: 0.04, snout: 0.35, tailLen: 0.52, tailR: 0.055, teeth: true, stripes: true, scutes: '#1e3a26', colors: { body: '#2e5a3a', belly: '#e0d488', back: '#1e3a26', stripe: '#d8b840', eye: '#f0d040' } } },
     Aegisuchus: { build: buildSprawler, spec: { name: 'Aegisuchus', bodyLen: 0.34, bodyR: 0.09, bodyH: 0.05, legH: 0.035, sprawl: 0.1, legR: 0.025, headLen: 0.24, headH: 0.035, headW: 0.08, snout: 0.75, tailLen: 0.48, tailR: 0.06, teeth: true, scutes: '#3a4448', crest: { h: 0.012, color: '#6a5a3a' }, colors: { body: '#5a666a', belly: '#c8c4a8', back: '#3a4448', snout: '#6e5e40', eye: '#e8b020' } } },
     // --- pterosaurs ---
+    // a small toothed bird (drawn with the pterosaur rig): blue wings, an orange breast and a fan of tail feathers
+    Enantiornithine: { build: buildPterosaur, minLen: 0.16, spec: { name: 'Enantiornithine', bodyLen: 0.09, bodyR: 0.04, neckLen: 0.04, neckUp: 0.6, headLen: 0.07, headH: 0.03, headW: 0.026, wingSpan: 0.6, wingChord: 0.16, tailLen: 0.08, tailVane: '#2a5a8a', teeth: true, fluff: 0.4, flapSpeed: 14, wingBand: '#f0e8d8', colors: { body: '#2e6a9a', belly: '#f08a3a', back: '#1e4a6e', membrane: '#2a5a8a', head: '#2e6a9a', beak: '#3a3028', eye: '#f0d040' } } },
     Leptostomia: { build: buildPterosaur, spec: { name: 'Leptostomia', bodyLen: 0.1, bodyR: 0.032, neckLen: 0.08, neckUp: 0.6, headLen: 0.22, headH: 0.02, headW: 0.018, wingSpan: 0.7, wingChord: 0.12, tailLen: 0.03, teeth: false, colors: { body: '#e8dcc4', belly: '#f6f0e2', back: '#b8a888', membrane: '#c87a4a', head: '#e8dcc4', beak: '#3a3430' } } },
     Afrotapejara: { build: buildPterosaur, spec: { name: 'Afrotapejara', bodyLen: 0.11, bodyR: 0.04, neckLen: 0.08, neckUp: 0.7, headLen: 0.12, headH: 0.04, headW: 0.028, wingSpan: 0.8, wingChord: 0.14, tailLen: 0.03, teeth: false, crest: { type: 'snout', h: 0.09, color: '#e03a2a', edge: '#f0c030' }, colors: { body: '#2e6a6a', belly: '#e8e0c8', back: '#1e4a4e', membrane: '#3a5a5a', head: '#2e6a6a', beak: '#f0c030' } } },
     Siroccopteryx: { build: buildPterosaur, spec: { name: 'Siroccopteryx', bodyLen: 0.12, bodyR: 0.038, neckLen: 0.07, headLen: 0.2, headH: 0.032, headW: 0.024, wingSpan: 1.1, wingChord: 0.13, tailLen: 0.03, crest: { type: 'snout', h: 0.03, color: '#e8e4dc' }, wingBand: '#1e1e22', colors: { body: '#f0ece2', belly: '#ffffff', back: '#b8b8b8', membrane: '#8a8a90', head: '#f0ece2', beak: '#e0c060' } } },
     Alanqa: { build: buildPterosaur, spec: { name: 'Alanqa', walking: true,  bodyLen: 0.13, bodyR: 0.05, neckLen: 0.32, neckUp: 1.05, headLen: 0.24, legLen: 0.17, headH: 0.036, headW: 0.026, wingSpan: 0.7, wingChord: 0.12, tailLen: 0.02, teeth: false, crest: { type: 'back', h: 0.04, color: '#d0402a' }, colors: { body: '#e8dcc0', belly: '#f4ecd8', back: '#a89a7a', membrane: '#b8502e', neck: '#e8dcc0', head: '#e05a3a', beak: '#3a3028' } } },
     'Injured Pterosaur': { build: buildPterosaur, spec: { name: 'Injured Pterosaur', grounded: true, bodyLen: 0.12, bodyR: 0.04, neckLen: 0.1, neckUp: 0.5, headLen: 0.18, headH: 0.035, wingSpan: 0.8, wingChord: 0.14, tailLen: 0.05, crest: { type: 'back', h: 0.045, color: '#c87a3a' }, colors: { body: '#8a5a3a', belly: '#c89a70', back: '#5a3a24', membrane: '#6a3a24', head: '#8a5a3a', beak: '#c8b090' } } },
     // --- dinosaurs ---
+    // feathered raptor: rust with dark bars, blue-black wing feathers with white tips and a sickle claw
+    Dromaeosaur: { build: buildBiped, spec: { name: 'Dromaeosaur', hipH: 0.3, bodyLen: 0.22, bodyR: 0.06, bodyH: 0.07, neckLen: 0.13, neckR: 0.03, neckS: 0.9, neckUp: 0.8, headLen: 0.13, headH: 0.05, headW: 0.036, skull: [1, 0.75, 0.45], tailLen: 0.55, tailR: 0.04, tailLift: 0.02, thighR: 0.04, armLen: 0.13, armR: 0.012, fluff: 0.45, sickle: true, teethSize: 0.6, stripes: true, headFeathers: '#2a2e3a', wingFeathers: { color: '#2a2e3a', bar: '#f0ece0' }, tailFan: { w: 0.07, color: '#2a2e3a' }, colors: { body: '#c8642a', belly: '#f0d8b0', back: '#7a3414', stripe: '#3a1e10', head: '#b85a28', eye: '#f0d040' } } },
     // zebra-striped little hunter with a red face
     Noasaurid: { build: buildBiped, spec: { name: 'Noasaurid', teethSize: 0.6,  hipH: 0.34, bodyLen: 0.22, bodyR: 0.05, bodyH: 0.06, neckLen: 0.15, neckR: 0.026, neckS: 0.9, neckUp: 0.8, headLen: 0.12, headH: 0.045, headW: 0.032, skull: [1, 0.72, 0.45], tailLen: 0.6, tailR: 0.035, thighR: 0.038, armLen: 0.06, armR: 0.01, fluff: 0.25, stripes: true, mane: { h: 0.03, color: '#1e1e22' }, colors: { body: '#f0ece0', belly: '#ffffff', back: '#2a2a2e', stripe: '#1e1e22', head: '#d84a34', headTop: '#2a2a2e', eye: '#f0d040' } } },
     // iguanodonts in bold zebra stripes, like the herds of the comics

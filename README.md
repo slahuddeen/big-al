@@ -25,8 +25,25 @@ The Kem Kem had far more big predators than big plant-eaters ("Stromer's riddle"
 * **Plant-eaters:** zebra-striped iguanodonts, plus the titan herds on the trails: Rebbachisaurus, Aegyptosaurus and Paralititan, one of the largest animals that ever lived, drawn at its real size.
 * **Spinosaurs:** young spinosaurs (clutch-mates you can fish with) and grown rivals that defend their stretch of river.
 * **Small animals:** dragonflies, crickets, centipedes, scorpions, frogs, lizards and the early snake Lapparentophis. They fade from view as you grow.
+* **Odd neighbours:**
+  * Kaprosuchus, the tusked "BoarCroc";
+  * a feathered raptor with sickle claws;
+  * a small toothed bird with claws on its wings;
+  * Obaichthys, an armoured gar;
+  * Simoliophis, a heavy-boned sea snake;
+  * Pachyrhachis, a sea snake that still had tiny hind legs.
 
-Rugops comes from neighbouring Niger rather than the Kem Kem itself. The noasaurid and the iguanodont stand in for animals known from the region only from fragments.
+Rugops and Kaprosuchus come from neighbouring Niger, and Pachyrhachis from the eastern shore of the same sea, rather than the Kem Kem itself. The noasaurid and the iguanodont stand in for animals known from the region only from fragments.
+
+## Learning as you play
+
+* Every animal has a diet: herbivore, carnivore, piscivore (fish-eater), omnivore or insectivore. It shows on its card, in the journal and on the map.
+* Hover over an animal's picture (or tap it on a phone) for its field-guide card:
+  * what kind of animal it was;
+  * its real size;
+  * where its fossils were found, and how complete they are;
+  * a few facts about how it lived.
+* New discoveries in the field notes say what the animal ate.
 
 ## Playing as a spinosaur
 

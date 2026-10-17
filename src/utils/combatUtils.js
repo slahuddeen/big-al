@@ -203,7 +203,7 @@ export const calculateEnergyGain = (speciesData, creatureSize, playerWeight, pla
 export const escapeChance = (speciesName, speciesData, creatureSize, playerWeight, playerLevel) => {
     const escapeBaseChance = {
         Dragonfly: 0.2, Cricket: 0.15, Centipede: 0.05, Scorpion: 0.08, Frog: 0.12, Lizard: 0.15, Fish: 0.12,
-        Leptostomia: 0.25, Afrotapejara: 0.22, Siroccopteryx: 0.18, Alanqa: 0.1, Noasaurid: 0.15, Araripesuchus: 0.1, Iguanodont: 0.1
+        Leptostomia: 0.25, Afrotapejara: 0.22, Siroccopteryx: 0.18, Alanqa: 0.1, Noasaurid: 0.15, Araripesuchus: 0.1, Iguanodont: 0.1, Enantiornithine: 0.3, Dromaeosaur: 0.15
     };
     let baseEscape = escapeBaseChance[speciesName] || 0.08;
     const sizeRatio = (speciesData.weight * creatureSize) / playerWeight;

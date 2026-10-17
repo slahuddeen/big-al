@@ -8,6 +8,7 @@ import { preyMass } from '../game/combat.js';
 import { POI_TYPES } from '../game/pois.js';
 import { formatWeight, ageLabel } from '../utils/format.js';
 import CreaturePortrait from './CreaturePortrait.jsx';
+import FactsHover, { DietChip } from './SpeciesFacts.jsx';
 import Icon from './Icon.jsx';
 
 const THREAT = {
@@ -82,14 +83,16 @@ const CreatureCard = ({ creature, gameState, dispatch, guarded }) => {
     return (
         <div className={`card threat-${threat} anim-slide-left`}>
             <div className="flex gap-3 p-2.5 pb-2">
-                <div className="w-[84px] h-[62px] rounded-lg flex items-center justify-center shrink-0"
-                    style={{ background: 'radial-gradient(100% 90% at 50% 100%, rgba(255,244,220,0.12), rgba(0,0,0,0.25))' }}>
+                <FactsHover species={creature.species} className="w-[84px] h-[62px] rounded-lg flex items-center justify-center shrink-0 relative">
+                    <div className="absolute inset-0 rounded-lg" style={{ background: 'radial-gradient(100% 90% at 50% 100%, rgba(255,244,220,0.12), rgba(0,0,0,0.25))' }} />
                     <CreaturePortrait species={creature.species} size={80} height={58} />
-                </div>
+                    <Icon name="info" size={11} className="absolute bottom-0.5 right-0.5" style={{ color: 'var(--muted)' }} />
+                </FactsHover>
                 <div className="min-w-0 flex-1">
                     <div className="font-bold text-[14.5px] leading-tight truncate">{creature.species}</div>
                     <div className="mt-1 flex gap-1 flex-wrap">
                         <span className="chip" style={{ color: THREAT[threat].color, borderColor: 'currentColor' }}>{THREAT[threat].label}</span>
+                        <DietChip species={creature.species} />
                         <span className="chip">{ageLabel(creature.size)} · {formatWeight(weight)}</span>
                         <span className="chip" title="Energy if you bring it down"><Icon name="meat" size={11} />+{base.energyGain}</span>
                         {guarded && <span className="chip" style={{ color: 'var(--warn)' }} title="The adults close ranks around it. Harass the herd to cut it off first.">Guarded</span>}
@@ -156,7 +159,7 @@ const SmallFry = ({ list, dispatch }) => {
                     return (
                         <button key={sp} type="button" className="chip !pl-1 hover:text-ink" title="Snap one up"
                             onClick={(e) => { e.stopPropagation(); dispatch({ type: 'ATTACK_CREATURE', creatureId: of[0].id }); }}>
-                            <CreaturePortrait species={sp} size={26} height={18} />{sp}{of.length > 1 ? ` ×${of.length}` : ''}
+                            <FactsHover species={sp} className="inline-flex"><CreaturePortrait species={sp} size={26} height={18} /></FactsHover>{sp}{of.length > 1 ? ` ×${of.length}` : ''}
                         </button>
                     );
                 })}
@@ -270,7 +273,7 @@ const CreaturesPanel = ({ gameState, dispatch, sheet = false }) => {
                         <div className="mt-1 flex flex-wrap gap-1.5">
                             {[...new Set(dangerNear.map((c) => c.species))].slice(0, 6).map((sp) => {
                                 const n = dangerNear.filter((c) => c.species === sp).length;
-                                return <span key={sp} className="chip !pl-1"><CreaturePortrait species={sp} size={26} height={18} />{sp}{n > 1 ? ` ×${n}` : ''}</span>;
+                                return <span key={sp} className="chip !pl-1"><FactsHover species={sp} className="inline-flex"><CreaturePortrait species={sp} size={26} height={18} /></FactsHover>{sp}{n > 1 ? ` ×${n}` : ''}</span>;
                             })}
                         </div>
                         <div className="text-[11px] text-ink-muted mt-1">{chasers.length ? `You're being chased by ${[...new Set(chasers.map((c) => c.species))].join(', ')}. Dash, or lose it in cover.` : 'Aggressive animals will charge into your area to attack.'}</div>

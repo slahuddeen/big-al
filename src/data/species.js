@@ -1,3 +1,4 @@
+import { DIETS, SPECIES_FACTS } from './speciesFacts.js';
 // ==================== KEM KEM FAUNA ====================
 // North Africa, about 95 million years ago: a vast river system running north to
 // the Tethys Sea. Far more big predators than big plant-eaters ("Stromer's
@@ -53,22 +54,33 @@ export const SPECIES_DATA = {
     Spinosaurus: sp(7000, 750, 6000, 0.6, 0.6, 'rival_predator', 'A grown rival spinosaur defending its stretch of river', 'clamps its crocodile jaws on you', { semiAquatic: true }),
     Rebbachisaurus: sp(7000, 1100, 2500, 0.12, 0.15, 'giant_herbivore', 'Sail-backed sauropod that crops low plants along the trails', 'swings its tail like a whip'),
     Aegyptosaurus: sp(15000, 1400, 4500, 0.1, 0.12, 'giant_herbivore', 'Titanosaur that roams the delta in small herds', 'tramples you'),
-    Paralititan: sp(50000, 2000, 9000, 0.08, 0.08, 'giant_herbivore', 'One of the largest animals that ever lived, browsing the mangrove edge', 'crushes you underfoot')
+    Paralititan: sp(50000, 2000, 9000, 0.08, 0.08, 'giant_herbivore', 'One of the largest animals that ever lived, browsing the mangrove edge', 'crushes you underfoot'),
+
+    // ---- more neighbours: odd body plans of the same time and coast ----
+    Enantiornithine: sp(0.08, 0.6, 0, 0, 0.75, 'skittish', 'A small toothed bird with clawed wings', 'pecks at you'),
+    Pachyrhachis: sp(1.5, 2.5, 2, 0.15, 0.5, 'skittish', 'A sea snake that still has a pair of tiny hind legs', 'bites and wriggles free', { aquatic: true }),
+    Simoliophis: sp(2, 3, 2, 0.15, 0.5, 'skittish', 'A heavy-boned sea snake of the mangrove channels', 'bites and slips away', { aquatic: true }),
+    Dromaeosaur: sp(15, 15, 18, 0.7, 0.65, 'pack_predator', 'A feathered raptor with a sickle claw on each foot, hunting in small groups', 'slashes you with a sickle claw'),
+    Obaichthys: sp(20, 16, 6, 0.2, 0.45, 'passive', 'An armoured gar that hangs still among the reeds, then strikes sideways', 'rasps you with its armoured scales', { aquatic: true }),
+    Kaprosuchus: sp(450, 80, 400, 0.7, 0.4, 'rival_predator', 'BoarCroc: a long-legged land crocodile with tusks', 'gores you with its tusks')
 };
 
 // Which animals live in which habitats, and how often they turn up
 export const HABITAT_SPECIES = {
     // ---- the rivers ----
     river: {
+        Obaichthys: 0.12,
         Fish: 0.35, Calamopleurus: 0.2, Lungfish: 0.12, Bawitius: 0.12, Tribodus: 0.1, Mawsonia: 0.12, Onchopristis: 0.08,
         'River Plesiosaur': 0.06, Elosuchus: 0.12, Laganosuchus: 0.08, Aegisuchus: 0.05, Hamadachelys: 0.12,
         Dragonfly: 0.15, Siroccopteryx: 0.15, Spinosaurus: 0.05, 'Young Spinosaurus': 0.05
     },
     stream: {
+        Obaichthys: 0.08,
         Fish: 0.35, Calamopleurus: 0.15, Lungfish: 0.15, Bawitius: 0.08, Frog: 0.2, Dragonfly: 0.25, Hamadachelys: 0.15,
         Laganosuchus: 0.06, Araripesuchus: 0.1, Leptostomia: 0.12, Siroccopteryx: 0.1, Alanqa: 0.05, 'Young Spinosaurus': 0.06, Iguanodont: 0.05
     },
     lake: {
+        Obaichthys: 0.12,
         Fish: 0.35, Calamopleurus: 0.18, Lungfish: 0.15, Bawitius: 0.12, Mawsonia: 0.15, Tribodus: 0.06,
         Elosuchus: 0.1, Laganosuchus: 0.1, Hamadachelys: 0.15, Dragonfly: 0.15, Frog: 0.12, Siroccopteryx: 0.15, Spinosaurus: 0.04
     },
@@ -77,19 +89,23 @@ export const HABITAT_SPECIES = {
         Leptostomia: 0.12, Alanqa: 0.08, Iguanodont: 0.1, Rugops: 0.05, Deltadromeus: 0.04
     },
     marsh: {
+        Obaichthys: 0.08, Enantiornithine: 0.1,
         Frog: 0.3, Dragonfly: 0.25, Fish: 0.2, Lungfish: 0.2, Centipede: 0.1, Hamadachelys: 0.15, Lapparentophis: 0.08,
         Laganosuchus: 0.12, Araripesuchus: 0.1, Leptostomia: 0.12, Afrotapejara: 0.08, Iguanodont: 0.06
     },
     mangrove: {
+        Simoliophis: 0.12, Pachyrhachis: 0.08, Enantiornithine: 0.12,
         Fish: 0.3, Tribodus: 0.12, Onchopristis: 0.1, 'River Plesiosaur': 0.1, Mawsonia: 0.08, Hamadachelys: 0.12,
         Elosuchus: 0.1, Aegisuchus: 0.05, Siroccopteryx: 0.15, Afrotapejara: 0.1, Dragonfly: 0.15, Frog: 0.08,
         Paralititan: 0.08, Aegyptosaurus: 0.06, Bahariasaurus: 0.05
     },
     beach: {
+        Simoliophis: 0.1, Pachyrhachis: 0.08,
         Leptostomia: 0.2, Alanqa: 0.15, Siroccopteryx: 0.15, 'Injured Pterosaur': 0.06, Hamadachelys: 0.15, Fish: 0.15,
         Araripesuchus: 0.08, Lizard: 0.1, Bahariasaurus: 0.04, Elosuchus: 0.06
     },
     riverbank: {
+        Kaprosuchus: 0.05, Enantiornithine: 0.1,
         Lizard: 0.15, Dragonfly: 0.15, Frog: 0.12, Hamadachelys: 0.15, Araripesuchus: 0.12, Leptostomia: 0.15, Alanqa: 0.08,
         Elosuchus: 0.1, Laganosuchus: 0.08, Noasaurid: 0.08, Iguanodont: 0.06, 'Young Spinosaurus': 0.06, Spinosaurus: 0.04,
         Rugops: 0.04, Carcharodontosaurus: 0.03
@@ -98,29 +114,36 @@ export const HABITAT_SPECIES = {
         Lizard: 0.15, Scorpion: 0.15, Cricket: 0.12, Lapparentophis: 0.1, Noasaurid: 0.08, Araripesuchus: 0.08, Rugops: 0.04
     },
     floodplain: {
+        Kaprosuchus: 0.05,
         Dragonfly: 0.2, Frog: 0.15, Cricket: 0.15, Lizard: 0.1, Lungfish: 0.08, Leptostomia: 0.12, Alanqa: 0.12, Iguanodont: 0.12,
         Noasaurid: 0.08, Deltadromeus: 0.06, Rugops: 0.05, Sauroniops: 0.03, Carcharodontosaurus: 0.03, Aegyptosaurus: 0.05
     },
     nest: {
+        Dromaeosaur: 0.06,
         Dragonfly: 0.25, Cricket: 0.2, Centipede: 0.15, Lizard: 0.12, Frog: 0.12, Araripesuchus: 0.15, Noasaurid: 0.08 // nest raiders
     },
 
     // ---- woods and ferns ----
     galleryforest: {
+        Kaprosuchus: 0.05, Dromaeosaur: 0.06, Enantiornithine: 0.15,
         Dragonfly: 0.2, Centipede: 0.15, Frog: 0.15, Lizard: 0.12, Lapparentophis: 0.08, Hamadachelys: 0.08, Afrotapejara: 0.15,
         Noasaurid: 0.08, Araripesuchus: 0.08, Iguanodont: 0.1, Rugops: 0.04, Carcharodontosaurus: 0.03
     },
     forest: {
+        Kaprosuchus: 0.05, Dromaeosaur: 0.08, Enantiornithine: 0.12,
         Centipede: 0.2, Cricket: 0.15, Scorpion: 0.08, Lizard: 0.12, Lapparentophis: 0.1, Afrotapejara: 0.12,
         Noasaurid: 0.1, Iguanodont: 0.1, Rugops: 0.05, Sauroniops: 0.03, Carcharodontosaurus: 0.03
     },
     denseforest: {
+        Dromaeosaur: 0.08,
         Centipede: 0.2, Cricket: 0.2, Frog: 0.12, Lizard: 0.12, Lapparentophis: 0.1, Noasaurid: 0.06, Iguanodont: 0.06, Afrotapejara: 0.08
     },
     jungle: {
+        Dromaeosaur: 0.08, Enantiornithine: 0.1,
         Dragonfly: 0.18, Centipede: 0.2, Frog: 0.18, Lapparentophis: 0.1, Afrotapejara: 0.15, Noasaurid: 0.06, Iguanodont: 0.08
     },
     openwoods: {
+        Kaprosuchus: 0.05, Dromaeosaur: 0.06, Enantiornithine: 0.12,
         Cricket: 0.15, Lizard: 0.12, Scorpion: 0.06, Afrotapejara: 0.12, Noasaurid: 0.08, Iguanodont: 0.12,
         Rugops: 0.05, Deltadromeus: 0.05, Rebbachisaurus: 0.06
     },
@@ -130,10 +153,12 @@ export const HABITAT_SPECIES = {
 
     // ---- open country ----
     plains: {
+        Kaprosuchus: 0.04,
         Cricket: 0.15, Lizard: 0.12, Scorpion: 0.08, Leptostomia: 0.08, Alanqa: 0.12, Iguanodont: 0.12, Noasaurid: 0.08,
         Deltadromeus: 0.08, Rugops: 0.05, Sauroniops: 0.04, Carcharodontosaurus: 0.05, Rebbachisaurus: 0.06
     },
     fernprairie: {
+        Dromaeosaur: 0.05,
         Cricket: 0.18, Dragonfly: 0.1, Lizard: 0.12, Afrotapejara: 0.1, Alanqa: 0.1, Iguanodont: 0.15, Noasaurid: 0.08,
         Deltadromeus: 0.06, Carcharodontosaurus: 0.04, Rebbachisaurus: 0.06
     },
@@ -165,11 +190,12 @@ export const HABITAT_SPECIES = {
 export const GROUP_SIZE = {
     Dragonfly: [1, 3], Frog: [1, 2], Fish: [2, 4], Cricket: [1, 2], Calamopleurus: [1, 2], Lungfish: [1, 2],
     Araripesuchus: [2, 4], Noasaurid: [2, 3], Leptostomia: [1, 3], Afrotapejara: [1, 2], Siroccopteryx: [1, 2],
-    Iguanodont: [2, 5], Rebbachisaurus: [2, 4], Aegyptosaurus: [2, 4], Paralititan: [1, 3], Tribodus: [1, 2]
+    Iguanodont: [2, 5], Rebbachisaurus: [2, 4], Aegyptosaurus: [2, 4], Paralititan: [1, 3], Tribodus: [1, 2],
+    Dromaeosaur: [2, 3], Enantiornithine: [1, 3]
 };
 
 // Animals that can fly (and so crowd the sky if too many spawn)
-export const FLYERS = new Set(['Leptostomia', 'Afrotapejara', 'Siroccopteryx', 'Alanqa']);
+export const FLYERS = new Set(['Leptostomia', 'Afrotapejara', 'Siroccopteryx', 'Alanqa', 'Enantiornithine']);
 
 // Fish and other animals that never leave the water, and those that come and go
 export const AQUATIC = new Set(Object.keys(SPECIES_DATA).filter((k) => SPECIES_DATA[k].aquatic));
@@ -178,14 +204,14 @@ export const CROCODILES = new Set(['Laganosuchus', 'Elosuchus', 'Aegisuchus']);
 
 // Extra toughness: armour, sheer bulk or a shell soak up bites
 export const TOUGHNESS = {
-    Hamadachelys: 2.5, Bawitius: 1.6, Mawsonia: 1.3, Onchopristis: 1.3, Laganosuchus: 1.5, Elosuchus: 1.6, Aegisuchus: 1.8,
+    Hamadachelys: 2.5, Bawitius: 1.6, Obaichthys: 1.5, Kaprosuchus: 1.4, Mawsonia: 1.3, Onchopristis: 1.3, Laganosuchus: 1.5, Elosuchus: 1.6, Aegisuchus: 1.8,
     Rebbachisaurus: 2, Aegyptosaurus: 2.3, Paralititan: 2.6, Carcharodontosaurus: 1.2, Spinosaurus: 1.2, Bahariasaurus: 1.1
 };
 
 // Predators that will run you down across several areas
 export const CHASERS = {
     Araripesuchus: 0.7, Noasaurid: 0.8, Deltadromeus: 0.75, Rugops: 0.55, Sauroniops: 0.6, Bahariasaurus: 0.6,
-    Carcharodontosaurus: 0.6, Alanqa: 0.5
+    Carcharodontosaurus: 0.6, Alanqa: 0.5, Dromaeosaur: 0.8, Kaprosuchus: 0.55
 };
 
 // Real body length in metres, used to draw the giants at their true scale
@@ -197,7 +223,8 @@ export const ACTIVITY = {
     Laganosuchus: 'night', Elosuchus: 'twilight', Aegisuchus: 'night', Noasaurid: 'twilight', Deltadromeus: 'twilight',
     Carcharodontosaurus: 'twilight', Sauroniops: 'twilight', Bahariasaurus: 'twilight', Rugops: 'night',
     Dragonfly: 'day', Lizard: 'day', Leptostomia: 'day', Afrotapejara: 'day', Siroccopteryx: 'day', Alanqa: 'day',
-    Iguanodont: 'day', Rebbachisaurus: 'day', Aegyptosaurus: 'day', Paralititan: 'day', Hamadachelys: 'day'
+    Iguanodont: 'day', Rebbachisaurus: 'day', Aegyptosaurus: 'day', Paralititan: 'day', Hamadachelys: 'day',
+    Dromaeosaur: 'twilight', Kaprosuchus: 'night', Enantiornithine: 'day', Obaichthys: 'twilight'
 };
 
 // Spawn multiplier for the time of day (phase 0 morning .. 4 before dawn)
@@ -211,12 +238,8 @@ export const activityFactor = (species, phase) => {
     return 1;
 };
 
-// Short field-guide notes for the journal
+// Diet for the journal and cards, from the field guide
 export const dietOf = (species) => {
-    const t = SPECIES_DATA[species]?.behaviorType;
-    if (['herbivore', 'dangerous_herbivore', 'giant_herbivore'].includes(t)) return 'Plant eater';
-    if (['Dragonfly', 'Centipede', 'Cricket', 'Scorpion'].includes(species)) return 'Invertebrate';
-    if (SPECIES_DATA[species]?.aquatic) return 'Fish and sea life';
-    if (['pack_predator', 'rival_predator', 'apex_predator', 'ambush_predator', 'aerial_predator'].includes(t)) return 'Predator';
-    return 'Small animal';
+    const d = DIETS[SPECIES_FACTS[species]?.diet];
+    return d ? d.label : 'Unknown diet';
 };

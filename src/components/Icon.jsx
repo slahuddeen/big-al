@@ -48,6 +48,8 @@ const P = {
     up: <path d="m6 15 6-6 6 6" />,
     down: <path d="m6 9 6 6 6-6" />,
     map: <><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20V6.5z" /><path d="M9 4v13.5M15 6.5V20" /></>,
+    fish: <><path d="M3 12c3-4 8-5 12-3l4-3v12l-4-3c-4 2-9 1-12-3z" /><circle cx="8" cy="11" r="0.8" /></>,
+    bug: <><ellipse cx="12" cy="13.5" rx="4" ry="5.5" /><path d="M12 8V5.5M9 4l1.5 2M15 4l-1.5 2M8 11.5H4.5M8 15.5H5M16 11.5h3.5M16 15.5h3" /></>,
     paw: <><circle cx="12" cy="15.5" r="3.5" /><circle cx="6.5" cy="10" r="1.8" /><circle cx="10" cy="6.5" r="1.8" /><circle cx="14" cy="6.5" r="1.8" /><circle cx="17.5" cy="10" r="1.8" /></>,
     level: <><path d="M12 3 4 8v8l8 5 8-5V8l-8-5z" /><path d="M12 8v8M9 11l3-3 3 3" /></>,
     shield: <path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6l-7-3z" />,

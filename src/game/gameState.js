@@ -11,6 +11,7 @@ import { ABILITIES, ATTACK_MODS, hasPassive, abilityReady, inCover } from './abi
 import { isMisty, WATER_SOURCES, thirstFactor, shelterOf } from './environment.js';
 import { generatePois, POI_TYPES } from './pois.js';
 import { GOALS } from './goals.js';
+import { DIETS, factsOf } from '../data/speciesFacts.js';
 import { seasonOf, isDrought, DRIES_UP, isRaining, weatherAt, seasonSpawnFactor } from './weather.js';
 import {
     MAX_WEIGHT,
@@ -27,9 +28,9 @@ export const LEVEL_WEIGHTS = [0, 20, 500, 2500, MAX_WEIGHT];
 
 export const PREY_SIZE_CATEGORIES = {
     'tiny': ['Dragonfly', 'Centipede', 'Cricket', 'Scorpion'],
-    'small': ['Frog', 'Lizard', 'Fish', 'Lapparentophis', 'Hamadachelys', 'Leptostomia', 'Araripesuchus', 'Afrotapejara'],
-    'medium': ['Noasaurid', 'Lungfish', 'Calamopleurus', 'Bawitius', 'Tribodus', 'Siroccopteryx', 'Injured Pterosaur', 'Alanqa'],
-    'large': ['Iguanodont', 'Young Spinosaurus', 'River Plesiosaur', 'Mawsonia', 'Laganosuchus', 'Elosuchus', 'Rugops', 'Deltadromeus'],
+    'small': ['Frog', 'Lizard', 'Fish', 'Lapparentophis', 'Hamadachelys', 'Leptostomia', 'Araripesuchus', 'Afrotapejara', 'Enantiornithine', 'Simoliophis', 'Pachyrhachis'],
+    'medium': ['Noasaurid', 'Lungfish', 'Calamopleurus', 'Bawitius', 'Tribodus', 'Siroccopteryx', 'Injured Pterosaur', 'Alanqa', 'Dromaeosaur', 'Obaichthys'],
+    'large': ['Iguanodont', 'Young Spinosaurus', 'River Plesiosaur', 'Mawsonia', 'Laganosuchus', 'Elosuchus', 'Rugops', 'Deltadromeus', 'Kaprosuchus'],
     'huge': ['Onchopristis', 'Aegisuchus', 'Sauroniops', 'Bahariasaurus', 'Carcharodontosaurus', 'Spinosaurus', 'Rebbachisaurus', 'Aegyptosaurus', 'Paralititan']
 };
 
@@ -831,7 +832,7 @@ const recordDiscoveries = (prev, next) => {
                 if (species[c.species]) continue;
                 species = { ...species, [c.species]: { firstTurn: state.moveNumber, kills: 0 } };
                 score += 20;
-                notifications = addNotification(notifications, { type: 'discovery', message: `New species spotted: ${c.species}`, species: c.species });
+                notifications = addNotification(notifications, { type: 'discovery', message: `New species spotted: ${c.species}${DIETS[factsOf(c.species)?.diet] ? `, a ${DIETS[factsOf(c.species).diet].label.toLowerCase()} (${DIETS[factsOf(c.species).diet].note})` : ''}`, species: c.species });
             }
         }
         if (prev.cells !== state.cells) {

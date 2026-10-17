@@ -872,7 +872,7 @@ export class WorldRenderer {
         else if (v.gait === 'swim') {
             y = (wl ?? y + 0.02) - v.len * 0.06;
             if (Math.sin(t * 0.7 + v.phase * 3) > 0.985) y += 0.12;
-        } else if (wl !== null && SEMI_AQUATIC.has(v.species)) y = wl - v.len * 0.05;
+        } else if (wl !== null && (SEMI_AQUATIC.has(v.species) || AQUATIC.has(v.species))) y = wl - v.len * 0.05;
         else if (v.gait === 'hop') y += Math.sin(Math.PI * v.hop) * 0.12 * (0.4 + v.len);
 
         // attack lunges / displays

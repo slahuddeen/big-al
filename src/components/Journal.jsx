@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { SPECIES_DATA, dietOf } from '../data/species.js';
+import { SPECIES_DATA } from '../data/species.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { ABILITIES, PASSIVES } from '../game/abilities.js';
 import { LEVEL_NAMES, LEVEL_WEIGHTS } from '../game/gameState.js';
 import { POI_TYPES } from '../game/pois.js';
 import { formatWeight, capitalise } from '../utils/format.js';
 import CreaturePortrait from './CreaturePortrait.jsx';
+import FactsHover, { DietChip } from './SpeciesFacts.jsx';
 import Icon from './Icon.jsx';
 
 const POI_ICONS = { eggs: 'egg', sauropodcarcass: 'bone', wallow: 'mud', lookout: 'mountain', bonebed: 'bone', waterfall: 'waterfall', volcano: 'volcano', seashore: 'wave' };
@@ -20,14 +21,19 @@ const Bestiary = ({ gameState }) => {
                 const e = seen[s];
                 const sd = SPECIES_DATA[s];
                 return (
-                    <div key={s} className="card p-2" title={e ? sd.description : 'Not yet seen'}>
+                    <FactsHover key={s} species={s} disabled={!e} className="card p-2">
                         <div className="h-[70px] flex items-center justify-center rounded-lg" style={{ background: 'radial-gradient(100% 90% at 50% 100%, rgba(255,244,220,0.1), rgba(0,0,0,0.2))' }}>
                             <CreaturePortrait species={s} size={92} height={64} silhouette={!e} />
                         </div>
                         <div className="mt-1.5 font-bold text-[12.5px] truncate">{e ? s : '???'}</div>
-                        <div className="text-[11px] text-ink-muted">{e ? `${dietOf(s)} · ${formatWeight(sd.weight)}` : 'Keep exploring'}</div>
+                        {e ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                                <DietChip species={s} short />
+                                <span className="text-[11px] text-ink-muted">{formatWeight(sd.weight)}</span>
+                            </div>
+                        ) : <div className="text-[11px] text-ink-muted">Keep exploring</div>}
                         {e?.kills > 0 && <div className="text-[11px] mt-0.5" style={{ color: 'var(--accent)' }}>Hunted {e.kills}</div>}
-                    </div>
+                    </FactsHover>
                 );
             })}
         </div>

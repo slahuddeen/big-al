@@ -4,6 +4,7 @@ import { WATER_SOURCES, thirstFactor } from '../game/environment.js';
 import { POI_TYPES } from '../game/pois.js';
 import { crampedIn, drinkableAt } from '../game/gameState.js';
 import CreaturePortrait from './CreaturePortrait.jsx';
+import { DIETS, factsOf } from '../data/speciesFacts.js';
 import Icon from './Icon.jsx';
 
 const SIGHT = ['', 'Short', 'Normal', 'Far'];
@@ -51,6 +52,7 @@ const HoverTooltip = ({ hex, mousePos, creatures, gameState, pathLength }) => {
                         <div key={c.id} className="flex items-center gap-2 text-[12px]">
                             <CreaturePortrait species={c.species} size={36} height={24} />
                             <span className="font-semibold">{c.species}</span>
+                            {DIETS[factsOf(c.species)?.diet] && <span className="text-[10.5px]" style={{ color: DIETS[factsOf(c.species).diet].color }}>{DIETS[factsOf(c.species).diet].short}</span>}
                             {c.wounded && <span className="text-[11px]" style={{ color: 'var(--bad)' }}>bleeding</span>}
                         </div>
                     ))}
