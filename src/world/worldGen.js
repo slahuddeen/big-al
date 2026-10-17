@@ -1,11 +1,13 @@
 // ==================== VORONOI WORLD GENERATION ====================
-// Builds a finite Late-Jurassic Morrison basin out of irregular Voronoi cells:
-//  * Sevier highlands and volcanoes in the west, the Sundance Sea to the north/east
+// Builds a stretch of the mid-Cretaceous Kem Kem river system (North Africa,
+// about 95 million years ago) out of irregular Voronoi cells:
+//  * highlands to the west and south, the Tethys Sea to the north, where the
+//    rivers end in a mangrove delta and tidal flats
 //  * terraced elevation (cells sit on discrete levels, so cliffs form naturally)
 //  * rivers spring in the uplands and run downhill to lakes or the sea, merging on
 //    the way; their courses are smooth splines that are cut into per-cell pieces
 //  * biomes from elevation, moisture and patchy variation noise
-//  * sauropod migration trails between watering spots
+//  * titanosaur trails between watering spots
 import { Delaunay } from 'd3-delaunay';
 import { createNoise2D, fbm, mulberry32, smoothstep } from './noise.js';
 
@@ -17,7 +19,7 @@ export const SEA_WATER_Y = 0.12;
 export const SEA_FLOOR_Y = -0.5;
 export const levelHeight = (level) => 0.3 + (level - 1) * 0.24;
 
-const DEEP_RIVER_FLOW = 7;
+const DEEP_RIVER_FLOW = 5; // a river-dominated landscape: many channels run deep
 
 const polygonCentroid = (poly) => {
     let a = 0;
@@ -152,7 +154,7 @@ export const generateWorld = (seed) => {
         let e = 0.5 + 0.5 * fbm(nE, c.x * 0.032, c.z * 0.032, 5);
         const ridge = Math.pow(1 - Math.abs(fbm(nR, c.x * 0.045, c.z * 0.045, 3)), 4);
         e += ridge * 0.38 * smoothstep(0.75, 0.15, nx);
-        e += smoothstep(0.32, 0.0, nx) * 0.42; // Sevier highlands (west)
+        e += smoothstep(0.32, 0.0, nx) * 0.42; // highlands (west)
         e += smoothstep(0.7, 1.0, ny) * 0.16; // southern uplands
         e -= smoothstep(0.24, 0.0, ny) * 0.55; // Sundance Sea (north)
         e -= smoothstep(0.82, 1.0, nx) * 0.5; // eastern shore
@@ -214,7 +216,7 @@ export const generateWorld = (seed) => {
         .filter((c) => c.level >= 4 && c.level <= 8 && !c.border)
         .map((c) => ({ c, score: c.m + rand() * 0.35 }))
         .sort((a, b) => b.score - a.score);
-    const targetSprings = Math.max(10, Math.min(30, Math.round(land.length / 85)));
+    const targetSprings = Math.max(14, Math.min(40, Math.round(land.length / 62)));
     for (const { c } of candidates) {
         if (springs.length >= targetSprings) break;
         if (springs.some((s) => Math.hypot(s.x - c.x, s.z - c.z) < S * 6)) continue;
@@ -347,64 +349,52 @@ export const generateWorld = (seed) => {
     }
 
     // ---------- biomes ----------
-    const pick = (opts, t) => opts[Math.min(opts.length - 1, Math.floor(t * opts.length))];
-    // volcanoes in the western highlands
-    const volcanoCands = land.filter((c) => c.x / W < 0.36 && c.level >= 6 && !c.border).sort((a, b) => b.v2 - a.v2);
-    const volcanoes = [];
-    for (const c of volcanoCands) {
-        if (volcanoes.length >= 2) break;
-        if (volcanoes.some((v) => Math.hypot(v.x - c.x, v.z - c.z) < S * 10)) continue;
-        volcanoes.push(c);
-    }
-    const volcanoDist = (c) => Math.min(99, ...volcanoes.map((v) => Math.hypot(v.x - c.x, v.z - c.z) / S));
-
+    const pick = (opts, t) => opts[Math.max(0, Math.min(opts.length - 1, Math.floor(t * opts.length)))];
+    const nearSea = (c) => c.coast || c.neighborIds.some((n) => cells[n].coast);
     for (const c of cells) {
         if (c.isSea) { c.terrain = 'sea'; continue; }
         if (c.isLake) { c.terrain = 'lake'; continue; }
-        if (c.water === 'river') { c.terrain = 'river'; continue; }
-        if (c.water === 'stream') { c.terrain = 'stream'; continue; }
+        if (c.water === 'river') { c.terrain = c.coast && c.m > 0.5 && rand() < 0.5 ? 'mangrove' : 'river'; continue; }
+        if (c.water === 'stream') { c.terrain = c.coast ? 'mangrove' : 'stream'; continue; }
         if (c.water === 'dry') { c.terrain = 'dryriverbed'; continue; }
         const L = c.level;
         const m = c.m;
         const v = c.v;
         const nearRiver = c.neighborIds.some((n) => cells[n].water === 'river' || cells[n].water === 'stream' || cells[n].isLake);
-        const vd = volcanoDist(c);
         let t;
-        if (vd < 0.5) t = 'volcanic';
-        else if (vd < 1.6) t = rand() < 0.6 ? 'lavafield' : 'deadforest';
-        else if (vd < 2.6 && rand() < 0.5) t = pick(['deadforest', 'rocky', 'lavafield'], v);
-        else if (L >= 9) t = 'mountains';
-        else if (L === 8) t = v > 0.62 ? 'mountains' : m > 0.55 ? pick(['youngforest', 'boulderfield', 'hills'], c.v2) : pick(['rocky', 'boulderfield'], c.v2);
-        else if (c.coast && L <= 2 && rand() < 0.75) t = m > 0.7 ? 'marsh' : 'beach';
+        if (L >= 10) t = 'mountains';
+        else if (L >= 8) t = v > 0.7 ? 'mountains' : pick(['rocky', 'hills', 'badlands', 'rocky', 'boulderfield'], c.v2);
+        // the delta: mangroves where it is wet, tidal flats where it is not
+        else if (c.coast && L <= 2) t = m > 0.55 || nearRiver ? 'mangrove' : 'beach';
+        else if (nearSea(c) && L <= 2 && m > 0.6) t = 'mangrove';
         else if (c.lowland && m > 0.5) t = 'marsh';
-        else if (L >= 6) t = m > 0.58 ? pick(['youngforest', 'hills', 'forest'], v) : m > 0.42 ? pick(['hills', 'hills', 'rocky'], v) : pick(['rocky', 'boulderfield', 'badlands'], v);
-        else if (m < 0.3) t = L >= 4 ? pick(['mesa', 'badlands', 'badlands'], v) : pick(['desert', 'desert', 'steppe', 'badlands'], v);
-        else if (m < 0.38) t = L >= 4 ? pick(['badlands', 'steppe', 'mesa'], v) : pick(['steppe', 'plains', 'savanna', 'fernsavanna', 'termitemounds'], v);
-        else if (m < 0.46) t = pick(['plains', 'fernprairie', 'savanna', 'scrubland', 'fernsavanna'], v);
-        else if (m < 0.54) t = pick(['fernprairie', 'katydidmeadow', 'forestedge', 'openwoods', 'ginkgogrove'], v);
-        else if (m < 0.62) t = pick(['forestedge', 'forest', 'youngforest', 'ginkgogrove', 'openwoods'], v);
-        else if (m < 0.7) t = pick(['forest', 'denseforest', 'oldgrowth', 'youngforest'], v);
-        else t = L <= 2 && nearRiver ? pick(['marsh', 'jungle'], v) : pick(['jungle', 'oldgrowth', 'denseforest'], v);
+        else if (L >= 6) t = m > 0.58 ? pick(['forest', 'openwoods', 'hills'], v) : m > 0.42 ? pick(['hills', 'rocky', 'hills'], v) : pick(['rocky', 'boulderfield', 'badlands'], v);
+        else if (m < 0.3) t = L >= 4 ? pick(['mesa', 'badlands', 'rocky'], v) : pick(['desert', 'desert', 'rocky', 'badlands'], v);
+        else if (m < 0.38) t = L >= 4 ? pick(['badlands', 'rocky', 'mesa'], v) : pick(['savanna', 'scrubland', 'plains', 'savanna'], v);
+        else if (m < 0.46) t = pick(['plains', 'fernprairie', 'savanna', 'scrubland'], v);
+        else if (m < 0.54) t = pick(['fernprairie', 'openwoods', 'plains', 'floodplain'], v);
+        else if (m < 0.62) t = pick(['openwoods', 'forest', 'fernprairie', 'denseforest'], v);
+        else if (m < 0.7) t = pick(['forest', 'denseforest', 'jungle'], v);
+        else t = L <= 2 && nearRiver ? pick(['marsh', 'jungle'], v) : pick(['jungle', 'denseforest', 'denseforest'], v);
 
-        // river-side variety: where forest meets a river it becomes gallery forest
-        if (nearRiver && !['volcanic', 'lavafield', 'mountains'].includes(t)) {
+        // along the rivers: conifer galleries, sandbars and flood-washed flats
+        if (nearRiver && !['mountains', 'mangrove', 'beach'].includes(t)) {
             const r = rand();
-            const forested = ['forest', 'denseforest', 'oldgrowth', 'jungle', 'youngforest', 'openwoods', 'ginkgogrove', 'forestedge'].includes(t);
-            if ((forested && r < 0.8) || (m > 0.48 && r < 0.4)) t = 'galleryforest';
-            else if (L <= 3 && r < 0.6) t = pick(['floodplain', 'riverbank', 'floodplain'], c.v2);
-            else if (m < 0.4 && r < 0.7) t = 'riverbank';
+            const wooded = ['forest', 'denseforest', 'jungle', 'openwoods'].includes(t);
+            if ((wooded && r < 0.5) || (m > 0.5 && r < 0.2)) t = 'galleryforest';
+            else if (L <= 5 && r < 0.85) t = pick(['floodplain', 'riverbank', 'floodplain', 'riverbank'], c.v2);
+            else if (m < 0.4 && r < 0.8) t = 'riverbank';
         }
         // rare features
         const r2 = rand();
-        if (t === 'desert' && r2 < 0.05) t = 'quicksand';
-        else if (['plains', 'steppe', 'fernsavanna', 'savanna'].includes(t) && r2 < 0.035) t = 'waterhole';
-        else if (['forest', 'youngforest', 'oldgrowth'].includes(t) && r2 < 0.05) t = 'deadfall';
-        else if (['plains', 'fernprairie', 'openwoods', 'forestedge', 'katydidmeadow'].includes(t) && r2 < 0.012) t = 'nest';
+        if (t === 'floodplain' && r2 < 0.03) t = 'quicksand';
+        else if (['plains', 'savanna', 'floodplain', 'fernprairie'].includes(t) && r2 < 0.07) t = 'waterhole';
+        else if (['galleryforest', 'forest', 'riverbank'].includes(t) && nearRiver && r2 < 0.08) t = 'deadfall';
         c.terrain = t;
     }
 
     // ---------- sauropod migration trails ----------
-    const passCost = (c) => (c.isSea || c.terrain === 'mountains' || c.terrain === 'volcanic' || c.terrain === 'lake') ? Infinity : 1 + (c.level > 4 ? 2 : 0) + (c.terrain.includes('forest') || c.terrain === 'jungle' || c.terrain === 'oldgrowth' ? 1.5 : 0);
+    const passCost = (c) => (c.isSea || c.terrain === 'mountains' || c.terrain === 'lake' || c.terrain === 'mangrove') ? Infinity : 1 + (c.level > 4 ? 2 : 0) + (c.terrain.includes('forest') || c.terrain === 'jungle' || c.terrain === 'oldgrowth' ? 1.5 : 0);
     const shortest = (a, b) => {
         const dist = new Map([[a.id, 0]]);
         const prev = new Map();
@@ -448,17 +438,20 @@ export const generateWorld = (seed) => {
         addWaterway('trail', sampleSpline(ctrl, 0.15));
     }
 
-    // ---------- the nest where Big Al hatches ----------
-    const startable = ['fernprairie', 'katydidmeadow', 'forestedge', 'openwoods', 'plains', 'floodplain'];
-    const centre = { x: W * 0.55, z: H * 0.58 };
+    // ---------- the sandbank where Spino hatches ----------
+    // right at the water's edge, with shallows next door for a first fishing trip
+    const startable = ['riverbank', 'floodplain', 'fernprairie', 'plains', 'openwoods', 'galleryforest'];
+    const centre = { x: W * 0.55, z: H * 0.55 };
+    const watered = (c) => c.neighborIds.some((n) => ['river', 'stream', 'lake'].includes(cells[n].terrain));
     const spawn = land
-        .filter((c) => startable.includes(c.terrain) && c.level <= 4 && !c.border)
-        .sort((a, b) => Math.hypot(a.x - centre.x, a.z - centre.z) - Math.hypot(b.x - centre.x, b.z - centre.z))[0] || land[0];
+        .filter((c) => startable.includes(c.terrain) && c.level <= 4 && !c.border && watered(c))
+        .sort((a, b) => Math.hypot(a.x - centre.x, a.z - centre.z) - Math.hypot(b.x - centre.x, b.z - centre.z))[0]
+        || land.find((c) => startable.includes(c.terrain)) || land[0];
     spawn.terrain = 'nest';
     for (const n of spawn.neighborIds) {
         const nc = cells[n];
-        if (nc.terrain === 'river') nc.terrain = 'stream'; // a shallow ford next to the nest
-        if (['mountains', 'volcanic', 'quicksand', 'lavafield', 'sea'].includes(nc.terrain)) nc.terrain = 'fernprairie';
+        if (nc.terrain === 'river') nc.terrain = 'stream'; // a shallow side channel by the nest
+        if (['mountains', 'quicksand', 'sea', 'desert'].includes(nc.terrain)) nc.terrain = 'fernprairie';
     }
 
     const byKey = new Map(cells.map((c) => [c.key, c]));

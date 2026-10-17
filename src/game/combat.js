@@ -5,7 +5,7 @@
 //    mass and toughness (hunting companions add their weight)
 //  * if it survives it may strike back, run, or (herds) its herd-mates join in
 // Small prey still dies in one bite; a sauropod takes many.
-import { SPECIES_DATA, TOUGHNESS } from '../data/species.js';
+import { SPECIES_DATA, TOUGHNESS, AQUATIC } from '../data/species.js';
 import { calculateAgilityRatio, calculateEnergyGain, escapeChance } from '../utils/combatUtils.js';
 
 // [bite multiplier, catch (agility) multiplier, bolt chance multiplier, counter-attack multiplier]
@@ -49,6 +49,7 @@ export const boltChance = (state, creature, style = 'normal') => {
     let p = escapeChance(creature.species, sd, creature.size, state.weight, state.level) * m.bolt;
     const agility = calculateAgilityRatio(state.weight, sd, false) * m.catch * (creature.wounded ? 0.6 : 1);
     if (agility > 1) p += Math.min(0.4, (agility - 1) * 0.2); // too quick for you
+    if (AQUATIC.has(creature.species)) p *= 0.45; // a spinosaur's snout is made for fish
     return Math.max(0, Math.min(0.75, p));
 };
 

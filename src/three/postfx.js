@@ -14,11 +14,15 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 const SoftCameraShader = {
     uniforms: {
         tDiffuse: { value: null },
+        tDepth: { value: null },
+        uNear: { value: 0.1 },
+        uFar: { value: 200 },
+        uInk: { value: 1 }, // comic ink lines, flat tone bands and hatching
         uResolution: { value: new THREE.Vector2(1, 1) },
         uPixelRatio: { value: 1 },
-        uBlur: { value: 3.2 }, // max blur radius in CSS pixels
-        uVibrance: { value: 0.42 },
-        uSaturation: { value: 1.06 },
+        uBlur: { value: 1.4 }, // max blur radius in CSS pixels (kept low: comic art is crisp)
+        uVibrance: { value: 0.25 },
+        uSaturation: { value: 0.96 },
         uContrast: { value: 1.04 },
         uVignette: { value: 0.18 },
         uTop: { value: new THREE.Color('#8cc4e8') },
@@ -33,6 +37,8 @@ const SoftCameraShader = {
         void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */`
         uniform sampler2D tDiffuse;
+        uniform sampler2D tDepth;
+        uniform float uNear, uFar, uInk;
         uniform vec2 uResolution, uGlowPos;
         uniform float uPixelRatio, uBlur, uVibrance, uSaturation, uContrast, uVignette, uGloom, uFlash;
         uniform vec3 uTop, uHorizon, uGlow;
@@ -56,6 +62,10 @@ const SoftCameraShader = {
             return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
         }
 
+        // orthographic camera: depth is linear between the near and far planes
+        float depthAt(vec2 uv) { return uNear + texture2D(tDepth, uv).x * (uFar - uNear); }
+        float lumOf(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+
         void main() {
             vec2 px = 1.0 / uResolution;
             // tilt-shift: sharp band through the middle, soft toward top, bottom and corners
@@ -76,6 +86,45 @@ const SoftCameraShader = {
                 }
                 col = acc / 13.0;
             }
+            // ---- comic inking ----
+            if (uInk > 0.0) {
+                vec2 o = px * uPixelRatio * 1.1;
+                float d = depthAt(vUv);
+                float dl = depthAt(vUv - vec2(o.x, 0.0));
+                float dr = depthAt(vUv + vec2(o.x, 0.0));
+                float du = depthAt(vUv + vec2(0.0, o.y));
+                float dd = depthAt(vUv - vec2(0.0, o.y));
+                // silhouettes and creases: depth jumps, ignoring the gentle slope of the ground
+                float jump = max(max(abs(dl + dr - 2.0 * d), abs(du + dd - 2.0 * d)), 0.0);
+                float depthEdge = smoothstep(0.05, 0.16, jump);
+                // colour boundaries inside a surface (patterns, stripes, shading bands)
+                vec3 cl = texture2D(tDiffuse, vUv - vec2(o.x, 0.0)).rgb;
+                vec3 cr = texture2D(tDiffuse, vUv + vec2(o.x, 0.0)).rgb;
+                vec3 cu = texture2D(tDiffuse, vUv + vec2(0.0, o.y)).rgb;
+                vec3 cd = texture2D(tDiffuse, vUv - vec2(0.0, o.y)).rgb;
+                float g = length(cr - cl) + length(cu - cd);
+                float colourEdge = smoothstep(0.22, 0.5, g) * 0.55;
+                float ink = max(depthEdge, colourEdge) * cover;
+
+                // flat tone bands in perceptual space, keeping the hue
+                float l = max(lumOf(col), 1e-4);
+                float lp = sqrt(l);
+                float lq = (floor(lp * 6.0) + smoothstep(0.3, 0.7, fract(lp * 6.0))) / 6.0;
+                col *= mix(1.0, (lq * lq) / l, 0.55 * cover);
+
+                // pen hatching only in real shadow, cross-hatching in the darkest parts
+                vec2 fc = gl_FragCoord.xy / uPixelRatio;
+                float h1 = smoothstep(0.7, 0.92, abs(fract((fc.x + fc.y) / 5.0) - 0.5) * 2.0);
+                float h2 = smoothstep(0.7, 0.92, abs(fract((fc.x - fc.y) / 5.0) - 0.5) * 2.0);
+                float dark = 1.0 - smoothstep(0.025, 0.09, l);
+                float hatch = (h1 * smoothstep(0.0, 0.5, dark) + h2 * smoothstep(0.6, 1.0, dark)) * cover * 0.45;
+                col *= 1.0 - hatch;
+
+                // warm paper tint, then the ink on top
+                col = mix(col, col * vec3(1.04, 1.0, 0.9), 0.5);
+                col = mix(col, vec3(0.07, 0.055, 0.045), ink * 0.9 * uInk);
+            }
+
             // light grade
             col = max((col - 0.18) * uContrast + 0.18, 0.0);
             col = max(sat(col, uSaturation), 0.0);
@@ -97,8 +146,11 @@ const SoftCameraShader = {
 export class PostFX {
     constructor(renderer, scene, camera) {
         this.renderer = renderer;
+        this.camera = camera;
         const size = renderer.getDrawingBufferSize(new THREE.Vector2());
         const target = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 });
+        target.depthTexture = new THREE.DepthTexture(size.x, size.y);
+        target.depthTexture.type = THREE.FloatType;
         this.composer = new EffectComposer(renderer, target);
         this.renderPass = new RenderPass(scene, camera);
         this.renderPass.clearColor = new THREE.Color(0, 0, 0);
@@ -129,6 +181,10 @@ export class PostFX {
     }
 
     render(dt) {
+        const u = this.soft.uniforms;
+        u.tDepth.value = this.composer.readBuffer.depthTexture;
+        u.uNear.value = this.camera.near;
+        u.uFar.value = this.camera.far;
         this.composer.render(dt);
     }
 

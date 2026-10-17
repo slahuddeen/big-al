@@ -2,7 +2,7 @@
 import { distanceToPlayer, bfsDistances } from '../world/cellGraph.js';
 import { getWorld } from '../world/worldGen.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
-import { SPECIES_DATA, HABITAT_SPECIES, GROUP_SIZE, CHASERS, FLYERS, activityFactor } from '../data/species.js';
+import { SPECIES_DATA, HABITAT_SPECIES, GROUP_SIZE, CHASERS, FLYERS, AQUATIC, SEMI_AQUATIC, CROCODILES, activityFactor } from '../data/species.js';
 import { biteDamage, boltChance, fightBackChance, standsGround, packPower, preyMass, STYLE_MODS } from './combat.js';
 import { calculateFiercenessRatio, calculateAgilityRatio, calculateInjuries, calculateEnergyGain, escapeChance as attemptCreatureEscape } from '../utils/combatUtils.js';
 import { calculateVisibility } from '../utils/visibilitySystem.js';
@@ -21,17 +21,16 @@ import {
     getTimeOfDay
 } from './gameConstants.js';
 
-// Big Al level system (hatchlings start at 1kg)
+// Growth stages: a 1kg hatchling grows into a seven-tonne river giant
 export const LEVEL_NAMES = ['', 'hatchling', 'juvenile', 'sub-adult', 'adult'];
-// FIXED: the adult threshold used to be 2200kg while MAX_WEIGHT is 2100kg, so adulthood was unreachable
-export const LEVEL_WEIGHTS = [0, 15, 600, 1800, MAX_WEIGHT];
+export const LEVEL_WEIGHTS = [0, 20, 500, 2500, MAX_WEIGHT];
 
 export const PREY_SIZE_CATEGORIES = {
-    'tiny': ['Dragonfly', 'Centipede', 'Cricket', 'Scorpion', 'Katydid'],
-    'small': ['Frog', 'Lizard', 'Mammal', 'Fish', 'Sphenodontian', 'Mesadactylus', 'Turtle', 'Snake', 'Rhamphorhynchus'],
-    'medium': ['Dryosaurus', 'Othnielia', 'Harpactognathus', 'Injured Pterosaur', 'Compsognathus', 'Coelurus', 'Hesperornithoides'],
-    'large': ['Ornitholestes', 'Stokesosaurus', 'Juvenile Allosaurus', 'Crocodile', 'Camptosaurus', 'Kepodactylus', 'Kentrosaurus', 'Tuojiangosaurus'],
-    'huge': ['Stegosaurus', 'Male Allosaurus', 'Female Allosaurus', 'Ceratosaurus', 'Torvosaurus', 'Diplodocus', 'Brachiosaurus', 'Camarasaurus', 'Saurophaganax']
+    'tiny': ['Dragonfly', 'Centipede', 'Cricket', 'Scorpion'],
+    'small': ['Frog', 'Lizard', 'Fish', 'Lapparentophis', 'Hamadachelys', 'Leptostomia', 'Araripesuchus', 'Afrotapejara'],
+    'medium': ['Noasaurid', 'Lungfish', 'Calamopleurus', 'Bawitius', 'Tribodus', 'Siroccopteryx', 'Injured Pterosaur', 'Alanqa'],
+    'large': ['Iguanodont', 'Young Spinosaurus', 'River Plesiosaur', 'Mawsonia', 'Laganosuchus', 'Elosuchus', 'Rugops', 'Deltadromeus'],
+    'huge': ['Onchopristis', 'Aegisuchus', 'Sauroniops', 'Bahariasaurus', 'Carcharodontosaurus', 'Spinosaurus', 'Rebbachisaurus', 'Aegyptosaurus', 'Paralititan']
 };
 
 const MAX_BEHAVIOR_LOG_SIZE = 15;
@@ -58,6 +57,24 @@ const passable = (state, key) => {
     const c = state.cells.get(key);
     return !!c && TERRAIN_TYPES[c.terrain].passable && c.terrain !== 'quicksand';
 };
+
+// ---------- water ----------
+// Fish need water; land animals will not follow you into the deep channels and
+// lakes, so for a spinosaur the river is a refuge as well as a larder
+export const WATERY = new Set(['river', 'stream', 'lake', 'waterhole', 'marsh', 'mangrove', 'sea']);
+export const DEEP = new Set(['river', 'lake']);
+// fish also live in the pools of the floodplain and the tidal flats
+const FISH_WATERS = new Set(['river', 'stream', 'lake', 'waterhole', 'marsh', 'mangrove', 'floodplain', 'beach']);
+export const inWater = (state) => WATERY.has(state.cells.get(state.player)?.terrain);
+export const inDeepWater = (state) => DEEP.has(state.cells.get(state.player)?.terrain);
+export const canEnter = (state, key, c) => {
+    const t = state.cells.get(key)?.terrain;
+    if (!t || !passable(state, key)) return false;
+    if (AQUATIC.has(c.species)) return FISH_WATERS.has(t);
+    if (FLYERS.has(c.species) || SEMI_AQUATIC.has(c.species)) return true;
+    return !DEEP.has(t);
+};
+const fromLand = (c) => !AQUATIC.has(c.species) && !SEMI_AQUATIC.has(c.species) && !FLYERS.has(c.species);
 
 // How fierce Big Al is (same measure the combat maths uses)
 export const playerFierceness = (state) => Math.max(1, state.weight * (Math.log10(Math.max(1, state.fitness)) / 2));
@@ -89,15 +106,20 @@ export const canDrink = (state) => {
 
 // How well a small dinosaur can hide here (0..1)
 const COVER_SCORE = {
+    river: 0.9, lake: 0.9, mangrove: 0.85, marsh: 0.8, stream: 0.55, waterhole: 0.5,
     deadfall: 0.9, denseforest: 0.85, jungle: 0.85, oldgrowth: 0.75, galleryforest: 0.75, forest: 0.7, youngforest: 0.7,
     marsh: 0.7, fernprairie: 0.65, boulderfield: 0.65, katydidmeadow: 0.55, forestedge: 0.55, scrubland: 0.55,
     openwoods: 0.5, ginkgogrove: 0.5, rocky: 0.45, riverbank: 0.45, termitemounds: 0.4, deadforest: 0.35, nest: 0.35, hills: 0.3,
     desert: 0.1, beach: 0.1, sauropodgrounds: 0.15
 };
+// Too big to hide on land from the sub-adult stage, but you can always sink into the water
+export const canHideHere = (state) => state.level <= 2 || inWater(state);
 export const hideChance = (state, creature = null) => {
     const here = state.cells.get(state.player);
     let p = COVER_SCORE[here?.terrain] ?? 0.2;
-    p *= state.level === 1 ? 1 : 0.7; // a juvenile is harder to tuck away
+    // under water only the eyes and nostrils show, whatever your size; on land a juvenile is harder to tuck away
+    if (!inWater(state)) p *= state.level === 1 ? 1 : 0.7;
+    else if (creature && !fromLand(creature)) p *= 0.6; // crocodiles and fish see you fine down there
     if (raining(state)) p *= 1.25;
     if (playerMisty(state)) p *= 1.2;
     if (creature?.engaged) p *= 0.65; // much harder once it has its eye on you
@@ -133,7 +155,7 @@ const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
     return multiplier;
 };
 
-const GIANTS = new Set(['Diplodocus', 'Camarasaurus', 'Brachiosaurus']);
+const GIANTS = new Set(['Rebbachisaurus', 'Aegyptosaurus', 'Paralititan']);
 const makeCreature = (species, state, size, extra = {}) => {
     const sd = SPECIES_DATA[species];
     const minAge = sd.minimumAge || 0.1;
@@ -160,7 +182,7 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
     const poi = key ? state.pois?.get(key) : null;
     if (poi?.type === 'sauropodcarcass' && poi.portions > 0) {
         // a fallen giant draws in every predator around
-        Object.assign(dist, { Ceratosaurus: 0.15, Torvosaurus: 0.1, 'Male Allosaurus': 0.12, 'Female Allosaurus': 0.1, Stokesosaurus: 0.12, Compsognathus: 0.3, Harpactognathus: 0.2 });
+        Object.assign(dist, { Carcharodontosaurus: 0.15, Sauroniops: 0.1, Bahariasaurus: 0.1, Rugops: 0.15, Deltadromeus: 0.12, Noasaurid: 0.25, Alanqa: 0.2, Araripesuchus: 0.2 });
     }
     const phase = phaseOf(state);
     const spawned = [];
@@ -171,7 +193,7 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
         attempts++;
         if (FLYERS.has(species) && flyers <= 0) continue;
         let chance = dist[species] * getPreySizeMultiplier(state.level, state.weight, species) * chanceScale * activityFactor(species, phase) * seasonSpawnFactor(terrain, species, state.moveNumber);
-        if (state.level <= 2 && ['Male Allosaurus', 'Female Allosaurus', 'Stegosaurus', 'Torvosaurus', 'Saurophaganax'].includes(species)) chance *= 0.05;
+        if (state.level <= 2 && ['Carcharodontosaurus', 'Sauroniops', 'Bahariasaurus', 'Spinosaurus', 'Aegisuchus', 'Onchopristis'].includes(species)) chance *= 0.05;
         if (GIANTS.has(species) && terrain === 'sauropodgrounds') chance = Math.max(chance, dist[species] * chanceScale); // herds are always on the move here
         if (Math.random() >= chance) continue;
         const [gMin, gMax] = GROUP_SIZE[species] || [1, 1];
@@ -194,7 +216,7 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
         spawned.push(makeCreature(species, state, undefined, { herd, heading }));
         for (let i = 1; i < n; i++) {
             // herds bring their young along (a young sauropod is tiny next to its parents)
-            const young = species === 'Stegosaurus' && Math.random() < 0.6;
+            const young = species === 'Iguanodont' && Math.random() < 0.5;
             spawned.push(makeCreature(species, state, young ? 0.15 + Math.random() * 0.25 : undefined, { herd, heading }));
         }
     }
@@ -266,9 +288,9 @@ const applyGrowth = (level, weight, notifications) => {
     let n = addNotification(notifications, { type: 'levelup', message: `You've grown into a ${LEVEL_NAMES[newLevel]}!` });
     const learned = Object.values(ABILITIES).filter((a) => a.level > level && a.level <= newLevel).map((a) => a.name);
     const advice = {
-        2: 'Bugs are getting less satisfying. Hunt lizards, mammals and small dinosaurs.',
-        3: 'Small prey will not keep you going now. Go after ornithopods.',
-        4: 'You are an apex predator. Only big prey will sustain you.'
+        2: 'Bugs are getting less satisfying. You can swim the big river now: fish, turtles and lungfish wait there.',
+        3: 'Small fish will not keep you going now. Hunt the big fish, crocodiles and the odd iguanodont.',
+        4: 'You are the river king. Sawfish, giant coelacanths and even titanosaurs are prey now. Watch for Carcharodontosaurus.'
     };
     if (learned.length || advice[newLevel]) {
         n = addNotification(n, { type: 'levelup', message: `${learned.length ? `New abilities: ${learned.join(', ')}. ` : ''}${advice[newLevel] || ''}` });
@@ -276,11 +298,14 @@ const applyGrowth = (level, weight, notifications) => {
     return { level: newLevel, notifications: n };
 };
 
+// A spinosaur grows to more than three times an allosaur's weight, so it puts weight on faster
+const GROWTH_SCALE = 3;
+
 // Feeding: shared by hunting and scavenging
 const feed = (state, energyGain, preySize, weightFactor = 1) => {
     const newEnergy = Math.min(100, state.energy + energyGain);
     if (newEnergy >= 90 && energyGain > 8) {
-        const weightGain = (energyGain * 0.015) * Math.pow(preySize, 0.8) * weightFactor;
+        const weightGain = (energyGain * 0.015) * Math.pow(preySize, 0.8) * weightFactor * GROWTH_SCALE;
         return { energy: 100, weight: Math.min(MAX_WEIGHT, state.weight + weightGain), score: state.score + Math.round(weightGain * 150), weightGain };
     }
     return { energy: newEnergy, weight: state.weight, score: state.score + Math.round(energyGain * 1.5), weightGain: 0 };
@@ -307,11 +332,12 @@ const addCarcass = (carcasses, key, carcass) => {
 };
 
 // Neighbouring cell that gets a creature furthest from Big Al
-const escapeCell = (state, fromKey, occupancy) => {
+const escapeCell = (state, fromKey, occupancy, creature = null) => {
     let best = null;
     let bestD = -1;
     for (const n of state.cells.get(fromKey)?.neighbors || []) {
         if (!passable(state, n) || (occupancy.get(n) || 0) >= MAX_CREATURES_PER_HEX) continue;
+        if (creature && !canEnter(state, n, creature)) continue;
         const d = distanceToPlayer(state, n) + Math.random() * 0.5;
         if (d > bestD) {
             bestD = d;
@@ -342,6 +368,7 @@ const noticeChance = (state, creature, opts = {}) => {
     if (opts.asleep) p *= 0.7;
     if (creature.lostUntil !== undefined && creature.lostUntil >= state.moveNumber) return 0; // it lost you
     if (state.hiddenAt === state.moveNumber) p *= 0.25;
+    if (inWater(state) && fromLand(creature)) p *= inDeepWater(state) ? 0.3 : 0.6; // low in the water you are hard to spot from the bank
     if (raining(state)) p *= weatherNow(state) === 'storm' ? 0.5 : 0.65; // rain hides your scent
     if (inCover(state)) p *= 0.8;
     if (playerMisty(state)) p *= 0.6;
@@ -398,7 +425,7 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
             giants.set(to, (giants.get(to) || 0) + 1);
         }
     };
-    const roomAt = (key, c = null) => (occupancy.get(key) || 0) < MAX_CREATURES_PER_HEX && (!c || !isBigGiant(c) || (giants.get(key) || 0) < MAX_GIANTS_PER_CELL);
+    const roomAt = (key, c = null) => (occupancy.get(key) || 0) < MAX_CREATURES_PER_HEX && (!c || canEnter(gameState, key, c)) && (!c || !isBigGiant(c) || (giants.get(key) || 0) < MAX_GIANTS_PER_CELL);
     const pushAttack = (creature, key, charged, message, raw) => {
         attacked.add(creature.id);
         creature.engaged = true;
@@ -431,7 +458,7 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                     }
                     if (hexKey !== player || Math.random() < 0.6) {
                         if (Math.random() < 0.75) {
-                            const to = escapeCell(gameState, hexKey, occupancy);
+                            const to = escapeCell(gameState, hexKey, occupancy, creature);
                             if (to && roomAt(to, creature)) {
                                 destKey = to;
                                 move(hexKey, to, creature);
@@ -448,7 +475,7 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                 if (creature.chasing > 0 && !gameState.gameOver) {
                     const dist = distanceToPlayer(gameState, hexKey);
                     creature.chasing -= 1;
-                    const loseTrail = opts.evading || (inCover(gameState, playerMisty(gameState)) && Math.random() < 0.3) || (raining(gameState) && Math.random() < 0.35) || dist > 3 || (creature.lostUntil ?? -1) >= turn;
+                    const loseTrail = opts.evading || (inCover(gameState, playerMisty(gameState)) && Math.random() < 0.3) || (raining(gameState) && Math.random() < 0.35) || dist > 3 || (creature.lostUntil ?? -1) >= turn || (fromLand(creature) && inDeepWater(gameState));
                     if (loseTrail) {
                         creature.chasing = 0;
                         if (dist <= 3) behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey, message: `The ${creature.species} loses your trail.`, near: true });
@@ -514,7 +541,7 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                             // nothing to do
                         } else if (threat < pf * 0.25 || (hasPassive(gameState, 'apex') && isPredator && threat < pf * 0.6)) {
                             // Big Al is far too big to pick a fight with: it backs off instead
-                            const to = escapeCell(gameState, hexKey, occupancy);
+                            const to = escapeCell(gameState, hexKey, occupancy, creature);
                             if (to && roomAt(to, creature)) {
                                 destKey = to;
                                 move(hexKey, to, creature);
@@ -597,9 +624,9 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
     for (const p of placements) {
         const c = p.creature;
         if (!rallies.has(c.species) || attacked.has(c.id) || killed.has(c.id) || c.wounded) continue;
-        if (distanceToPlayer(gameState, p.key) > 1 || (p.key !== player && !roomAt(player))) continue;
+        if (distanceToPlayer(gameState, p.key) > 1 || (p.key !== player && !roomAt(player, c))) continue;
         if (p.key !== player) {
-            move(p.key, player);
+            move(p.key, player, c);
             p.key = player;
         }
         pushAttack(c, player, p.origin !== player, `The ${c.species} pack closes in!`, (SPECIES_DATA[c.species].danger || 1) * c.size * 0.9);
@@ -759,11 +786,11 @@ const contextualThought = (state) => {
     if (here && playerMisty(state)) return 'Mist hangs low. You can barely see, but nothing can see you either.';
     if (phase === 3) return 'Night falls. Things move in the dark.';
     if (state.level === 1) {
-        const t = ['Those dragonflies look tasty but so fast!', 'Maybe I can catch that centipede...', 'Everything is so big, but I can hunt bugs!', 'Need to find more insects to grow bigger...'];
+        const t = ['Those dragonflies look tasty but so fast!', 'Little fish flicker in the shallows...', 'Everything is so big. Stay near the water.', 'The big river is too strong for me yet.'];
         return t[Math.floor(Math.random() * t.length)];
     }
     if (state.level === 2) {
-        const t = ["Bugs aren't as filling as they used to be...", 'Time to hunt some lizards and mammals!', "I'm getting stronger, but still need to be careful..."];
+        const t = ["Bugs aren't as filling as they used to be...", 'The river is full of fish. Time to swim.', 'On land I am slow. In the water I am fast.'];
         return t[Math.floor(Math.random() * t.length)];
     }
     return THOUGHTS[Math.floor(Math.random() * THOUGHTS.length)];
@@ -889,21 +916,24 @@ const coreReducer = (state, action) => {
             }
             if (!terrain.passable) return state;
             if (terrain.minWeight > 0 && state.weight < terrain.minWeight) {
-                const river = terrain.name === 'River';
+                const river = targetHex.terrain === 'river';
                 return {
                     ...killPlayer(state, river ? 'drowned' : 'sank', river ? 'The current sweeps your small body away...' : 'You sink into the terrain...'),
                     player: target,
                     notifications: addNotification(state.notifications, {
-                        type: 'death', message: river ? "You tried to cross the river but you're still too small! The current swept you away!" : 'The terrain proved too dangerous for your size!'
+                        type: 'death', message: river ? "You swam out into the great river, but you are still too small. The current swept you away!" : 'The terrain proved too dangerous for your size!'
                     })
                 };
             }
 
             const dashing = state.dashArmed;
             const sizeMultiplier = Math.max(0.4, Math.min(2.0, Math.pow(state.weight / 150, 0.4)));
-            // a big body crashes through thick forest: open country suits a grown allosaur
+            // a big body and a sail crash through thick woods
             const cramped = crampedIn(state, targetHex.terrain);
-            const energyCost = Math.round(terrain.energyCost * sizeMultiplier * (hasPassive(state, 'legs') ? 0.85 : 1) * (cramped ? 1 + 0.35 * (state.level - 2) : 1)) + (dashing ? ABILITIES.dash.energy : 0);
+            // a spinosaur swims well and walks badly: water gets cheaper as you grow, land dearer
+            const water = WATERY.has(targetHex.terrain);
+            const swimMul = water ? (hasPassive(state, 'legs') ? 0.6 : 0.85) : 1 + Math.max(0, state.level - 2) * 0.08;
+            const energyCost = Math.round(terrain.energyCost * sizeMultiplier * swimMul * (cramped ? 1 + 0.35 * (state.level - 2) : 1)) + (dashing ? ABILITIES.dash.energy : 0);
             const timed = passTime(state, { energyCost, terrain: targetHex.terrain });
             let { fitness, notifications } = timed;
 
@@ -956,7 +986,7 @@ const coreReducer = (state, action) => {
                 ...behaviorState,
                 selectedHex: null,
                 currentThought: behaviorState.gameOver ? behaviorState.currentThought
-                    : cramped && Math.random() < 0.5 ? 'Your bulk crashes through the undergrowth. Open country suits you better now.' : contextualThought(behaviorState)
+                    : cramped && Math.random() < 0.5 ? 'Your sail snags in the branches. The open rivers suit you better now.' : contextualThought(behaviorState)
             };
         }
 
@@ -1039,16 +1069,16 @@ const coreReducer = (state, action) => {
             };
             // crocodiles wait at the water's edge
             for (const key of sources) {
-                const croc = (state.creatures.get(key) || []).find((c) => c.species === 'Crocodile');
+                const croc = (state.creatures.get(key) || []).find((c) => CROCODILES.has(c.species) && creatureThreat(c) > playerFierceness(state) * 0.3);
                 if (croc && Math.random() < 0.4) {
-                    const damage = attackDamage(state, croc, SPECIES_DATA.Crocodile.danger * croc.size * 1.4);
+                    const damage = attackDamage(state, croc, SPECIES_DATA[croc.species].danger * croc.size * 1.4);
                     next = {
                         ...next,
                         fitness: Math.max(0, state.fitness - damage),
-                        notifications: addNotification(state.notifications, { type: 'combat', message: `A crocodile bursts from the water as you drink! -${damage} health` }),
-                        creatureBehaviorLog: [...state.creatureBehaviorLog, { id: uid('log'), type: 'creature_attack', creature: 'Crocodile', creatureId: croc.id, hexKey: key, message: '', damage }].slice(-MAX_BEHAVIOR_LOG_SIZE)
+                        notifications: addNotification(state.notifications, { type: 'combat', message: `A ${croc.species} bursts from the water as you drink! -${damage} health` }),
+                        creatureBehaviorLog: [...state.creatureBehaviorLog, { id: uid('log'), type: 'creature_attack', creature: croc.species, creatureId: croc.id, hexKey: key, message: '', damage }].slice(-MAX_BEHAVIOR_LOG_SIZE)
                     };
-                    if (next.fitness <= 0) return killPlayer(next, 'combat', 'The crocodile drags you under...');
+                    if (next.fitness <= 0) return killPlayer(next, 'combat', `The ${croc.species} drags you under...`);
                     break;
                 }
             }
@@ -1334,7 +1364,7 @@ const coreReducer = (state, action) => {
 
         // Freeze in cover and hope whatever is hunting you walks past
         case 'HIDE': {
-            if (state.gameOver || !abilityReady(state, 'hide')) return state;
+            if (state.gameOver || !abilityReady(state, 'hide') || !canHideHere(state)) return state;
             const pf = playerFierceness(state);
             const near = new Set([state.player, ...state.cells.get(state.player).neighbors]);
             let creatures = state.creatures;
@@ -1352,7 +1382,7 @@ const coreReducer = (state, action) => {
                         let updated = { ...c, chasing: 0, engaged: false, lostUntil: state.moveNumber + 2 };
                         creatures = removeCreature(creatures, key, c.id);
                         let to = key;
-                        if (key === state.player) to = escapeCell(state, key, new Map([...creatures].map(([k, l]) => [k, l.length]))) || key;
+                        if (key === state.player) to = escapeCell(state, key, new Map([...creatures].map(([k, l]) => [k, l.length])), c) || key;
                         creatures = placeCreature(creatures, to, updated);
                         lost.push(c.species);
                     } else {
@@ -1378,11 +1408,11 @@ const coreReducer = (state, action) => {
                 next.creatureBehaviorLog = [...state.creatureBehaviorLog, { id: uid('log'), type: 'creature_attack', creature: c.species, creatureId: c.id, hexKey: state.player, charged: false, message: '', damage: dmg }].slice(-MAX_BEHAVIOR_LOG_SIZE);
                 if (next.fitness <= 0) return killPlayer(next, 'combat', `The ${c.species} sniffed you out...`);
             } else if (lost.length) {
-                next.notifications = addNotification(state.notifications, { type: 'success', message: `You freeze in the ${terrainName}. The ${[...new Set(lost)].join(' and the ')} ${lost.length > 1 ? 'lose' : 'loses'} your trail.` });
+                next.notifications = addNotification(state.notifications, { type: 'success', message: `${inWater(state) ? `You sink into the ${terrainName} until only your eyes show.` : `You freeze in the ${terrainName}.`} The ${[...new Set(lost)].join(' and the ')} ${lost.length > 1 ? 'lose' : 'loses'} your trail.` });
                 next.currentThought = 'Still... perfectly still...';
                 next.stats = { ...state.stats, hidden: (state.stats.hidden || 0) + 1 };
             } else {
-                next.notifications = addNotification(state.notifications, { type: 'info', message: `You crouch low in the ${terrainName}. Nothing will see you easily this turn.` });
+                next.notifications = addNotification(state.notifications, { type: 'info', message: inWater(state) ? `You slide under the surface of the ${terrainName}. Nothing on the bank will see you easily this turn.` : `You crouch low in the ${terrainName}. Nothing will see you easily this turn.` });
                 next.currentThought = 'Small and still. Invisible.';
             }
             return next;
@@ -1451,11 +1481,11 @@ const coreReducer = (state, action) => {
             return { ...next, creatures, notifications };
         }
 
-        // Invite a young Allosaurus to hunt with you
+        // Fish alongside a young spinosaur, a clutch-mate
         case 'INVITE': {
             if (state.gameOver || state.level < 2 || (state.pack || []).length >= 2) return state;
             const here = state.creatures.get(state.player) || [];
-            const c = here.find((x) => x.id === action.creatureId && x.species === 'Juvenile Allosaurus');
+            const c = here.find((x) => x.id === action.creatureId && x.species === 'Young Spinosaurus');
             if (!c || c.engaged) return state;
             let next = { ...state, creatures: removeCreature(state.creatures, state.player, c.id) };
             const ratio = preyMass(c) / state.weight;
@@ -1464,13 +1494,13 @@ const coreReducer = (state, action) => {
                 const used = new Set((state.pack || []).map((m) => m.name));
                 const name = PACK_NAMES.find((n) => !used.has(n) && Math.random() < 0.5) || PACK_NAMES.find((n) => !used.has(n)) || 'Sibling';
                 next.pack = [...(state.pack || []), { id: c.id, name, weight: Math.max(preyMass(c), state.weight * 0.7), health: 100, joined: state.moveNumber }];
-                next.notifications = addNotification(state.notifications, { type: 'levelup', message: `The young Allosaurus falls in beside you. ${name} joins your hunting pack.` });
-                next.currentThought = 'Two hunt better than one.';
+                next.notifications = addNotification(state.notifications, { type: 'levelup', message: `The young spinosaur falls in beside you. ${name} fishes with you now.` });
+                next.currentThought = 'Two sets of jaws in the shallows.';
                 next.lastPlayerAction = { id: uid('act'), type: 'recruit', creatureId: c.id };
             } else {
                 const to = escapeCell(state, state.player, new Map([...next.creatures].map(([k, l]) => [k, l.length])));
                 if (to) next.creatures = placeCreature(next.creatures, to, { ...c, lastBehaviorTurn: state.moveNumber });
-                next.notifications = addNotification(state.notifications, { type: 'warning', message: 'The young Allosaurus snaps at you and lopes off.' });
+                next.notifications = addNotification(state.notifications, { type: 'warning', message: 'The young spinosaur snaps at you and slides off into the water.' });
                 next.currentThought = 'Not today, then.';
             }
             return next;

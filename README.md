@@ -1,98 +1,78 @@
-Play it here: http://slahuddeen.github.io/big-al/
+Play it here: https://slahuddeen.github.io/big-al/spino/
 
-This is a reimagining of the original Big Al dinosaur game made by the BBC in the 2000s.
-Ive added a few things to it and changed a few things too:
+# Spino
 
-•	Movement is now done by clicking on a tile you want to go to
+A survival game set on the Kem Kem rivers of North Africa, about 95 million years ago. You hatch on a sandbank as a one-kilogram Spinosaurus and grow into a seven-tonne river giant. It is built on the same engine as Big Al, with its own world, animals, rules and art style.
 
-•	The map is made of irregular Voronoi cells instead of squares or hexes
+The look follows Ricardo Delgado's *Age of Reptiles: Ancient Egyptians* comics: flat colour, ink outlines, pen hatching in the shadows, teal water and cream skies, and boldly patterned animals.
 
-•	Every playthrough generates a new Morrison basin: Sevier highlands and volcanoes in the west, the Sundance Sea to the north and east, rivers that spring in the hills and wind down to lakes and the sea (with waterfalls where they drop a terrace), dry channels, sauropod migration trails and dozens of biomes
+## The world
 
-•	Ive added more Jurassic era Morison Formation animals to the game
+The rivers run north to the Tethys Sea and end in a mangrove delta and tidal flats. Highlands lie to the west.
 
-•	Hex tiles have special properties such as vision or thirst effects
+* **Water:** the great river (deep channels), braided shallows, oxbow lakes, pools, fern swamps, the mangrove delta and the tidal flats.
+* **Banks:** sandbars, floodplain, dry channels, log jams left by floods, and the sandbank where Spino hatches.
+* **Woods:** conifer galleries along the rivers, conifer woods, Weichselia fern brakes, tree-fern thickets and open woods.
+* **Open and dry ground:** fern flats and meadows, dry savanna, scrub, titan trails, red hills, hamada, boulder fields, red badlands, mesas and dunes.
 
-•	The world is an isometric 3D diorama built with three.js – chunky low-poly terrain and creatures, a day/night cycle, swaying forests, flowing water, smoking volcanoes and fireflies at night. Every cell is randomly decorated, so no two forests or deserts look the same
+## The animals
 
-•	New biomes: fern prairie, katydid meadow, fern jungle, young forest, old-growth araucarias, ginkgo groves, forest edge, deadfall, floodplain, fern savanna, steppe, boulder fields, termite mounds and shallow streams
+The Kem Kem had far more big predators than big plant-eaters ("Stromer's riddle") because the rivers were full of fish. So does the game.
 
-•	Wildlife lives in every tile you can see: predators hunt other animals and leave carcasses you can scavenge
+* **Predators on land:** Carcharodontosaurus (the apex rival, green with a lavender mouth), Bahariasaurus, Sauroniops, Deltadromeus, Rugops, small zebra-striped noasaurids and gangs of the land crocodile Araripesuchus.
+* **In the water:** Elosuchus, Laganosuchus (the pancake croc), Aegisuchus (the shieldcroc), a river plesiosaur, the giant sawfish Onchopristis, the river shark Tribodus, Mawsonia (a coelacanth the size of a crocodile), the giant bichir Bawitius, lungfish, Calamopleurus, shoals of small fish and Hamadachelys turtles.
+* **Pterosaurs:** Alanqa stalks the mudflats and swallows hatchlings. Siroccopteryx skims the river for fish. Afrotapejara has a bright crest, and Leptostomia probes the mud.
+* **Plant-eaters:** zebra-striped iguanodonts, plus the titan herds on the trails: Rebbachisaurus, Aegyptosaurus and Paralititan, one of the largest animals that ever lived, drawn at its real size.
+* **Spinosaurs:** young spinosaurs (clutch-mates you can fish with) and grown rivals that defend their stretch of river.
+* **Small animals:** dragonflies, crickets, centipedes, scorpions, frogs, lizards and the early snake Lapparentophis. They fade from view as you grow.
 
-•	Animals behave like animals: herds graze and keep together, sauropods browse high in the trees, hunters sniff the ground, stalk you low and charge into your area to attack, small things dart about, and everything calls, looks around and reacts when you arrive. Big animals shake the ground as they walk
+Rugops comes from neighbouring Niger rather than the Kem Kem itself. The noasaurid and the iguanodont stand in for animals known from the region only from fragments.
 
-•	Survival is more than eating: keep your health, energy and water up. Hot, dry ground makes you thirsty; drink at rivers, lakes, waterholes and marshes (watch for crocodiles). Sleep to heal, safest in thick cover, best of all in a mud wallow
+## Playing as a spinosaur
 
-•	You learn new abilities as you grow: Sniff (find animals and carcasses out of sight), Pounce, Dash (break away from a fight), Ambush (strike from cover), Roar (scatter smaller animals) and the adult Allosaurus Hatchet Bite (wound big prey and follow its blood trail until it collapses). Passive traits change as you grow too
-
-•	Exploration: a field journal records every species, habitat and landmark you find. Look for egg clutches, fallen sauropods, mud wallows, lookouts (see further), bone beds, waterfalls and the volcanoes. A minimap shows everything you have discovered
-
-•	Fights take rounds: every animal has a health bar. Small prey dies in one bite, but big animals take several, fighting back, running when hurt, and herd-mates may join in. Sauropods are drawn at their real size and take a long, dangerous fight (or a hatchet bite and a long chase after the blood trail)
-
-•	Pack hunting: as a juvenile you can invite a young Allosaurus to hunt with you (up to two). Your pack adds bite power, takes some of the blows and shares the kills. Enemy packs gang up on you too, and some predators will chase you across several areas until you dash away or lose them in cover
-
-•	Sauropod migration routes: herds of Diplodocus, Camarasaurus and Brachiosaurus walk the trails with their young, followed by the predators that hunt them
-
-•	Goals for each stage of growth lead you out of the forest nursery to the rivers, the open plains and the migration routes. A grown Big Al is too big for thick forest: it costs more energy, and the big prey lives in open country
-
-•	Time of day matters: night and morning mist shorten your sight, but mist also hides you from predators. Some animals come out at night, others at dawn and dusk
-
-•	Gallery forests line the rivers, with trees leaning out over the water. Rivers use the same water as the lakes and the sea. Mist settles over swamps at night and dawn, and over some forests in the early morning
-
-•	The UI uses the pixel art for every animal, and creatures on the map have thick dark outlines so they stand out. The camera is soft: a tilt-shift focus with slightly boosted colour at the edges of the screen
-
-•	Seasons: the Morrison basin alternates a wet season (rain, storms, green growth, herds out on the plains) and a dry season (you get thirsty faster, the land browns to straw, and late in the dry season streams, waterholes, floodplain pools and marshes dry up, so animals crowd round the rivers and the open country empties). The weather rolls in and out: overcast, rain and storms dim the light, rain washes away your scent and gives you puddles to drink, storms cut your sight and bring lightning
-
-•	Hide: as a hatchling or juvenile you can freeze in cover when hunters are near. How well it works depends on the cover (deadfall, dense forest, jungle and ferns are best, open desert worst), and rain and mist help. If you are found, they attack
-
-•	Cutting a calf from the herd: sauropod calves are guarded, and adults block most attacks on them. Harass the herd (better with a pack, and it gets easier as they tire) to drive the adults on down the trail and leave a calf behind
-
-•	Wind blows across the basin, changing with the weather and the season. You read it from the foliage leaning and rustling in travelling gusts, faint streaks of wind, and leaves (or dust in the dry season) tumbling past
-
-•	The bigger you grow, the fewer insects and small fry you notice: they stop turning up as food once you are too big to care
-
-•	Dryosaurus follows newer reconstructions: a beaked head held low on a long neck, striped ochre hide and a russet bristle crest from the shoulders to the tip of the tail
-
-Im still developing these features:
-•	More attack types as you grow and hunt different animals (pokemon like system)
-
-•	A territory system
-
-•	More animals and biomes with unique effects
-
-You can play the original game as well as a faithful rebuild of it here:
-https://www.jenniferedwards.co.uk/portfolio/#bigalgame
-
+* **Water is your refuge.** Land predators will not follow you into the deep channels and lakes, and they lose your trail when you swim off. Crocodiles, sharks and plesiosaurs live there, though.
+* **Growing into the river:**
+  * As a hatchling under 4 kg, the main river sweeps you away, so stay in the shallows, pools and swamps.
+  * Once you are bigger the great river is yours.
+  * Swimming gets cheaper as you grow (Paddle Tail), and walking gets dearer.
+* **Fishing:** your snout is built for fish, so they rarely slip away (Fish Catcher). Snap is a quick strike that works best on fish and small, fast prey.
+* **Submerge:** sink until only your eyes show. Small spinosaurs can also hide in thick cover on land. From the sub-adult stage you can only hide in water.
+* **Abilities for a grown spinosaur:**
+  * Water Ambush: strike from the water at prey drinking at the edge.
+  * Sail Display: drives off smaller predators and scavengers.
+  * Thumb Claw: rakes big prey and lets it bleed.
+* **Seasons and the flood pulse:**
+  * Wet season: rain, and the herds spread over the green plains.
+  * Dry season: small waters dry up. Fish get trapped in shrinking pools and lungfish bury themselves in the mud, so everything crowds round the main channels.
+* **Big prey:** cut a titanosaur calf off from its herd, bring down a giant, or take on Carcharodontosaurus.
+* **The rest of the Big Al systems:** round-based fights with health bars, carcasses and blood trails, chasing predators, weather and wind, mist, a field journal, landmarks and goals for every stage of growth.
 
 ## Controls
 
 | Action | How |
 | --- | --- |
 | Move | Click a highlighted neighbouring area |
-| Travel | Click any explored area further away. Big Al walks there over safe ground and stops if danger appears |
+| Travel | Click any explored area further away |
 | Pan | Drag, or WASD / arrow keys |
 | Orbit and tilt | Right-drag (or Shift-drag, or middle-drag), or Q / E to rotate |
 | Zoom | Mouse wheel, or + / - |
-| Re-centre on Big Al | C (V resets rotation, tilt and zoom) |
-| Actions | 1 Sleep, 2 Drink, 3 Hide, 4 Sniff, 5 Dash, 6 Roar |
+| Re-centre on Spino | C (V resets rotation, tilt and zoom) |
+| Actions | 1 Sleep, 2 Drink, 3 Submerge, 4 Sniff, 5 Dash, 6 Sail Display |
 | Field journal | J |
-| Look somewhere | Click the minimap |
 
 ## Development
 
 ```bash
 npm install
 npm run dev      # http://localhost:3000
-npm run build
+npm run build    # served from /big-al/spino/
 ```
 
-* `src/world/` generates the map: `worldGen.js` (Voronoi cells, terraced elevation, rivers, lakes, sea, biomes, trails) and `cellGraph.js` (neighbours and distances on the cell graph).
-* `src/three/` holds the 3D engine: `lowpoly.js` (edge-loop lofting, extrusion and jittered blobs), `cells3d.js` (one builder per biome, ground detail, rivers and waterfalls), `materials.js` (wind sway and water shaders), `creatures3d.js` (rigged models for every species and Big Al), `animation.js` (procedural gaits and behaviour poses), `outline.js` (inverted-hull creature outlines), `mist.js`, `weather3d.js` (rain, lightning, wind streaks, leaves and dust), `pois3d.js` (landmark models), `postfx.js` (sky, tilt-shift soft focus and edge vibrance) and `WorldRenderer.js` (scene, camera, lighting, picking, creature behaviour, effects).
-* Game rules live in `src/game/`: `gameState.js` (the reducer), `abilities.js` (growth abilities and passives), `environment.js` (mist, water, thirst and shelter rules), `weather.js` (seasons, weather and wind, all pure functions of the world seed and turn) and `pois.js` (points of interest).
-* UI pictures come from `public/assets/sprites`, trimmed web-sized copies of the pixel art in `public/assets/dinos` (mapped in `src/data/sprites.js`). Species without art (and Dryosaurus, whose model is the more accurate picture) fall back to a rendered portrait of their 3D model.
-* Add `?seed=1234` to the URL to replay the same map.
-* Open `/gallery.html` on the dev server to inspect every creature and biome (`?view=terrain`, `?only=Stegosaurus,Diplodocus`, `&walk=1`, `&yaw=0&az=1.57` for side profiles, `&pose=graze|browse|call|crouch|rest|sniff` for behaviour poses).
-* Add `?skipintro` to the URL to skip the title card.
-* The water shader is ported from the Naval Command ocean (ripple normals, fresnel sky reflection, sun glitter, sub-surface glow, noise-broken foam): `src/three/water.js`.
-* Fight maths live in `src/game/combat.js`, growth goals in `src/game/goals.js`.
-* In the browser console during `npm run dev`: `spawnCreature('Diplodocus')` drops a creature on Big Al's tile, `setStats({ level: 4, weight: 2000 })` skips ahead, `teleport('galleryforest', 0)` jumps to the nearest cell of a habitat (optionally setting the turn, 0 = morning), `listCreatures()` lists everything alive.
+* This branch (`claude/spino-kemkem`) is the Spino game. Big Al lives on `main`.
+* Species, habitats and spawn tables are in `src/data/species.js`. Biomes are in `src/data/terrain.js` and world generation in `src/world/worldGen.js`.
+* The Spinosaurus model (`buildSpino`) is in `src/three/creatures3d.js`, along with every other model, the fish and plesiosaur builders, and the sail and paddle-tail options for bipeds.
+* Water rules (who can enter which water, swimming costs, submerging) are near the top of `src/game/gameState.js`.
+* The comic look (ink lines from depth and colour edges, flat tone bands, hatching) is in `src/three/postfx.js`. The UI theme is at the end of `src/index.css`.
+* All UI portraits are rendered from the 3D models.
+* Add `?seed=1234` to replay a map. Open `/gallery.html` on the dev server to see every model (`?only=Big%20Al%201,Big%20Al%204,Carcharodontosaurus`).
+* Dev console helpers: `spawnCreature('Onchopristis')`, `setStats({ level: 4, weight: 7000 })`, `teleport('mangrove', 0)`.

@@ -100,7 +100,7 @@ const handleAmbushPredator = (creature, currentHex, gameState, playerDistance, d
     const speciesData = SPECIES_DATA[creature.species];
 
     // Crocodiles and similar - stay near water, ambush when close
-    if (playerDistance === 1) {
+    if (playerDistance <= 1) {
         const ambushChance = (speciesData.aggression || 0.5) * 1.5; // Higher ambush chance
         if (Math.random() < ambushChance) {
             return {
@@ -113,7 +113,7 @@ const handleAmbushPredator = (creature, currentHex, gameState, playerDistance, d
 
     // Stay near water or preferred terrain
     if (Math.random() < 0.8) {
-        return stayNearPreferredTerrain(creature, currentHex, gameState, ['river', 'stream', 'marsh', 'waterhole', 'lake']);
+        return stayNearPreferredTerrain(creature, currentHex, gameState, ['river', 'stream', 'marsh', 'waterhole', 'lake', 'mangrove']);
     }
 
     return { action: 'wait' }; // Ambush predators often wait
@@ -176,7 +176,7 @@ const handleHerbivore = (creature, currentHex, gameState, playerDistance, dispat
 
     // Herbivore behaviors: graze, migrate to better food. Sauropods head for their routes and water.
     if (isGiant && Math.random() < 0.5) {
-        return stayNearPreferredTerrain(creature, currentHex, gameState, ['sauropodgrounds', 'waterhole', 'lake', 'floodplain', 'fernprairie']);
+        return stayNearPreferredTerrain(creature, currentHex, gameState, ['sauropodgrounds', 'waterhole', 'floodplain', 'fernprairie', 'mangrove']);
     }
     if (Math.random() < 0.4) {
         return migrateToFood(creature, currentHex, gameState);

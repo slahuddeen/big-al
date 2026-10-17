@@ -6,6 +6,7 @@ const TIPS = [
     ['footprint', 'Click a highlighted area to move, or a distant one to travel there.'],
     ['mouse', 'Drag to pan. Right-drag (or Shift-drag) to orbit and tilt. Wheel to zoom.'],
     ['claw', 'Animals in your area appear on the right. Pick your fights.'],
+    ['wave', 'Water is your home. Start in the shallows; the great river is safe to swim once you have grown. Land hunters will not follow you in.'],
     ['sleep', 'Sleep to heal, drink to stay alive, and learn new abilities as you grow.']
 ];
 
@@ -16,9 +17,9 @@ const IntroOverlay = ({ onStart }) => (
             <div className="flex items-center gap-4">
                 <CreaturePortrait species="Big Al" level={1} size={96} height={92} className="anim-bob shrink-0" />
                 <div>
-                    <div className="label">Late Jurassic · 150 million years ago</div>
-                    <h1 className="panel-title text-[44px] leading-none mt-1" style={{ color: 'var(--accent)' }}>Big Al</h1>
-                    <p className="text-ink-muted text-[14px] mt-2 leading-snug">You have just hatched in the Morrison basin, a young Allosaurus weighing one kilogram. Grow up.</p>
+                    <div className="label">Kem Kem rivers · 95 million years ago</div>
+                    <h1 className="panel-title text-[44px] leading-none mt-1" style={{ color: 'var(--accent)' }}>Spino</h1>
+                    <p className="text-ink-muted text-[14px] mt-2 leading-snug">You have just hatched on a sandbank of the great river, a Spinosaurus weighing one kilogram. The land belongs to Carcharodontosaurus. The water could be yours.</p>
                 </div>
             </div>
             <div className="mt-5 space-y-2">

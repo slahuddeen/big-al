@@ -114,8 +114,11 @@ export const animateModel = (model, time, m) => {
             break;
         }
         case 'swim': {
-            P.tail.forEach((t) => rot(t, 0, Math.sin(time * 9 + seed) * 0.5, 0));
-            rot(body, 0, -Math.sin(time * 9 + seed) * 0.08, 0);
+            const sp = model.swimSpeed ?? 9;
+            P.tail.forEach((t) => rot(t, 0, Math.sin(time * sp + seed) * 0.5, 0));
+            rot(body, 0, -Math.sin(time * sp + seed) * 0.08, 0);
+            // plesiosaur flippers row up and down
+            P.legs.forEach((l) => rot(l.pivot, l.side * Math.sin(time * sp + seed + l.phase) * 0.45, 0, 0));
             break;
         }
         case 'hop': {

@@ -184,7 +184,7 @@ export const calculateEnergyGain = (speciesData, creatureSize, playerWeight, pla
 
             if (['Dragonfly', 'Cricket', 'Centipede'].includes(speciesName)) {
                 speciesBonus = 1.8; // These are perfect hatchling food!
-            } else if (['Mammal', 'Scorpion'].includes(speciesName)) {
+            } else if (['Fish', 'Frog', 'Scorpion'].includes(speciesName)) {
                 speciesBonus = 1.4; // Good secondary prey
             }
         }
@@ -202,8 +202,8 @@ export const calculateEnergyGain = (speciesData, creatureSize, playerWeight, pla
 // Chance an animal bolts before you can close in
 export const escapeChance = (speciesName, speciesData, creatureSize, playerWeight, playerLevel) => {
     const escapeBaseChance = {
-        Dragonfly: 0.2, Cricket: 0.15, Centipede: 0.05, Mammal: 0.1, Scorpion: 0.08, Frog: 0.12, Lizard: 0.15,
-        Mesadactylus: 0.25, Harpactognathus: 0.18, Kepodactylus: 0.08, Compsognathus: 0.12, Coelurus: 0.15, Hesperornithoides: 0.18
+        Dragonfly: 0.2, Cricket: 0.15, Centipede: 0.05, Scorpion: 0.08, Frog: 0.12, Lizard: 0.15, Fish: 0.12,
+        Leptostomia: 0.25, Afrotapejara: 0.22, Siroccopteryx: 0.18, Alanqa: 0.1, Noasaurid: 0.15, Araripesuchus: 0.1, Iguanodont: 0.1
     };
     let baseEscape = escapeBaseChance[speciesName] || 0.08;
     const sizeRatio = (speciesData.weight * creatureSize) / playerWeight;

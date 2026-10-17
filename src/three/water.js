@@ -150,8 +150,9 @@ export const createWaterMaterial = (timeUniform, dim = 0) => {
                 vec3 N = normalize(vec3(0.0, 1.0, 0.0) + vec3(r1.x + r2.x, 0.0, r1.z + r2.z) * (river ? 0.45 : 0.36));
 
                 // body colour: deep, dark centre to luminous shallows at the shore
-                vec3 deep = vColor * vec3(0.32, 0.5, 0.62);
-                vec3 shal = mix(vColor, vec3(0.16, 0.55, 0.5), 0.35);
+                // comic teal: the flat aqua greens of the Age of Reptiles river scenes
+                vec3 deep = mix(vColor, vec3(0.2, 0.46, 0.44), 0.6) * vec3(0.62, 0.8, 0.82);
+                vec3 shal = mix(vColor, vec3(0.5, 0.8, 0.72), 0.6);
                 vec3 body = mix(deep, shal, smoothstep(0.0, 0.9, shore));
                 body *= 0.82 + 0.36 * nc_fbm(vWorld.xz * 0.45 + uTime * 0.01);
 
@@ -190,6 +191,10 @@ export const createWaterMaterial = (timeUniform, dim = 0) => {
                 foam = clamp(foam * smoothstep(0.2, 0.75, breakup + foam * 0.5), 0.0, 1.0);
                 vec3 foamCol = vec3(0.92, 0.95, 0.94) * (uAmbient * 0.8 + uSunColor * (0.3 + 0.4 * ndl));
                 col = mix(col, foamCol, foam);
+
+                // inked ripple lines, like the pen strokes on the water in the comics
+                float rip = sin((vWorld.x * 0.7 + vWorld.z * 1.3) * 7.0 + nc_noise(vWorld.xz * 1.5) * 5.0 + (river ? vWData.x * 3.0 - uTime * 2.0 : uTime * 0.5));
+                col = mix(col, vec3(0.88, 0.97, 0.92) * (uAmbient + uSunColor * 0.5), smoothstep(0.93, 0.985, rip) * 0.45);
 
                 // remembered (out of sight) water is greyed
                 float lum = dot(col, vec3(0.3, 0.59, 0.11));

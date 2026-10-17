@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => ({
-    // the build is served from GitHub Pages at slahuddeen.github.io/big-al/
-    base: command === 'build' ? '/big-al/' : '/',
+    // Spino is released on its own, at slahuddeen.github.io/big-al/spino/ (Big Al is at /big-al/)
+    base: command === 'build' ? '/big-al/spino/' : '/',
     plugins: [react()],
     server: {
         port: 3000,

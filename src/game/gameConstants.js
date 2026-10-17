@@ -7,7 +7,7 @@ export const MAX_NOTIFICATIONS = 3;
 export const NOTIFICATION_AUTO_DISMISS_TIME = 8000; // 8 seconds
 
 // Original Big Al constants
-export const MAX_WEIGHT = 2100;
+export const MAX_WEIGHT = 7000;
 export const HEALING_RATE = 2;
 export const BEHAVIOR_RANDOMNESS = 0.2;
 export const ENERGY_PER_BODYWEIGHT = 10;
@@ -29,14 +29,14 @@ export const getTimeOfDay = (turnNumber) => {
 };
 
 export const THOUGHTS = [
-    "You smell carrion nearby...",
-    "Mother's scent is getting weaker",
-    "The air is thick with moisture",
-    "Something doesn't feel right...",
-    "You feel confident and strong",
-    "The wind carries strange scents",
+    "You smell rotting fish somewhere downstream...",
+    "The river is rising. Rain upstream.",
+    "The air is heavy and hot",
+    "Something doesn't feel right on the bank...",
+    "You feel strong in the water",
+    "The wind carries the stink of the mudflats",
     "Your stomach rumbles with hunger",
-    "Every shadow could hide danger",
-    "The forest whispers ancient secrets",
-    "You sense eyes watching you"
+    "A shadow moves under the surface",
+    "Carcharodontosaurus has been here. The bones are cracked.",
+    "You sense eyes watching from the reeds"
 ];

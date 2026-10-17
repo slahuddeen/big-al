@@ -3,7 +3,7 @@ import { SPECIES_DATA } from '../data/species.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 import { previewAttack } from '../game/combat.js';
 import { ABILITIES, abilityUnlocked, cooldownLeft, inCover } from '../game/abilities.js';
-import { creatureThreat, playerFierceness, playerMisty, hatchetTarget, counterDamage, isBigGiant } from '../game/gameState.js';
+import { creatureThreat, playerFierceness, playerMisty, hatchetTarget, counterDamage, isBigGiant, canEnter } from '../game/gameState.js';
 import { preyMass } from '../game/combat.js';
 import { POI_TYPES } from '../game/pois.js';
 import { formatWeight, ageLabel } from '../utils/format.js';
@@ -42,7 +42,7 @@ const Stat = ({ label, value, color, title }) => (
     </div>
 );
 
-const GIANT_SPECIES = new Set(['Diplodocus', 'Camarasaurus', 'Brachiosaurus']);
+const GIANT_SPECIES = new Set(['Rebbachisaurus', 'Aegyptosaurus', 'Paralititan']);
 
 const CreatureCard = ({ creature, gameState, dispatch, guarded }) => {
     const sd = SPECIES_DATA[creature.species];
@@ -61,7 +61,7 @@ const CreatureCard = ({ creature, gameState, dispatch, guarded }) => {
     else threat = 'dangerous';
     const attack = (style) => dispatch({ type: 'ATTACK_CREATURE', creatureId: creature.id, style });
     const misty = playerMisty(gameState);
-    const canInvite = creature.species === 'Juvenile Allosaurus' && gameState.level >= 2 && (gameState.pack || []).length < 2 && !creature.engaged;
+    const canInvite = creature.species === 'Young Spinosaurus' && gameState.level >= 2 && (gameState.pack || []).length < 2 && !creature.engaged;
 
     // alternative attacks from Big Al's abilities
     const styles = ['pounce', 'ambush', 'hatchet']
@@ -109,7 +109,7 @@ const CreatureCard = ({ creature, gameState, dispatch, guarded }) => {
                 <Stat label="Catch" value={`${base.catch}%`} color={base.catch >= 70 ? 'var(--good)' : base.catch >= 40 ? 'var(--warn)' : 'var(--bad)'} title="Chance you reach it before it bolts" />
             </div>
             <div className={`px-2.5 pb-2.5 grid gap-1.5 ${styles.length + (canInvite ? 1 : 0) >= 3 ? 'grid-cols-2' : 'grid-flow-col auto-cols-fr'}`}>
-                {canInvite && <AttackButton label="Hunt together" icon="paw" primary onClick={() => dispatch({ type: 'INVITE', creatureId: creature.id })} reason="Invite this young Allosaurus into your hunting pack" />}
+                {canInvite && <AttackButton label="Fish together" icon="paw" primary onClick={() => dispatch({ type: 'INVITE', creatureId: creature.id })} reason="Invite this young spinosaur to fish alongside you" />}
                 <AttackButton label={creature.engaged ? 'Bite' : 'Attack'} icon="claw" primary={!canInvite && threat !== 'dangerous'} onClick={() => attack('normal')} />
                 {styles.map((st) => (
                     <AttackButton key={st.id} label={ABILITIES[st.id].name.replace(' Bite', '')} icon={st.id} note={st.note} disabled={!!st.reason} reason={st.reason || ABILITIES[st.id].desc} onClick={() => attack(st.id)} />
@@ -222,7 +222,8 @@ const CreaturesPanel = ({ gameState, dispatch }) => {
         if (!gameState.cells.get(n)?.inSight) continue;
         for (const c of gameState.creatures.get(n) || []) nearby.push(c);
     }
-    const dangerNear = nearby.filter((c) => creatureThreat(c) > pf || c.chasing > 0);
+    // only animals that can actually reach you: fish stay in the water, land hunters stay out of deep channels
+    const dangerNear = nearby.filter((c) => (creatureThreat(c) > pf || c.chasing > 0) && canEnter(gameState, gameState.player, c));
     // once you are big, bugs and lizards collapse into one line
     const fry = gameState.level >= 2 ? creatures.filter((c) => preyMass(c) < gameState.weight * 0.02 && !c.chasing) : [];
     const worth = creatures.filter((c) => !fry.includes(c));

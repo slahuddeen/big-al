@@ -6,32 +6,32 @@ import { TERRAIN_TYPES } from '../data/terrain.js';
 
 export const ABILITIES = {
     hide: {
-        id: 'hide', name: 'Hide', level: 1, maxLevel: 2, kind: 'action', cooldown: 1, energy: 0,
-        desc: 'Freeze in cover. Predators hunting you may lose you: best in thick forest, deadfall, ferns, marsh, rain or mist. Too big to hide once you are a sub-adult.'
+        id: 'hide', name: 'Submerge', level: 1, kind: 'action', cooldown: 1, energy: 0,
+        desc: 'Sink into the water until only your eyes show, or freeze in thick cover while you are small. Land hunters lose you easily in deep water; crocodiles and fish do not. Once you are a sub-adult you can only hide in the water.'
     },
     sniff: {
         id: 'sniff', name: 'Sniff', level: 1, kind: 'action', cooldown: 3, energy: 1, hotkey: 'F',
-        desc: 'Read the wind. Reveals animals, carcasses and blood within 4 areas, even out of sight.'
+        desc: 'Smell the wind and feel the water. Reveals animals, carcasses and blood within 4 areas, even out of sight.'
     },
     pounce: {
-        id: 'pounce', name: 'Pounce', level: 1, kind: 'attack', cooldown: 0,
-        desc: 'A quick leap. Much easier to catch small, fast prey, but you take more risk against anything that fights back.'
+        id: 'pounce', name: 'Snap', level: 1, kind: 'attack', cooldown: 0,
+        desc: 'A quick sideways snap of the snout. Much easier to catch fish and small, fast prey, but riskier against anything that fights back.'
     },
     dash: {
         id: 'dash', name: 'Dash', level: 2, kind: 'toggle', cooldown: 4, energy: 6, hotkey: 'X',
-        desc: 'Your next move is a sprint: nothing can strike you as you go, so you can break away from a fight.'
+        desc: 'Your next move is a burst: a lunge on land or a surge of the tail in the water. Nothing can strike you as you go.'
     },
     ambush: {
-        id: 'ambush', name: 'Ambush', level: 3, kind: 'attack', cooldown: 3,
-        desc: 'Strike from cover (forest, ferns, marsh or mist). Prey rarely sees it coming.'
+        id: 'ambush', name: 'Water Ambush', level: 3, kind: 'attack', cooldown: 3,
+        desc: 'Strike from the water or from cover. Prey drinking at the edge rarely sees it coming.'
     },
     roar: {
-        id: 'roar', name: 'Roar', level: 3, kind: 'action', cooldown: 5, energy: 4, hotkey: 'R',
-        desc: 'Drive off smaller predators and skittish animals around you. Also clears scavengers off a carcass.'
+        id: 'roar', name: 'Sail Display', level: 3, kind: 'action', cooldown: 5, energy: 4, hotkey: 'R',
+        desc: 'Turn side-on and flush your sail. Drives off smaller predators and skittish animals, and clears scavengers off a carcass.'
     },
     hatchet: {
-        id: 'hatchet', name: 'Hatchet Bite', level: 4, kind: 'attack', cooldown: 2,
-        desc: 'Slash a big animal with your upper jaw and let it bleed. It flees and weakens every turn. Follow the blood.'
+        id: 'hatchet', name: 'Thumb Claw', level: 4, kind: 'attack', cooldown: 2,
+        desc: 'Rake a big animal with your huge thumb claws and let it bleed. It flees and weakens every turn. Follow the blood.'
     }
 };
 
@@ -45,9 +45,10 @@ export const ATTACK_MODS = {
 
 export const PASSIVES = [
     { id: 'tiny', level: 1, maxLevel: 1, name: 'Small and Quiet', desc: 'Big predators often overlook something as small as you.' },
-    { id: 'legs', level: 2, name: 'Long Legs', desc: 'Walking costs 15% less energy.' },
+    { id: 'fisher', level: 1, name: 'Fish Catcher', desc: 'Your snout is built for fish: they rarely slip away from you.' },
+    { id: 'legs', level: 2, name: 'Paddle Tail', desc: 'Swimming costs 40% less energy.' },
     { id: 'hide', level: 3, name: 'Thick Hide', desc: 'You take 20% less damage.' },
-    { id: 'apex', level: 4, name: 'Apex Presence', desc: 'Smaller predators keep their distance instead of attacking.' }
+    { id: 'apex', level: 4, name: 'River King', desc: 'Smaller predators keep their distance instead of attacking.' }
 ];
 
 export const hasPassive = (state, id) => PASSIVES.some((p) => p.id === id && state.level >= p.level && (!p.maxLevel || state.level <= p.maxLevel));
@@ -59,8 +60,8 @@ export const cooldownLeft = (state, id) => Math.max(0, (state.cooldowns?.[id] ??
 export const abilityReady = (state, id) => abilityUnlocked(state, id) && cooldownLeft(state, id) === 0 &&
     state.energy > (ABILITIES[id].energy || 0);
 
-// Terrain that hides a stalking predator
-const COVER = new Set(['denseforest', 'oldgrowth', 'jungle', 'forest', 'youngforest', 'galleryforest', 'deadfall', 'marsh', 'fernprairie', 'forestedge', 'openwoods', 'ginkgogrove']);
+// Terrain that hides a stalking predator: thick vegetation, and for a spinosaur, water
+const COVER = new Set(['denseforest', 'jungle', 'forest', 'galleryforest', 'deadfall', 'marsh', 'mangrove', 'fernprairie', 'openwoods', 'river', 'lake', 'stream']);
 export const inCover = (state, misty = false) => {
     const here = state.cells.get(state.player);
     if (!here) return false;

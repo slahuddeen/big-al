@@ -24,64 +24,51 @@ const DIRT = '#7a5232';
 const ROCK = '#6f6a64';
 const SAND_SIDE = '#c9a560';
 const STYLE = {
-    plains: { top: ['#b9c247', '#a8b83d', '#c8c552'], lip: '#8aa035' },
-    fernprairie: { top: ['#98c83e', '#8abd38', '#a6d14a'], lip: '#6f9a2c' },
-    katydidmeadow: { top: ['#5f9e3a', '#56933a', '#6aa944'], lip: '#467a2c' },
-    fernsavanna: { top: ['#d9a83e', '#cf9c36', '#e2b44c'], lip: '#a8782a' },
-    savanna: { top: ['#d9b54a', '#cfa83e', '#e2c35a'], lip: '#b08c34' },
-    steppe: { top: ['#b8cc52', '#acc24a', '#c4d660'], lip: '#8aa03a' },
-    scrubland: { top: ['#9cbd45', '#8db03c', '#a9c752'], lip: '#749a30' },
-    termitemounds: { top: ['#c98a4e', '#be7e44', '#d4965a'], lip: '#9a5a30' },
-    floodplain: { top: ['#8fd04a', '#84c444', '#9ada56'], lip: '#6aa034' },
-    sauropodgrounds: { top: ['#b9b45a', '#c4b866', '#aaa452'], lip: '#8e8a44' },
-    forest: { top: ['#4f8a2c', '#457d27', '#5a9632'], lip: '#3d6c22' },
-    youngforest: { top: ['#5c9a34', '#53902f', '#68a63c'], lip: '#447a26' },
-    denseforest: { top: ['#3b6a24', '#335f1f', '#41742a'], lip: '#2c531b' },
-    oldgrowth: { top: ['#3e6a2c', '#365f27', '#477634'], lip: '#2c4f20' },
-    jungle: { top: ['#2f7a2c', '#287026', '#368434'], lip: '#215a1e' },
-    openwoods: { top: ['#7aac3a', '#6e9f33', '#86b743'], lip: '#5d8a2c' },
-    ginkgogrove: { top: ['#6aa83a', '#5f9c34', '#76b444'], lip: '#4f8a2a' },
-    forestedge: { top: ['#7a9e34', '#6f9330', '#86aa3c'], lip: '#5a7e28' },
-    galleryforest: { top: ['#4c8a34', '#43802e', '#58963c'], lip: '#3c6c26' },
-    deadforest: { top: ['#857360', '#7a6857', '#907d68'], lip: '#6b5a4a' },
-    deadfall: { top: ['#6f7a34', '#66702e', '#7a863c'], lip: '#535c26' },
-    hills: { top: ['#86bb45', '#7aae3d', '#92c64f'], lip: '#6a9a34' },
-    rocky: { top: ['#8f8577', '#83796c', '#9a9083'], lip: '#6f675d', side: ROCK },
-    boulderfield: { top: ['#8a9488', '#7f897d', '#96a093'], lip: '#6a7368', side: ROCK },
-    mountains: { top: ['#6f8a4a', '#7b7a72', '#687f45'], lip: '#5a6b3c', side: ROCK },
-    volcanic: { top: ['#5a3328', '#4e2c23', '#63392c'], lip: '#3e231c', side: '#3a2a26' },
-    lavafield: { top: ['#3b3330', '#352d2a', '#433a36'], lip: '#2a2422', side: '#2e2624' },
-    desert: { top: ['#ecc967', '#e2bd5a', '#f2d47a'], lip: '#cfa54a', side: SAND_SIDE },
-    badlands: { top: ['#cf7a3c', '#c26d33', '#d98848'], lip: '#a85a2a', side: '#9a4f28' },
-    mesa: { top: ['#d48a48', '#c97d3d', '#de9856'], lip: '#b5693a', side: '#b25a30' },
-    quicksand: { top: ['#d8b660', '#cfac55', '#e0c06c'], lip: '#b8934a', side: SAND_SIDE },
-    river: { top: ['#76aa3c', '#6ca035', '#82b545'], lip: '#5b8c2e' },
-    stream: { top: ['#80b440', '#76a83a', '#8cbe4a'], lip: '#5f922e' },
-    dryriverbed: { top: ['#cdb27e', '#c2a672', '#d8bd8a'], lip: '#a88e5e', side: '#9c7e55' },
-    riverbank: { top: ['#8f8a4a', '#857f42', '#9b9653'], lip: '#6f6a38' },
-    marsh: { top: ['#577a34', '#4d6f2e', '#61853b'], lip: '#405f27' },
-    waterhole: { top: ['#7fb043', '#74a43c', '#8bbb4d'], lip: '#618f33' },
-    lake: { top: ['#b8a46e', '#ab9862', '#c4b07a'], lip: '#988456', side: SAND_SIDE },
+    plains: { top: ['#c9b866', '#bdae5c', '#d4c272'], lip: '#9a8a48' },
+    fernprairie: { top: ['#9cb85a', '#8fac52', '#a8c266'], lip: '#728a40' },
+    savanna: { top: ['#dcb868', '#d0ab5c', '#e6c47a'], lip: '#b08a48' },
+    scrubland: { top: ['#a8ac5a', '#9ca052', '#b4b866'], lip: '#7e823e' },
+    floodplain: { top: ['#a8b866', '#9cad5c', '#b4c272'], lip: '#7e8a48' },
+    sauropodgrounds: { top: ['#c8a868', '#bc9c5e', '#d4b474'], lip: '#9a7a48' },
+    forest: { top: ['#6f9450', '#668a4a', '#7a9e5a'], lip: '#52703c' },
+    denseforest: { top: ['#5a8a46', '#527f40', '#64944e'], lip: '#42683a' },
+    jungle: { top: ['#4f8a4a', '#477f42', '#5a9452'], lip: '#3a683a' },
+    openwoods: { top: ['#a2a85c', '#969c54', '#aeb466'], lip: '#787e44' },
+    galleryforest: { top: ['#6a945a', '#628a52', '#749e62'], lip: '#4e7044' },
+    deadfall: { top: ['#8a8a54', '#80804c', '#94945e'], lip: '#686840' },
+    hills: { top: ['#c88a58', '#bc7e4e', '#d49664'], lip: '#9a6040', side: '#a8603e' },
+    rocky: { top: ['#bfa27a', '#b39670', '#c9ad86'], lip: '#94785a', side: '#9a7e5e' },
+    boulderfield: { top: ['#b8a888', '#ac9c7e', '#c2b294'], lip: '#8e7e64', side: '#8a7a62' },
+    mountains: { top: ['#b88a64', '#a87c5a', '#c4966e'], lip: '#8a6448', side: '#94684a' },
+    desert: { top: ['#eac078', '#e0b46c', '#f0cc88'], lip: '#c8965a', side: '#c8925a' },
+    badlands: { top: ['#d4845a', '#c87850', '#de9466'], lip: '#a85e3e', side: '#b8684a' },
+    mesa: { top: ['#d89a62', '#cc8e58', '#e2a670'], lip: '#b06e44', side: '#b8703e' },
+    quicksand: { top: ['#b8a070', '#ad9566', '#c4ac7c'], lip: '#8e7a50', side: SAND_SIDE },
+    river: { top: ['#9cb066', '#92a65e', '#a6ba70'], lip: '#76884a' },
+    stream: { top: ['#d8c48a', '#ceba80', '#e2ce96'], lip: '#b09a66', side: SAND_SIDE },
+    dryriverbed: { top: ['#dcc494', '#d0b888', '#e6cea0'], lip: '#b49c70', side: '#a88e64' },
+    riverbank: { top: ['#e6cf92', '#dcc486', '#eed89e'], lip: '#c0a66c', side: SAND_SIDE },
+    marsh: { top: ['#6f8a4a', '#668044', '#789452'], lip: '#52683a' },
+    mangrove: { top: ['#6a7a52', '#62724c', '#74845a'], lip: '#4e5c3e' },
+    waterhole: { top: ['#b0a870', '#a69e66', '#bab27a'], lip: '#8a8254' },
+    lake: { top: ['#c8b07a', '#bca470', '#d4bc86'], lip: '#a08a5e', side: SAND_SIDE },
     sea: { top: ['#d8c48a', '#ccb87e', '#e2cf96'], lip: '#b8a46e', side: SAND_SIDE },
-    beach: { top: ['#f0d888', '#e8cf7c', '#f5e09a'], lip: '#d4b766', side: SAND_SIDE },
-    nest: { top: ['#b8693a', '#ad5f33', '#c47644'], lip: '#8f4c2a' }
+    beach: { top: ['#a89a78', '#9e9070', '#b2a482'], lip: '#857a5e', side: '#8a7c5e' },
+    nest: { top: ['#e2c68a', '#d8bc80', '#ead096'], lip: '#b89c64', side: SAND_SIDE }
 };
 const styleOf = (t) => STYLE[t] || STYLE.plains;
 
 // Patch colours mixed into each biome's ground: [dark/worn patch, lush/light patch]
 const PATCHES = {
-    plains: ['#a89a48', '#94b844'], fernprairie: ['#7aa034', '#b2d85a'], katydidmeadow: ['#4e8030', '#7cb84c'],
-    fernsavanna: ['#b8863a', '#e8c35e'], savanna: ['#c09a46', '#e8cc6a'], steppe: ['#a8b048', '#cadc70'],
-    scrubland: ['#7e9a3a', '#b0cc5a'], termitemounds: ['#a86a3a', '#d8a066'], floodplain: ['#6aa83a', '#a8e05e'],
-    sauropodgrounds: ['#8e7e44', '#c2c060'], forest: ['#5a5228', '#3c7a2a'], youngforest: ['#5e7a2e', '#6eb042'],
-    denseforest: ['#4a4224', '#2e6224'], oldgrowth: ['#56482a', '#2f6a2c'], jungle: ['#3a5a24', '#2e8a30'],
-    openwoods: ['#7a7a34', '#8cbc48'], ginkgogrove: ['#8a8a3a', '#7cbc48'], forestedge: ['#6a7a30', '#8cb444'],
-    galleryforest: ['#4a5226', '#2f7a34'], deadforest: ['#6a5a4a', '#9a8a74'], deadfall: ['#5a5a28', '#7a8a3a'],
-    hills: ['#6e9a38', '#a2d05a'], rocky: ['#7a7064', '#a49a8c'], boulderfield: ['#768070', '#a2ac9c'],
-    desert: ['#d8ae58', '#f6dc90'], badlands: ['#b0602e', '#e09a58'], mesa: ['#b8703a', '#e8a462'],
-    marsh: ['#3e5a2a', '#6a8a3a'], riverbank: ['#6e6838', '#a4a058'], river: ['#5e9a34', '#92c44c'],
-    stream: ['#68a438', '#9ccc50'], waterhole: ['#6a9a38', '#9cc850'], dryriverbed: ['#b49a6c', '#e0caa0'],
-    beach: ['#e0c478', '#fae8a8'], nest: ['#9a5a30', '#c88050']
+    plains: ['#a89a50', '#d8cc80'], fernprairie: ['#7e9a46', '#b8cc76'], savanna: ['#c09a54', '#eed48a'],
+    scrubland: ['#8a8e48', '#c0c47a'], floodplain: ['#8a9a50', '#c4d080'], sauropodgrounds: ['#a88a54', '#dcc088'],
+    forest: ['#5a6e3a', '#86aa62'], denseforest: ['#466e38', '#74a05a'], jungle: ['#3e6a38', '#68a05a'],
+    openwoods: ['#868a4a', '#bcc272'], galleryforest: ['#506e40', '#80a86a'], deadfall: ['#6e6e42', '#a2a26a'],
+    hills: ['#a86a44', '#e0a474'], rocky: ['#9a8262', '#d8bc94'], boulderfield: ['#988a70', '#d0c2a4'],
+    desert: ['#d0a462', '#f8dca0'], badlands: ['#b4643e', '#e8a478'], mesa: ['#b8784a', '#eab284'],
+    marsh: ['#52683a', '#86a05a'], mangrove: ['#4e5c3e', '#7e8e62'], riverbank: ['#c4aa70', '#f6e4b0'], river: ['#7e9050', '#b4c47c'],
+    stream: ['#bca46c', '#eedcaa'], waterhole: ['#8e8656', '#c4bc86'], dryriverbed: ['#bca476', '#eedcb0'],
+    beach: ['#8a7e60', '#c4b690'], nest: ['#c8aa70', '#f4e2b0']
 };
 // How bumpy the ground is (world units)
 const RELIEF = {
@@ -391,6 +378,30 @@ const termiteMound = (mb, x, z, y, h, rand) => {
 };
 
 // Broad-crowned riverside tree: leaning trunk, buttress roots, layered canopy and hanging vines
+// Mangrove: a dark rounded crown on a short trunk, standing on arching stilt roots
+const mangroveTree = (mb, x, z, y, h, rand) => {
+    const base = y + h * 0.32;
+    for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + rand() * 0.5;
+        const r = h * (0.24 + rand() * 0.1);
+        const mid = [x + Math.cos(a) * r * 0.75, base + h * 0.04, z + Math.sin(a) * r * 0.75];
+        limb(mb, [x + Math.cos(a) * 0.02, base, z + Math.sin(a) * 0.02], mid, 0.016 * h, 0.012 * h, '#6a5238', { sides: 4 });
+        limb(mb, mid, [x + Math.cos(a) * r, y - 0.03, z + Math.sin(a) * r], 0.012 * h, 0.009 * h, '#5e4832', { sides: 4 });
+    }
+    limb(mb, [x, base - 0.02, z], [x + (rand() - 0.5) * 0.05, y + h * 0.7, z + (rand() - 0.5) * 0.05], 0.03 * h, 0.018 * h, '#6a5238', { sides: 5 });
+    withSway(mb, y, h, () => {
+        const greens = ['#3e6a44', '#46744a', '#507e52', '#5a8a58'];
+        for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * Math.PI * 2 + rand();
+            const r = i === 0 ? 0 : h * (0.14 + rand() * 0.08);
+            const c = greens[Math.floor(rand() * greens.length)];
+            blob(mb, [x + Math.cos(a) * r, y + h * (0.78 + rand() * 0.1), z + Math.sin(a) * r], h * (0.17 + rand() * 0.05), c, {
+                scale: [1.3, 0.62, 1.3], jitter: 0.35, rand, colorFn: (ly) => (ly > 0.3 ? shade(c, 1.2) : shade(c, 0.8))
+            });
+        }
+    });
+};
+
 const galleryTree = (mb, x, z, y, h, rand, lean = [0, 0]) => {
     const tx = x + lean[0] * h;
     const tz = z + lean[1] * h;
@@ -969,12 +980,9 @@ const decorate = (terrain, D, cell, smoke, pools) => {
             each(scatter(small(4), { minR: 0.2 }), (x, z) => tuft(g, x, z, y, 0.14, rand, '#7ab040'));
             break;
         case 'denseforest': {
-            each(scatter(many(9), { minR: 0.36, minDist: 0.24 }), (x, z, i) => {
-                if (i % 4 === 1) treeFern(g, x, z, y, 0.6, rand);
-                else conifer(g, x, z, y, 0.95 + rand() * 0.45, rand, { dark: true });
-            });
-            each(scatter(small(4), { minR: 0.2, minDist: 0.18 }), (x, z) => fern(g, x, z, y, 0.2, rand, '#3f8a2c'));
-            if (variant > 0.6) each(scatter(1, { minR: 0.3 }), (x, z) => mushrooms(g, x, z, y, rand));
+            // fern brake: a head-high sea of Weichselia fronds with the odd conifer standing out of it
+            each(scatter(many(14), { minR: 0.18, minDist: 0.17 }), (x, z, i) => fern(g, x, z, y, 0.32 + rand() * 0.16, rand, i % 3 ? '#4f8a3e' : '#62984a'));
+            each(scatter(many(2), { minR: 0.45, minDist: 0.4 }), (x, z, i) => (i === 0 && variant > 0.4 ? conifer(g, x, z, y, 0.9 + rand() * 0.3, rand, { dark: true }) : treeFern(g, x, z, y, 0.62, rand)));
             break;
         }
         case 'oldgrowth':
@@ -1045,12 +1053,17 @@ const decorate = (terrain, D, cell, smoke, pools) => {
             each(scatter(many(1), { minR: 0.55 }), (x, z) => deadTree(g, x, z, y, 0.42, rand));
             break;
         case 'riverbank': {
+            // sandbar: pale sand ribbed by the current, a backwater pool, driftwood and a few horsetails
             const [px, pz] = [(rand() - 0.5) * 0.4, (rand() - 0.5) * 0.4];
-            disc(g, px, pz, y + 0.004, 0.36, '#7a6a3c', 8, rand);
-            waterDisc(w, px, pz, y + 0.016, 0.22, '#3a9ac0', '#7ad0e8', rand);
-            pools.push({ x: px, z: pz, r: 0.14, y: y + 0.016 });
-            each(scatter(many(4), { minR: 0.45, minDist: 0.25 }), (x, z) => horsetails(g, x, z, y, 0.3, rand));
-            each(scatter(small(3), { minR: 0.4 }), (x, z) => tuft(g, x, z, y, 0.13, rand, '#9aa846'));
+            disc(g, px, pz, y + 0.004, 0.3, '#c4a86a', 8, rand);
+            waterDisc(w, px, pz, y + 0.016, 0.2, '#4aa0a8', '#9ad4cc', rand);
+            pools.push({ x: px, z: pz, r: 0.13, y: y + 0.016 });
+            each(scatter(small(5), { minR: 0.35, minDist: 0.2 }), (x, z) => {
+                const a = rand() * Math.PI;
+                flatRibbon(g, [{ x: x - Math.cos(a) * 0.12, z: z - Math.sin(a) * 0.12, w: 0.025 }, { x: x + Math.cos(a) * 0.12, z: z + Math.sin(a) * 0.12, w: 0.025 }], y + 0.004, 1, '#d6be86', rand);
+            });
+            if (variant > 0.4) each(scatter(1, { minR: 0.45 }), (x, z) => log(g, x, z, y, 0.55, 0.05, rand, '#a8906a'));
+            each(scatter(many(2), { minR: 0.55, minDist: 0.25 }), (x, z) => horsetails(g, x, z, y, 0.26, rand));
             break;
         }
         case 'marsh':
@@ -1073,25 +1086,41 @@ const decorate = (terrain, D, cell, smoke, pools) => {
             break;
         }
         case 'beach':
-            each(scatter(many(3), { minR: 0.25 }), (x, z) => rock(g, x, z, y, 0.08 + rand() * 0.06, rand, '#c8b89a'));
-            if (variant > 0.5) each(scatter(1, { minR: 0.5 }), (x, z) => cycad(g, x, z, y, 0.5, rand));
+            // tidal flats: shining mud, pools the tide left behind, worm casts and shells
+            each(scatter(4 + Math.floor(variant * 3), { minR: 0.1, minDist: 0.3, keepCentre: false }), (x, z) => {
+                const r = 0.12 + rand() * 0.14;
+                disc(g, x, z, y + 0.003, r * 1.3, '#8e8264', 7, rand);
+                waterDisc(w, x, z, y + 0.012, r, '#5aa8a8', '#a8dcd0', rand, 8);
+                pools.push({ x, z, r: r * 0.7, y: y + 0.012 });
+            });
+            each(scatter(small(6), { minR: 0.2 }), (x, z) => disc(g, x, z, y + 0.004, 0.035, '#f2e6cc', 5, rand)); // shells
             if (variant < 0.3) each(scatter(1, { minR: 0.4 }), (x, z) => log(g, x, z, y, 0.5, 0.045, rand, '#b8a080'));
-            each(scatter(small(3), { minR: 0.2 }), (x, z) => disc(g, x, z, y + 0.004, 0.05, '#f6eedc', 5, rand)); // shells
+            break;
+        case 'mangrove':
+            each(scatter(4 + Math.floor(variant * 2), { minR: 0.05, minDist: 0.4, keepCentre: false }), (x, z) => {
+                disc(g, x, z, y + 0.003, 0.34, '#4e5a3a', 8, rand);
+                waterDisc(w, x, z, y + 0.016, 0.28, '#3e8a86', '#7ec4b4', rand, 9);
+                pools.push({ x, z, r: 0.2, y: y + 0.016 });
+            });
+            each(scatter(many(4), { minR: 0.3, minDist: 0.4 }), (x, z) => mangroveTree(g, x, z, y, 0.65 + rand() * 0.35, rand));
+            each(scatter(small(3), { minR: 0.2 }), (x, z) => horsetails(g, x, z, y, 0.24, rand));
             break;
         case 'nest': {
-            disc(g, 0, 0, y + 0.004, 0.55, '#9a5a32', 10, rand);
+            // a spinosaur nest: a scraped hollow in warm sand above the flood line, eggs half buried
+            disc(g, 0, 0, y + 0.004, 0.55, '#d8b878', 10, rand);
             for (let i = 0; i < 11; i++) {
                 const a = (i / 11) * Math.PI * 2;
-                blob(g, [Math.cos(a) * 0.42, y + 0.045, Math.sin(a) * 0.42], 0.12, i % 2 ? '#7a4a28' : '#6a3e20', { scale: [1.3, 0.6, 1], jitter: 0.4, rand, flatBottom: -0.3 });
+                blob(g, [Math.cos(a) * 0.42, y + 0.04, Math.sin(a) * 0.42], 0.12, i % 2 ? '#e6c88a' : '#cfae6e', { scale: [1.3, 0.55, 1], jitter: 0.4, rand, flatBottom: -0.3 });
             }
             for (let i = 0; i < 5; i++) {
                 const a = (i / 5) * Math.PI * 2 + 0.4;
                 const r = i === 4 ? 0 : 0.15;
-                blob(g, [Math.cos(a) * r, y + 0.07, Math.sin(a) * r], 0.065, '#f4ecd8', {
+                blob(g, [Math.cos(a) * r, y + 0.06, Math.sin(a) * r], 0.065, '#f4ecd8', {
                     detail: 1, jitter: 0.04, scale: [0.85, 1.15, 0.85], rand, colorFn: (ly, rr) => (rr() > 0.82 ? '#c9b48e' : '#f4ecd8'), faceVary: 0.02
                 });
             }
-            each(scatter(many(3), { minR: 0.65 }), (x, z) => fern(g, x, z, y, 0.22, rand));
+            each(scatter(many(3), { minR: 0.65 }), (x, z) => horsetails(g, x, z, y, 0.26, rand));
+            each(scatter(small(3), { minR: 0.6 }), (x, z) => tuft(g, x, z, y, 0.12, rand, '#a8b05a'));
             break;
         }
         case 'quicksand': {

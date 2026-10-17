@@ -7,7 +7,7 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                pixel: ['"Pixelify Sans"', 'ui-monospace', 'monospace'],
+                pixel: ['Cinzel', 'Georgia', 'serif'],
                 sans: ['Figtree', 'system-ui', 'sans-serif']
             },
             colors: {

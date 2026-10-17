@@ -1,7 +1,7 @@
 // ==================== SEASONS & WEATHER ====================
-// The Morrison basin had a strongly seasonal climate: a wet season of rain and
-// green growth, and a long dry season when small waters dried up and animals
-// crowded round the rivers. Everything here is a pure function of the world
+// The Kem Kem rivers had a strongly seasonal climate: a wet season when the rivers
+// flood out over the plains, and a long dry season when small waters dry up, fish
+// are trapped in shrinking pools and every animal crowds round the main channels. Everything here is a pure function of the world
 // seed and the turn, so the rules and the renderer always agree.
 import { hashInts } from '../three/lowpoly.js';
 
@@ -68,10 +68,10 @@ export const isRaining = (seed, turn) => {
 };
 
 // Spawn multiplier for a species on a terrain in this season
-const WATER_PLACES = new Set(['river', 'riverbank', 'lake', 'waterhole', 'stream', 'galleryforest', 'beach']);
-const OPEN = new Set(['plains', 'fernprairie', 'katydidmeadow', 'fernsavanna', 'savanna', 'steppe', 'floodplain', 'scrubland']);
-const WET_LOVERS = new Set(['Frog', 'Dragonfly', 'Cricket', 'Katydid', 'Centipede', 'Turtle', 'Fish']);
-const GIANTS = new Set(['Diplodocus', 'Camarasaurus', 'Brachiosaurus']);
+const WATER_PLACES = new Set(['river', 'riverbank', 'lake', 'waterhole', 'stream', 'galleryforest', 'beach', 'mangrove']);
+const OPEN = new Set(['plains', 'fernprairie', 'savanna', 'floodplain', 'scrubland']);
+const WET_LOVERS = new Set(['Frog', 'Dragonfly', 'Cricket', 'Centipede', 'Hamadachelys', 'Fish', 'Calamopleurus']);
+const GIANTS = new Set(['Rebbachisaurus', 'Aegyptosaurus', 'Paralititan']);
 export const seasonSpawnFactor = (terrain, species, turn) => {
     const s = seasonOf(turn);
     if (s.name === 'wet') {
@@ -81,6 +81,10 @@ export const seasonSpawnFactor = (terrain, species, turn) => {
     }
     // dry: everything crowds round the water, the open country empties
     const drought = isDrought(turn);
+    // lungfish sit out the drought buried in the mud of the drying pools
+    if (species === 'Lungfish' && DRIES_UP.has(terrain)) return drought ? 3 : 1.6;
+    // fish trapped in the shrinking pools: easy pickings, if you can beat the crocodiles to them
+    if (species === 'Fish' && (terrain === 'waterhole' || terrain === 'lake')) return drought ? 2.2 : 1.5;
     if (DRIES_UP.has(terrain) && drought) return WET_LOVERS.has(species) ? 0.15 : 0.5;
     if (WATER_PLACES.has(terrain)) return drought ? 1.9 : 1.5;
     if (GIANTS.has(species) && terrain === 'sauropodgrounds') return 1.3; // the herds are migrating

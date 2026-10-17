@@ -16,7 +16,7 @@ import { WeatherLayer } from './weather3d.js';
 import { windAt, drynessAt, weatherAt, isDrought, DRIES_UP } from '../game/weather.js';
 import { buildPoiMesh } from './pois3d.js';
 import { getWorld } from '../world/worldGen.js';
-import { SPECIES_DATA, BODY_LENGTH_M } from '../data/species.js';
+import { SPECIES_DATA, BODY_LENGTH_M, AQUATIC, SEMI_AQUATIC } from '../data/species.js';
 import { waterUniforms } from './water.js';
 import { getTimeOfDay, DAY_LENGTH } from '../game/gameConstants.js';
 
@@ -48,31 +48,35 @@ export const displayLength = (massKg, minLen = 0.14) =>
     Math.max(minLen, Math.min(1.9, 0.15 * Math.pow(Math.max(massKg, 0.001) / 0.002, 0.15)));
 
 const GREY_SKY = new THREE.Color('#b4bcc4');
-const GIANT_SPECIES = new Set(['Diplodocus', 'Camarasaurus', 'Brachiosaurus']);
+const GIANT_SPECIES = new Set(['Rebbachisaurus', 'Aegyptosaurus', 'Paralititan']);
+// where Spino swims, and where it sinks low enough that only the sail shows
+const SWIM_TERRAIN = new Set(['river', 'lake', 'stream', 'mangrove', 'marsh', 'waterhole']);
+const DEEP_WATER = new Set(['river', 'lake']);
 
-// Lighting presets per turn of the day/night cycle
+// Lighting presets per turn of the day/night cycle: hot North African light,
+// with the pale teal skies and creamy horizons of the Age of Reptiles comics
 const PHASES = [
-    { sun: '#ffdcb0', sunI: 2.4, sunAz: 0.4, sunEl: 0.6, sky: '#dcecff', ground: '#8a7050', hemiI: 1.35 },
-    { sun: '#fff4e2', sunI: 2.5, sunAz: 1.3, sunEl: 1.05, sky: '#dcefff', ground: '#806848', hemiI: 1.25 },
-    { sun: '#ff9c5a', sunI: 2.0, sunAz: 2.5, sunEl: 0.4, sky: '#ffcf9a', ground: '#5a3a3a', hemiI: 1.0 },
-    { sun: '#8fa8ff', sunI: 0.85, sunAz: 3.6, sunEl: 0.95, sky: '#5a6aaa', ground: '#22223a', hemiI: 0.75 },
-    { sun: '#b6a4ff', sunI: 0.7, sunAz: 5.0, sunEl: 0.7, sky: '#6a5a9a', ground: '#262034', hemiI: 0.72 }
+    { sun: '#ffe2b8', sunI: 2.4, sunAz: 0.4, sunEl: 0.6, sky: '#e0eee6', ground: '#8a7454', hemiI: 1.35 },
+    { sun: '#fff4dc', sunI: 2.6, sunAz: 1.3, sunEl: 1.05, sky: '#e4f0e8', ground: '#8a7050', hemiI: 1.3 },
+    { sun: '#ff9a5a', sunI: 2.0, sunAz: 2.5, sunEl: 0.4, sky: '#ffcf9a', ground: '#5e3c34', hemiI: 1.0 },
+    { sun: '#8ab0c8', sunI: 0.85, sunAz: 3.6, sunEl: 0.95, sky: '#4e6a7e', ground: '#1e2630', hemiI: 0.75 },
+    { sun: '#b8a0c8', sunI: 0.7, sunAz: 5.0, sunEl: 0.7, sky: '#5e5a7e', ground: '#262030', hemiI: 0.72 }
 ];
 // Sky gradient behind the diorama
 const SKIES = [
-    { top: '#79b2df', horizon: '#f7e2c6', glow: '#ffd59a', gx: 0.22 },
-    { top: '#5ea6e2', horizon: '#d6eefc', glow: '#fff7dc', gx: 0.5 },
-    { top: '#5c5c9c', horizon: '#f4ac7a', glow: '#ffb46a', gx: 0.8 },
-    { top: '#0a1030', horizon: '#232c58', glow: '#3a4888', gx: 0.5 },
-    { top: '#161a3e', horizon: '#4a4468', glow: '#9a7aa0', gx: 0.25 }
+    { top: '#86c0bc', horizon: '#f6e6c6', glow: '#ffd8a0', gx: 0.22 },
+    { top: '#7ab8c0', horizon: '#eef2de', glow: '#fff6dc', gx: 0.5 },
+    { top: '#a0606a', horizon: '#f6b47a', glow: '#ffbe70', gx: 0.8 },
+    { top: '#0e1c28', horizon: '#26404e', glow: '#3e6070', gx: 0.5 },
+    { top: '#1c1e36', horizon: '#56506a', glow: '#a0809a', gx: 0.25 }
 ];
 export const phaseIndex = (moveNumber) => getTimeOfDay(moveNumber).turnInCycle % PHASES.length;
 
 const GAIT_SPEED = { biped: 0.95, quad: 0.5, sprawl: 0.6, crawl: 0.35, slither: 0.45, hop: 0.7, swim: 0.45, fly: 1.1, flutter: 0.9, perched: 0 };
-const WATER_LOVERS = new Set(['Fish', 'Crocodile', 'Frog', 'Turtle']);
+const WATER_LOVERS = new Set([...AQUATIC, ...SEMI_AQUATIC, 'Frog']);
 const GRAZERS = new Set(['herbivore', 'dangerous_herbivore']);
 const HUNTERS = new Set(['pack_predator', 'rival_predator', 'apex_predator', 'ambush_predator', 'territorial']);
-const HIGH_BROWSERS = new Set(['Brachiosaurus', 'Camarasaurus']);
+const HIGH_BROWSERS = new Set(['Paralititan', 'Aegyptosaurus']);
 
 const roleOf = (species, gait) => {
     const t = SPECIES_DATA[species]?.behaviorType;
@@ -566,7 +570,15 @@ export class WorldRenderer {
         const rand = v.rand;
         const scale = this.tileScale(hexKey);
         if ((v.gait === 'swim' || WATER_LOVERS.has(v.species)) && tile.pools && tile.pools.length) {
-            const pool = tile.pools[Math.floor(rand() * tile.pools.length)];
+            // keep clear of the stretch of water Spino is swimming in
+            let pools = tile.pools;
+            if (hexKey === this.state?.player && this.player && pools.length > 1) {
+                const px = (this.player.to.x - tile.x) / scale;
+                const pz = (this.player.to.z - tile.z) / scale;
+                const far = pools.filter((q) => Math.hypot(q.x - px, q.z - pz) > q.r + 0.25);
+                if (far.length) pools = far;
+            }
+            const pool = pools[Math.floor(rand() * pools.length)];
             const a = rand() * Math.PI * 2;
             const r = Math.sqrt(rand()) * pool.r;
             return new THREE.Vector3(tile.x + (pool.x + Math.cos(a) * r) * scale, 0, tile.z + (pool.z + Math.sin(a) * r) * scale);
@@ -850,7 +862,7 @@ export class WorldRenderer {
         else if (v.gait === 'swim') {
             y = (wl ?? y + 0.02) - v.len * 0.06;
             if (Math.sin(t * 0.7 + v.phase * 3) > 0.985) y += 0.12;
-        } else if (wl !== null && (v.species === 'Crocodile' || v.species === 'Turtle')) y = wl - v.len * 0.05;
+        } else if (wl !== null && SEMI_AQUATIC.has(v.species)) y = wl - v.len * 0.05;
         else if (v.gait === 'hop') y += Math.sin(Math.PI * v.hop) * 0.12 * (0.4 + v.len);
 
         // attack lunges / displays
@@ -1116,6 +1128,16 @@ export class WorldRenderer {
     }
 
     // ==================== PLAYER ====================
+    // Where Spino sits in a cell: on open water if the cell has any, otherwise the centre
+    swimSpot(key, w) {
+        const terrain = this.state?.cells.get(key)?.terrain;
+        const tile = this.tiles.get(key);
+        if (!SWIM_TERRAIN.has(terrain) || !tile || !tile.pools?.length) return { x: w.x, z: w.z };
+        const sc = 1 + PLAYER_CELL_GROW;
+        const best = tile.pools.reduce((a, b) => (Math.hypot(b.x, b.z) < Math.hypot(a.x, a.z) ? b : a));
+        return { x: tile.x + best.x * sc, z: tile.z + best.z * sc };
+    }
+
     syncPlayer(state, prev) {
         const w = this.world.byKey.get(state.player);
         if (!this.player || this.player.level !== state.level) {
@@ -1142,15 +1164,17 @@ export class WorldRenderer {
             }
         }
         const p = this.player;
-        if (Math.abs(p.to.x - w.x) > 1e-4 || Math.abs(p.to.z - w.z) > 1e-4) {
+        if (p.toKey !== state.player) {
+            p.toKey = state.player;
             p.from.copy(p.pos);
             p.to.set(w.x, 0, w.z);
+            p.spotKey = null; // the swimming spot is chosen once the cell's tile is built
             p.moveT = 0;
             p.anim = null;
             p.idle = null;
             p.idleAt = this.time + 5 + Math.random() * 4;
             this.cam.follow = true;
-            if (prev && Math.hypot(p.to.x - p.from.x, p.to.z - p.from.z) > 3) {
+            if (!prev || Math.hypot(p.to.x - p.from.x, p.to.z - p.from.z) > 3) {
                 // teleport (restart)
                 p.pos.copy(p.to);
                 p.moveT = 1;
@@ -1182,11 +1206,11 @@ export class WorldRenderer {
         (state.pack || []).forEach((m, i) => {
             let c = this.packVis.get(m.id);
             if (!c) {
-                const model = this.instantiate(this.getTemplate('Juvenile Allosaurus'));
+                const model = this.instantiate(this.getTemplate('Young Spinosaurus'));
                 model.seed = 7 + i;
                 this.actorGroup.add(model.root);
                 const start = this.recruitFrom.get(m.id) || (this.player ? this.player.pos.clone() : new THREE.Vector3());
-                c = { id: m.id, model, pos: start.clone(), yaw: this.player?.yaw ?? 0, phase: 0, mv: 0, len: 0.3, look: 0, data: m, attack: null, species: 'Juvenile Allosaurus' };
+                c = { id: m.id, model, pos: start.clone(), yaw: this.player?.yaw ?? 0, phase: 0, mv: 0, len: 0.3, look: 0, data: m, attack: null, species: 'Young Spinosaurus' };
                 this.packVis.set(m.id, c);
             }
             c.slot = i;
@@ -1362,7 +1386,29 @@ export class WorldRenderer {
         p.look = approach(p.look, look, dt, 4);
         p.crouch = approach(p.crouch || 0, crouch, dt, 5);
 
-        const y = this.groundAt(p.pos.x, p.pos.z) + (moving ? Math.sin(Math.PI * p.moveT) * 0.15 : 0);
+        // in the water Spino swims in the channel itself, not on the bank in the middle of the cell
+        const playerKey = this.state?.player;
+        if (playerKey && p.spotKey !== playerKey && this.tiles.get(playerKey)) {
+            p.spotKey = playerKey;
+            const w = this.world.byKey.get(playerKey);
+            const spot = this.swimSpot(playerKey, w);
+            if (Math.hypot(spot.x - p.to.x, spot.z - p.to.z) > 0.01) {
+                if (p.moveT >= 1) {
+                    p.from.copy(p.pos);
+                    p.moveT = 0;
+                }
+                p.to.set(spot.x, 0, spot.z);
+            }
+        }
+        let y = this.groundAt(p.pos.x, p.pos.z) + (moving ? Math.sin(Math.PI * p.moveT) * 0.15 : 0);
+        // swimming: low in the water with the sail standing out; submerged to the eyes when hiding
+        const terrain = this.state?.cells.get(this.state.player)?.terrain;
+        const wl = SWIM_TERRAIN.has(terrain) ? this.waterLevelAt(p) : null;
+        const sinkGoal = wl === null ? 0 : (DEEP_WATER.has(terrain) ? 0.2 : 0.07) + (hidden ? 0.12 : 0);
+        p.sink = approach(p.sink || 0, sinkGoal, dt, 3);
+        if (wl !== null) y = Math.max(y, wl) - p.len * p.sink;
+        else y -= p.len * p.sink;
+        if (wl !== null && !moving && Math.random() < dt * 0.6) this.ripple(p.pos, '#d8f0e8', 0.35 + p.len * 0.3, 1.2);
         m.root.position.set(p.pos.x, y, p.pos.z);
         if (p.gameOver) {
             p.dead = Math.min(1, p.dead + dt * 2);

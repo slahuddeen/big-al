@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ABILITIES, abilityUnlocked, cooldownLeft } from '../game/abilities.js';
 import { WATER_SOURCES, shelterOf } from '../game/environment.js';
-import { LEVEL_NAMES, sleepBlockers, canDrink, hideChance, raining } from '../game/gameState.js';
+import { LEVEL_NAMES, sleepBlockers, canDrink, hideChance, raining, canHideHere } from '../game/gameState.js';
 import { capitalise } from '../utils/format.js';
 import Icon from './Icon.jsx';
 
@@ -34,7 +34,11 @@ export const getActions = (gameState) => {
             reason: !water ? (nearDried ? 'The water here has dried up' : 'No fresh water within reach') : gameState.hydration >= 99 ? 'Not thirsty' : null,
             desc: raining(gameState) ? 'It is raining: lap water from the puddles anywhere.' : 'Drink your fill from water here or next to you. Watch for crocodiles. In the drought, streams, waterholes and marshes dry up.'
         },
-        { ...ability('hide'), desc: `${ABILITIES.hide.desc} Cover here: ${Math.round(hideChance(gameState) * 100)}%.` },
+        (() => {
+            const h = ability('hide');
+            const reason = h.reason || (canHideHere(gameState) ? null : 'Too big to hide on land: get into the water');
+            return { ...h, reason, desc: `${ABILITIES.hide.desc} Cover here: ${canHideHere(gameState) ? Math.round(hideChance(gameState) * 100) : 0}%.` };
+        })(),
         ability('sniff'),
         { ...ability('dash'), armed: gameState.dashArmed, reason: gameState.dashArmed ? null : ability('dash').reason },
         ability('roar')

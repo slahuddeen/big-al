@@ -1,22 +1,22 @@
 // ==================== POINTS OF INTEREST ====================
-// Things worth finding in the basin. Each world gets its own scatter of them,
+// Things worth finding along the rivers. Each world gets its own scatter of them,
 // seeded from the map so the same seed always hides them in the same places.
 import { mulberry32 } from '../world/noise.js';
 
 export const POI_TYPES = {
     eggs: {
         name: 'Clutch of eggs', short: 'Eggs',
-        desc: 'An unguarded clutch in a scraped nest. Easy food, if the parents are away.',
+        desc: 'Crocodile or turtle eggs buried in the warm sand. Easy food, if the mother is away.',
         action: 'Eat an egg'
     },
     sauropodcarcass: {
-        name: 'Sauropod carcass', short: 'Carcass',
-        desc: 'A fallen giant. Enough meat for weeks, which is why every predator in the basin comes here.',
+        name: 'Titanosaur carcass', short: 'Carcass',
+        desc: 'A fallen giant. Enough meat for weeks, which is why every predator for miles comes here, Carcharodontosaurus first.',
         action: 'Feed'
     },
     wallow: {
         name: 'Mud wallow', short: 'Wallow',
-        desc: 'Cool mud that soothes wounds and keeps the biting flies off. Sleeping here heals twice as fast.'
+        desc: 'Cool mud that soothes wounds and keeps the biting flies off the sail. Sleeping here heals twice as fast.'
     },
     lookout: {
         name: 'Lookout', short: 'Lookout',
@@ -31,12 +31,12 @@ export const POI_TYPES = {
         desc: 'A river spills over a terrace edge. Fish gather in the plunge pool.'
     },
     volcano: {
-        name: 'Smoking volcano', short: 'Volcano',
-        desc: 'One of the Sevier volcanoes. The ash has killed the forest around it.'
+        name: 'Smoking hill', short: 'Smoke',
+        desc: 'A smouldering hill. Lightning fires smoke for days.'
     },
     seashore: {
-        name: 'Sundance Sea', short: 'Sea',
-        desc: 'The edge of the shallow inland sea. Salt water: undrinkable.'
+        name: 'Tethys Sea', short: 'Sea',
+        desc: 'Where the rivers meet the Tethys. Salt water: undrinkable, but sharks and sawfish come in on the tide.'
     }
 };
 
@@ -61,10 +61,10 @@ export const generatePois = (world) => {
     };
 
     for (const c of land.filter((c) => c.terrain === 'nest')) add(c, 'eggs', { portions: 3 });
-    pickSome((c) => ['nest', 'fernprairie', 'openwoods', 'forestedge'].includes(c.terrain) && !c.border, 4, 9).forEach((c) => add(c, 'eggs', { portions: 3 }));
+    pickSome((c) => ['riverbank', 'beach', 'floodplain'].includes(c.terrain) && !c.border, 5, 8).forEach((c) => add(c, 'eggs', { portions: 3 }));
     pickSome((c) => ['sauropodgrounds', 'floodplain', 'plains', 'fernprairie', 'riverbank'].includes(c.terrain), 4, 10)
-        .forEach((c) => add(c, 'sauropodcarcass', { portions: 8, species: rand() > 0.5 ? 'Diplodocus' : 'Camarasaurus' }));
-    pickSome((c) => ['marsh', 'riverbank', 'floodplain', 'waterhole'].includes(c.terrain), 7, 6).forEach((c) => add(c, 'wallow'));
+        .forEach((c) => add(c, 'sauropodcarcass', { portions: 8, species: rand() > 0.6 ? 'Paralititan' : rand() > 0.5 ? 'Aegyptosaurus' : 'Rebbachisaurus' }));
+    pickSome((c) => ['marsh', 'riverbank', 'floodplain', 'waterhole', 'mangrove'].includes(c.terrain), 7, 6).forEach((c) => add(c, 'wallow'));
     pickSome((c) => ['hills', 'mesa', 'boulderfield', 'rocky'].includes(c.terrain) && c.level >= 4, 7, 7).forEach((c) => add(c, 'lookout'));
     pickSome((c) => ['dryriverbed', 'badlands', 'desert'].includes(c.terrain), 3, 10).forEach((c) => add(c, 'bonebed'));
 

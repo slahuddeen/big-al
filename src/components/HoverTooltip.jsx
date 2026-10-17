@@ -34,7 +34,7 @@ const HoverTooltip = ({ hex, mousePos, creatures, gameState, pathLength }) => {
                     ? <span className="chip" style={{ color: 'var(--water)' }}><Icon name="water" size={11} />Water</span>
                     : <span className="chip" style={{ color: 'var(--food)' }}>Dried up</span>)}
                 {thirst >= 1.3 && <span className="chip" style={{ color: 'var(--food)' }}>Hot and dry</span>}
-                {terrain.minWeight > 0 && <span className="chip" style={{ color: gameState.weight < terrain.minWeight ? 'var(--bad)' : 'var(--good)' }}>{gameState.weight < terrain.minWeight ? `Deadly under ${terrain.minWeight}kg` : 'You can wade it'}</span>}
+                {terrain.minWeight > 0 && <span className="chip" style={{ color: gameState.weight < terrain.minWeight ? 'var(--bad)' : 'var(--good)' }}>{gameState.weight < terrain.minWeight ? `Deadly under ${terrain.minWeight}kg` : 'You can swim it'}</span>}
                 {crampedIn(gameState, cell.terrain) && <span className="chip" style={{ color: 'var(--warn)' }}>Cramped for your size</span>}
                 {terrain.fitnessRisk > 0 && terrain.fitnessRisk < 1 && <span className="chip" style={{ color: 'var(--warn)' }}>Rough going</span>}
                 {pathLength > 1 && <span className="chip" style={{ color: 'var(--accent)' }}>{pathLength} steps</span>}

@@ -54,12 +54,12 @@ button {
 }
 
 .panel-title {
-    font-family: 'Pixelify Sans', ui-monospace, monospace;
+    font-family: 'Cinzel', Georgia, serif;
     letter-spacing: 0.02em;
 }
 
 .pixel {
-    font-family: 'Pixelify Sans', ui-monospace, monospace;
+    font-family: 'Cinzel', Georgia, serif;
 }
 
 .label {
@@ -221,7 +221,7 @@ button {
     position: absolute;
     top: 3px;
     left: 5px;
-    font-family: 'Pixelify Sans', monospace;
+    font-family: 'Cinzel', Georgia, serif;
     font-size: 10px;
     color: var(--dim);
 }
@@ -233,7 +233,7 @@ button {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Pixelify Sans', monospace;
+    font-family: 'Cinzel', Georgia, serif;
     font-size: 20px;
     color: var(--ink);
 }
@@ -343,3 +343,46 @@ button {
 }
 
 @tailwind utilities;
+
+/* ---------- Age of Reptiles comic theme ----------
+   Panels are drawn like comic frames: an ink-dark page inside a cream border with
+   a flat offset shadow, serif capitals for titles and the cover's red as the accent. */
+:root {
+    --accent: #e2533e;
+    --accent-deep: #a82e24;
+    --ink: #f4ead6;
+    --muted: #c4b59a;
+    --dim: #8c7e66;
+    --line: rgba(244, 228, 196, 0.2);
+    --line-strong: rgba(244, 228, 196, 0.38);
+    background: #12100c;
+}
+html, body, #root { background: #12100c; }
+.panel {
+    background: linear-gradient(180deg, rgba(30, 25, 19, 0.9) 0%, rgba(20, 17, 13, 0.88) 100%);
+    border: 2px solid rgba(240, 226, 196, 0.82);
+    border-radius: 3px;
+    box-shadow: 5px 5px 0 rgba(8, 6, 4, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+.panel-title {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+.card { border-radius: 3px; }
+.action-slot { border-radius: 4px; }
+.btn { border-radius: 3px; }
+.btn-primary {
+    background: linear-gradient(180deg, #e8604a, #b8372a);
+    border-color: #f4dcc0;
+    color: #fff6ea;
+    box-shadow: 3px 3px 0 rgba(8, 6, 4, 0.6);
+}
+.chip { border-radius: 3px; }
+/* dim disabled slots with colour rather than opacity: an opacity layer over the
+   panel's backdrop blur can ghost the neighbouring slot in some browsers */
+.action-slot.disabled { opacity: 1; background: rgba(0, 0, 0, 0.18); }
+.action-slot.disabled .slot-label, .action-slot.disabled .hotkey { color: var(--dim); }
+.action-slot.disabled svg { color: var(--dim) !important; opacity: 0.7; }
