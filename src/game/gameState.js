@@ -172,7 +172,11 @@ const makeCreature = (species, state, size, extra = {}) => {
 // A grown sauropod fills half an area on its own: at most two per area
 export const MAX_GIANTS_PER_CELL = 2;
 export const isBigGiant = (c) => GIANTS.has(c.species) && (c.size ?? 1) > 0.3;
-const countGiants = (list) => (list || []).filter(isBigGiant).length;
+// How much room a grown giant takes up: a Paralititan, one of the largest animals that
+// ever lived, fills an area on its own; two of the others fit side by side
+const GIANT_LOAD = { Paralititan: 2 };
+export const giantLoad = (c) => (isBigGiant(c) ? GIANT_LOAD[c.species] ?? 1 : 0);
+const countGiants = (list) => (list || []).reduce((sum, c) => sum + giantLoad(c), 0);
 
 const countFlyers = (creatures) => [...creatures.values()].flat().filter((c) => FLYERS.has(c.species)).length;
 
@@ -206,9 +210,11 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
         const heading = GIANTS.has(species) ? (state.migration ?? Math.random() * Math.PI * 2) : Math.random() * Math.PI * 2;
         if (GIANTS.has(species)) {
             // two grown animals at most per area; the young walk among them
-            const adults = Math.min(MAX_GIANTS_PER_CELL - giantsHere - countGiants(spawned), 1 + Math.floor(Math.random() * 2));
+            const load = GIANT_LOAD[species] ?? 1;
+            const adults = Math.min(Math.floor((MAX_GIANTS_PER_CELL - giantsHere - countGiants(spawned)) / load), 1 + Math.floor(Math.random() * 2));
             if (adults <= 0) continue;
-            const young = Math.min(max - existing - spawned.length - adults, Math.floor(Math.random() * 3));
+            // a calf or two walk among the adults (only one beside a Paralititan)
+            const young = Math.min(max - existing - spawned.length - adults, Math.floor(Math.random() * (load > 1 ? 2 : 3)));
             for (let i = 0; i < adults; i++) spawned.push(makeCreature(species, state, undefined, { herd, heading }));
             for (let i = 0; i < young; i++) spawned.push(makeCreature(species, state, 0.01 + Math.random() * 0.07, { herd, heading }));
             continue;
@@ -421,11 +427,11 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
         occupancy.set(from, (occupancy.get(from) || 1) - 1);
         occupancy.set(to, (occupancy.get(to) || 0) + 1);
         if (c && isBigGiant(c)) {
-            giants.set(from, (giants.get(from) || 1) - 1);
-            giants.set(to, (giants.get(to) || 0) + 1);
+            giants.set(from, Math.max(0, (giants.get(from) || 0) - giantLoad(c)));
+            giants.set(to, (giants.get(to) || 0) + giantLoad(c));
         }
     };
-    const roomAt = (key, c = null) => (occupancy.get(key) || 0) < MAX_CREATURES_PER_HEX && (!c || canEnter(gameState, key, c)) && (!c || !isBigGiant(c) || (giants.get(key) || 0) < MAX_GIANTS_PER_CELL);
+    const roomAt = (key, c = null) => (occupancy.get(key) || 0) < MAX_CREATURES_PER_HEX && (!c || canEnter(gameState, key, c)) && (!c || !isBigGiant(c) || (giants.get(key) || 0) + giantLoad(c) <= MAX_GIANTS_PER_CELL);
     const pushAttack = (creature, key, charged, message, raw) => {
         attacked.add(creature.id);
         creature.engaged = true;
@@ -1207,7 +1213,7 @@ const coreReducer = (state, action) => {
                 const last = populatedAt.get(key);
                 if (last !== undefined && state.moveNumber - last < AMBIENT_RESPAWN_TURNS) continue;
                 populatedAt.set(key, state.moveNumber);
-                const spawned = rollSpawns(hex.terrain, state, { chanceScale: 0.4, max: hex.terrain === 'sauropodgrounds' ? 5 : 3, key, flyerBudget: Math.min(1, flyerBudget) });
+                const spawned = rollSpawns(hex.terrain, state, { chanceScale: 0.4, max: hex.terrain === 'sauropodgrounds' ? 5 : 3, key, flyerBudget: Math.min(1, flyerBudget), giantsHere: countGiants(state.creatures.get(key)) });
                 flyerBudget -= spawned.filter((c) => FLYERS.has(c.species)).length;
                 if (spawned.length) {
                     newCreatures.set(key, spawned);
@@ -1461,7 +1467,7 @@ const coreReducer = (state, action) => {
                     .map((x) => x.n);
                 for (const c of herdHere) {
                     // down the trail, spilling into the next best area if that one is already full of giants
-                    const to = ahead.find((n) => (creatures.get(n) || []).length < MAX_CREATURES_PER_HEX && (!isBigGiant(c) || countGiants(creatures.get(n)) < MAX_GIANTS_PER_CELL));
+                    const to = ahead.find((n) => (creatures.get(n) || []).length < MAX_CREATURES_PER_HEX && (!isBigGiant(c) || countGiants(creatures.get(n)) + giantLoad(c) <= MAX_GIANTS_PER_CELL));
                     creatures = removeCreature(creatures, state.player, c.id);
                     creatures = placeCreature(creatures, to || state.player, { ...c, harried: 0, lastMigrateTurn: state.moveNumber });
                 }

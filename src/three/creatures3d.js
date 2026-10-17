@@ -113,7 +113,17 @@ const BIPED_DEFAULTS = {
     bristles: null, // { h, color, tip }: a crest of long filaments from the shoulders to the tail tip
     sail: null, // { h, color, streak }: a tall spined sail along the back (spinosaurs)
     tailFin: null, // { h, color }: tall neural spines and chevrons that turn the tail into a paddle
-    rosette: null // colour of a spoon-shaped rosette at the tip of the snout
+    rosette: null, // colour of a spoon-shaped rosette at the tip of the snout
+    // ---- finer anatomy ----
+    spinoSkull: false, // long low snout, notch behind the rosette, nostrils pulled back near the eyes
+    teethSize: 1, // < 1: lipped mouth, only the tips of the teeth show (modern theropod reconstructions)
+    nasalBumps: null, // colour of the rugose bumps along the top of the snout (carcharodontosaurids, abelisaurs)
+    dome: null, // colour of a domed, thickened brow (Sauroniops)
+    featureScales: null, // colour of the rows of large feature scales along the flanks (abelisaurs)
+    webbed: null, // colour of webbing between the toes (spinosaurs)
+    flatClaws: false, // broad, flat-bottomed foot claws
+    thumbSpike: null, // colour of an iguanodont's conical thumb spike
+    handsDown: false // forelimbs reach the ground: walks partly on all fours (iguanodonts)
 };
 
 // A spinosaur's sail: one thin panel per section of the back, the spines showing as a
@@ -231,6 +241,18 @@ export const buildBiped = (spec, ctx) => {
         });
     }
     if (p.bristles) bristleRow(tb, torso, 0, 7, p, p.bristles.h * 0.9, p.bristles.h * 0.45, rand);
+    if (p.featureScales) {
+        // abelisaur skin: small scales studded with rows of big conical feature scales along the flanks
+        for (let row = 0; row < 3; row++) {
+            for (let i = 1; i < 8; i++) {
+                const sc = torso[i];
+                for (const sd of [-1, 1]) {
+                    const a = 0.5 + row * 0.45;
+                    blob(tb, [sc.p[0] + (row % 2) * 0.012, sc.p[1] + (sc.yOff ?? 0) + Math.sin(a) * sc.rh * 0.95, sd * Math.cos(a) * sc.rw * 0.98], p.bodyR * 0.08, p.featureScales, { detail: 0, jitter: 0.2, rand, scale: [1, 1, 0.7] });
+                }
+            }
+        }
+    }
     if (p.sail) {
         // tallest over the middle of the back with a slight dip, running down to the hips and shoulders
         const sh = (t) => p.sail.h * Math.pow(Math.sin(Math.PI * Math.min(1, 0.06 + t * 0.94)), 0.8) * (1 - 0.1 * Math.exp(-(((t - 0.52) / 0.12) ** 2)));
@@ -338,7 +360,33 @@ export const buildBiped = (spec, ctx) => {
     const hw = p.headW;
     const [sk0, sk1, sk2] = p.skull;
     const [sw0, sw1] = p.skullWidth;
-    loft(hb, [
+    if (p.spinoSkull) {
+        // long, low snout; a notch in the upper jaw behind the expanded rosette at the tip
+        loft(hb, [
+            { p: [-hl * 0.1, -hh * 0.05, 0], rw: hw * 0.8 * sw0, rh: hh * 0.72 * sk0 },
+            { p: [hl * 0.16, hh * 0.05, 0], rw: hw * sw0, rh: hh * sk0 },
+            { p: [hl * 0.42, -hh * 0.05, 0], rw: hw * 0.62, rh: hh * 0.6, color: p.midSnout ?? undefined },
+            { p: [hl * 0.7, -hh * 0.16, 0], rw: hw * 0.46, rh: hh * 0.4, color: p.beak ?? undefined },
+            { p: [hl * 0.8, -hh * 0.22, 0], rw: hw * 0.4, rh: hh * 0.32, color: p.beak ?? undefined },
+            { p: [hl * 0.92, -hh * 0.16, 0], rw: hw * 0.6, rh: hh * 0.42, color: p.beak ?? undefined }
+        ], {
+            sides: 6, color: C.head ?? C.body, bellyColor: C.mouth, ridgeColor: C.headTop ?? C.back,
+            tipEnd: hl * 0.06, jitter: p.fluff * 0.5, rand
+        });
+        // nostrils set far back, just in front of the eyes, so it can breathe with its snout in the water
+        for (const sd of [-1, 1]) blob(hb, [hl * 0.36, hh * 0.18, sd * hw * 0.32], hh * 0.09, '#141414', { detail: 1, jitter: 0, scale: [1.6, 0.6, 0.6], faceVary: 0 });
+        // big conical teeth at the rosette, smaller ones behind the notch
+        for (const sd of [-1, 1]) {
+            for (let i = 0; i < 3; i++) {
+                const x = hl * (0.86 + i * 0.035);
+                cone(hb, [x, -hh * 0.42, sd * hw * 0.42], [x + hh * 0.03, -hh * 0.42 - hh * 0.45 * p.teethSize, sd * hw * 0.44], hh * 0.06, '#f2ecd8', { sides: 4 });
+            }
+            for (let i = 0; i < 6; i++) {
+                const x = hl * (0.3 + i * 0.07);
+                cone(hb, [x, -hh * 0.36 - i * hh * 0.02, sd * hw * 0.42], [x, -hh * 0.36 - i * hh * 0.02 - hh * 0.16 * p.teethSize, sd * hw * 0.43], hh * 0.03, '#f2ecd8', { sides: 3 });
+            }
+        }
+    } else loft(hb, [
         { p: [-hl * 0.1, -hh * 0.05, 0], rw: hw * 0.8 * sw0, rh: hh * 0.72 * sk0 },
         { p: [hl * 0.18, hh * 0.04, 0], rw: hw * sw0, rh: hh * sk0 },
         { p: [hl * 0.52, -hh * 0.04 + (sk1 - 0.78) * hh * 0.3, 0], rw: hw * (0.5 + p.snout * 0.5) * sw1 / 0.75, rh: hh * sk1, color: p.midSnout ?? undefined },
@@ -349,7 +397,15 @@ export const buildBiped = (spec, ctx) => {
     });
     eyes(hb, hl * 0.2, hh * 0.38 * sk0, hw * 0.78 * sw0, hh * 0.19 * p.eyeScale, C.eye ?? '#f2c230');
     if (p.jowl) blob(hb, [hl * 0.12, -hh * 0.45, 0], hh * 0.55 * p.jowl, C.belly, { scale: [1.2, 0.8, 0.9], jitter: 0.15, rand });
-    if (p.teeth) teethRow(hb, hl * 0.3, hl * 0.86, -hh * 0.36, hw * 0.55, hh * 0.09, 6);
+    if (p.teeth && !p.spinoSkull) teethRow(hb, hl * 0.3, hl * 0.86, -hh * 0.36, hw * 0.55, hh * 0.09 * p.teethSize, 7);
+    if (p.nasalBumps) {
+        // rugose, knobbly ridges along the top of the snout and over the eyes
+        for (let i = 0; i < 6; i++) {
+            const x = hl * (0.3 + i * 0.1);
+            for (const sd of [-1, 1]) blob(hb, [x, hh * (0.62 - i * 0.07), sd * hw * 0.28], hh * (0.09 + (i % 2) * 0.03), p.nasalBumps, { jitter: 0.3, rand, scale: [1.3, 0.7, 1] });
+        }
+    }
+    if (p.dome) blob(hb, [hl * 0.16, hh * 0.78, 0], hh * 0.42, p.dome, { scale: [1.2, 0.75, 1], jitter: 0.12, rand });
     if (p.horn) cone(hb, [hl * 0.62, hh * 0.22, 0], [hl * 0.66, hh * 0.22 + p.horn.h, 0], p.horn.r, p.horn.color, { sides: 5, rand, squash: 0.5 });
     if (p.rosette) blob(hb, [hl * 0.86, -hh * 0.12, 0], hw * 0.62, p.rosette, { scale: [1.5, 0.75, 1], jitter: 0.1, rand });
     if (p.lacrimal) {
@@ -378,7 +434,8 @@ export const buildBiped = (spec, ctx) => {
         for (const s of [-1, 1]) {
             for (let i = 0; i < 5; i++) {
                 const x = hl * 0.2 + (hl * 0.55 * i) / 4;
-                jb.tri([x - hh * 0.04, hh * 0.15, s * hw * 0.45], [x + hh * 0.04, hh * 0.15, s * hw * 0.45], [x, hh * 0.3, s * hw * 0.43], '#f4f0e0', [0, 0, s], true);
+                const th = hh * 0.15 * p.teethSize;
+                jb.tri([x - hh * 0.04, hh * 0.15, s * hw * 0.45], [x + hh * 0.04, hh * 0.15, s * hw * 0.45], [x, hh * 0.15 + th, s * hw * 0.43], '#f4f0e0', [0, 0, s], true);
             }
         }
     }
@@ -401,12 +458,19 @@ export const buildBiped = (spec, ctx) => {
             { p: pad, r: p.thighR * 0.28, color: C.shin ?? shade(C.body, 0.85) }
         ], { sides: 6, color: C.body, bellyColor: C.belly, jitter: p.fluff * 0.6, rand });
         // toes
+        const tips = [];
         for (const a of [-0.45, 0, 0.45]) {
-            const tl = p.thighR * 1.6 * (a === 0 ? 1.15 : 0.9);
+            const tl = p.thighR * (p.webbed ? 1.9 : 1.6) * (a === 0 ? 1.15 : 0.9);
             const tx = pad[0] + Math.cos(a) * tl;
             const tz = pad[2] + Math.sin(a) * tl * s;
+            tips.push([tx, 0.004 - legH + 0.006, tz]);
             limb(lb, pad, [tx, 0.004 - legH + 0.006, tz], p.thighR * 0.22, p.thighR * 0.12, C.shin ?? shade(C.body, 0.8), { sides: 4 });
-            cone(lb, [tx, 0.006 - legH + 0.006, tz], [tx + Math.cos(a) * p.thighR * 0.5, 0.0 - legH + 0.003, tz + Math.sin(a) * s * p.thighR * 0.5], p.thighR * 0.1, C.claw, { sides: 4 });
+            const cl = p.thighR * (p.flatClaws ? 0.42 : 0.5);
+            cone(lb, [tx, 0.006 - legH + 0.006, tz], [tx + Math.cos(a) * cl, 0.0 - legH + 0.003, tz + Math.sin(a) * s * cl], p.thighR * (p.flatClaws ? 0.13 : 0.1), C.claw, { sides: 4, squash: p.flatClaws ? 0.45 : 1 });
+        }
+        if (p.webbed) {
+            // webbed feet for paddling
+            for (let k = 0; k < 2; k++) slab(lb, [[pad[0], pad[1] - 0.004, pad[2]], tips[k], tips[k + 1]], 0.004, p.webbed);
         }
         if (p.sickle) {
             cone(lb, [pad[0] + p.thighR * 0.4, -legH + 0.03, pad[2] - s * 0.004], [pad[0] + p.thighR * 1.0, -legH + 0.07, pad[2]], p.thighR * 0.14, '#1a1a1a', { sides: 4 });
@@ -420,10 +484,14 @@ export const buildBiped = (spec, ctx) => {
         const pivot = group(body, L * 0.86, H - p.bodyH * 0.45 + p.chestDrop * 0.86, s * p.bodyR * 0.62 * BW);
         const ab = new MeshBuilder();
         const A = p.armLen;
-        const elbow = [A * 0.15, -A * 0.5, s * 0.01];
-        const hand = [A * 0.55, -A * 0.72, s * 0.012];
+        const elbow = p.handsDown ? [A * 0.05, -A * 0.48, s * 0.014] : [A * 0.15, -A * 0.5, s * 0.01];
+        const hand = p.handsDown ? [A * 0.12, -A * 0.96, s * 0.016] : [A * 0.55, -A * 0.72, s * 0.012];
         loft(ab, [{ p: [0, 0, 0], r: p.armR * 1.3 }, { p: elbow, r: p.armR }, { p: hand, r: p.armR * 0.8 }], { sides: 5, color: C.arm ?? C.body, jitter: p.fluff * 0.5, rand });
-        for (const a of [-0.35, 0, 0.35]) {
+        if (p.thumbSpike) cone(ab, hand, [hand[0] + A * 0.04, hand[1] + A * 0.1, hand[2] + s * A * 0.12], p.armR * 0.6, p.thumbSpike, { sides: 5 });
+        if (p.handsDown) {
+            // hoof-like middle fingers bearing weight, as in Iguanodon
+            blob(ab, [hand[0] + A * 0.03, hand[1] - 0.004, hand[2]], p.armR * 1.1, C.claw, { scale: [1.3, 0.6, 1], jitter: 0.1, rand });
+        } else for (const a of [-0.35, 0, 0.35]) {
             const cl = A * 0.22 * (a === -0.35 ? p.clawScale : 1);
             cone(ab, hand, [hand[0] + cl, hand[1] - cl * 0.55 + a * A * 0.1, hand[2] + s * a * A * 0.1], p.armR * 0.5 * (a === -0.35 ? Math.sqrt(p.clawScale) : 1), C.claw, { sides: 4 });
         }
@@ -444,7 +512,11 @@ const QUAD_DEFAULTS = {
     neckSegs: 3, neckLen: 0.3, neckUp: 0.4, neckBend: -0.12, neckR0: 0.06, neckR1: 0.03,
     headLen: 0.07, headH: 0.04, headW: 0.035, headShape: 'diplo', headPitch: -0.2,
     tailSegs: 3, tailLen: 0.5, tailR: 0.07, tailDroop: 0.12, tailCurl: 0.06,
-    legR: 0.045, footR: 0.05, plates: null, spikes: null, shoulderSpike: null, stripes: false, spots: null
+    legR: 0.045, footR: 0.05, plates: null, spikes: null, shoulderSpike: null, stripes: false, spots: null,
+    gauge: 0.72, // how far apart the legs stand (titanosaurs: wide-gauge)
+    osteoderms: null, // colour of the bony armour plates scattered over a titanosaur's back
+    dorsalRidge: null, // { h, color }: a ridge of tall neural spines along the back (rebbachisaurids)
+    columnHands: false // finger-less, horseshoe-shaped front feet (titanosaurs)
 };
 
 export const buildQuadruped = (spec, ctx) => {
@@ -501,6 +573,17 @@ export const buildQuadruped = (spec, ctx) => {
                 cone(tb, [s.p[0], s.p[1] + s.rh * 0.8, side * s.rw * 0.3], [s.p[0] - 0.03, s.p[1] + s.rh * 0.8 + p.spikes.size, side * s.rw * 0.45], p.spikes.size * 0.18, p.spikes.color, { sides: 4, rand });
             }
         });
+    }
+    if (p.osteoderms) {
+        // scattered oval armour plates, bigger along the spine
+        for (let i = 0; i < 26; i++) {
+            const sc = torso[1 + Math.floor(rand() * 7)];
+            const a = Math.PI / 2 + (rand() - 0.5) * 1.6;
+            blob(tb, [sc.p[0] + (rand() - 0.5) * 0.04, sc.p[1] + (sc.yOff ?? 0) + Math.sin(a) * sc.rh * 0.98, Math.cos(a) * sc.rw * 0.98], p.bodyR * (0.07 + rand() * 0.06), p.osteoderms, { jitter: 0.25, rand, scale: [1.3, 0.55, 1] });
+        }
+    }
+    if (p.dorsalRidge) {
+        sailPanels(tb, torso, 1, 8, { color: p.dorsalRidge.color, thick: 0.02 }, rand, (t) => p.dorsalRidge.h * Math.pow(Math.sin(Math.PI * (0.12 + t * 0.8)), 0.7));
     }
     if (p.shoulderSpike) {
         for (const side of [-1, 1]) {
@@ -572,6 +655,13 @@ export const buildQuadruped = (spec, ctx) => {
         blob(hb, [hl * 0.35, hh * 0.85, 0], hh * 0.55, C.crest ?? shade(C_head, 0.9), { scale: [1, 0.9, 0.7], jitter: 0.2, rand });
     } else if (p.headShape === 'camara') {
         loft(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.35, hh * 0.15, 0], rw: hw, rh: hh * 1.1 }, { p: [hl * 0.95, -hh * 0.1, 0], rw: hw * 0.85, rh: hh * 0.75 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.04 });
+    } else if (p.headShape === 'rebbach') {
+        // broad, square-ended muzzle for cropping low plants
+        loft(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.35, hh * 0.05, 0], rw: hw, rh: hh }, { p: [hl * 0.8, -hh * 0.2, 0], rw: hw * 1.05, rh: hh * 0.55 }, { p: [hl * 1.0, -hh * 0.25, 0], rw: hw * 1.15, rh: hh * 0.45 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.02 });
+    } else if (p.headShape === 'titan') {
+        // titanosaur: short, broad snout with a raised nasal arch
+        loft(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.3, hh * 0.15, 0], rw: hw, rh: hh * 1.05 }, { p: [hl * 0.95, -hh * 0.18, 0], rw: hw * 0.9, rh: hh * 0.55 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.04 });
+        blob(hb, [hl * 0.4, hh * 0.7, 0], hh * 0.4, C.crest ?? shade(C_head, 0.92), { scale: [1.2, 0.8, 0.8], jitter: 0.2, rand });
     } else if (p.headShape === 'stego') {
         loft(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.35, hh * 0.05, 0], rw: hw, rh: hh }, { p: [hl * 0.95, -hh * 0.25, 0], rw: hw * 0.5, rh: hh * 0.45, color: C.beak ?? '#3a3028' }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.08 });
     } else {
@@ -589,7 +679,7 @@ export const buildQuadruped = (spec, ctx) => {
     ];
     for (const ld of legDefs) {
         for (const s of [-1, 1]) {
-            const pivot = group(body, ld.x, ld.y, s * p.bodyR * 0.72);
+            const pivot = group(body, ld.x, ld.y, s * p.bodyR * p.gauge);
             const lb = new MeshBuilder();
             const H = ld.y;
             const R = p.legR * (ld.front ? 0.9 : 1.1);
@@ -601,8 +691,16 @@ export const buildQuadruped = (spec, ctx) => {
                 { p: [0, -H * 0.9, 0], r: R * 0.8, color: C.feet },
                 { p: [0.006, -H + 0.004, 0], r: p.footR * (ld.front ? 0.9 : 1), color: C.feet }
             ], { sides: 7, color: C.body, bellyColor: C.belly, rand });
-            for (let k = -1; k <= 1; k++) {
-                blob(lb, [p.footR * 0.85, -H + 0.012, k * p.footR * 0.45], p.footR * 0.22, '#d8d0b8', { jitter: 0.1, rand, scale: [1, 0.6, 0.8] });
+            if (ld.front && p.columnHands) {
+                // a titanosaur hand: a column of bones with no claws at all
+            } else if (ld.front) {
+                // sauropod hands: only the thumb carries a claw
+                blob(lb, [p.footR * 0.85, -H + 0.016, -s * p.footR * 0.35], p.footR * 0.26, '#d8d0b8', { jitter: 0.1, rand, scale: [1.2, 0.7, 0.7] });
+            } else {
+                // hind feet: three big curved claws on the inner toes
+                for (let k = -1; k <= 1; k++) {
+                    blob(lb, [p.footR * 0.85, -H + 0.012, k * p.footR * 0.45 - s * p.footR * 0.15], p.footR * 0.22, '#d8d0b8', { jitter: 0.1, rand, scale: [1.2, 0.6, 0.7] });
+                }
             }
             addMesh(pivot, lb, ctx);
             const phase = (ld.front ? 0 : Math.PI) + (s > 0 ? 0 : Math.PI);
@@ -721,14 +819,16 @@ export const buildSprawler = (spec, ctx) => {
 const PTERO_DEFAULTS = {
     bodyLen: 0.12, bodyR: 0.035, neckLen: 0.06, neckUp: 0.5, headLen: 0.16, headH: 0.03, headW: 0.025,
     wingSpan: 0.55, wingChord: 0.12, tailLen: 0.25, tailVane: null, crest: null, anuro: false,
-    teeth: true, fluff: 0.15, legLen: 0.06
+    teeth: true, fluff: 0.15, legLen: 0.06,
+    walking: false // on the ground on all fours with the wings folded (azhdarchids)
 };
 
 export const buildPterosaur = (spec, ctx) => {
     const p = { ...PTERO_DEFAULTS, ...spec };
     const C = { belly: shade(p.colors.body, 1.25), back: shade(p.colors.body, 0.85), membrane: shade(p.colors.body, 0.7), ...p.colors };
     const rand = mulberry32(hashString(p.name || 'ptero'));
-    const model = newModel(p.grounded ? 'perched' : 'fly');
+    const model = newModel(p.walking ? 'quad' : p.grounded ? 'perched' : 'fly');
+    if (p.walking) return buildWalkingPterosaur(p, model, ctx);
     const { body, parts } = model;
     const Y = 0.12;
     const L = p.bodyLen;
@@ -820,6 +920,71 @@ export const buildPterosaur = (spec, ctx) => {
         parts.legs.push({ pivot, side: s, phase: s > 0 ? 0 : Math.PI });
     }
     model.flapSpeed = p.flapSpeed ?? 6;
+    return finalize(model);
+};
+
+// An azhdarchid on the ground: it walks on all fours like a giraffe-necked stork, the
+// wings folded up along the long forearms, body tilted up at the front
+const buildWalkingPterosaur = (p, model, ctx) => {
+    const C = { belly: shade(p.colors.body, 1.25), back: shade(p.colors.body, 0.85), membrane: shade(p.colors.body, 0.7), ...p.colors };
+    const rand = mulberry32(hashString(p.name || 'ptero'));
+    const { body, parts } = model;
+    const Y = p.legLen + 0.02;
+    const L = p.bodyLen;
+    const tilt = 0.35;
+    const front = [L * Math.cos(tilt), Y + L * Math.sin(tilt), 0];
+    const tb = new MeshBuilder();
+    loft(tb, [
+        { p: [-0.02, Y, 0], rw: p.bodyR * 0.7, rh: p.bodyR * 0.75 },
+        { p: [front[0] * 0.45, Y + front[1] * 0.0 + (front[1] - Y) * 0.45, 0], rw: p.bodyR, rh: p.bodyR * 1.05 },
+        { p: front, rw: p.bodyR * 0.75, rh: p.bodyR * 0.8 }
+    ], { sides: 7, color: C.body, bellyColor: C.belly, ridgeColor: C.back, jitter: p.fluff, rand });
+    addMesh(body, tb, ctx);
+    // neck, long and stiff, rising forward
+    const neck = group(body, front[0], front[1], 0);
+    const nb = new MeshBuilder();
+    const nx = Math.cos(p.neckUp) * p.neckLen;
+    const ny = Math.sin(p.neckUp) * p.neckLen;
+    loft(nb, [{ p: [-0.01, 0, 0], r: p.bodyR * 0.55 }, { p: [nx * 0.5, ny * 0.5, 0], r: p.bodyR * 0.36 }, { p: [nx, ny, 0], r: p.bodyR * 0.32 }], { sides: 6, color: C.neck ?? C.body, bellyColor: C.belly, jitter: p.fluff, rand, capStart: false, capEnd: false });
+    addMesh(neck, nb, ctx);
+    parts.neck.push(neck);
+    const head = group(neck, nx, ny, 0);
+    head.rotation.z = -0.65; // the great beak points down and forward, ready to stab
+    const hb = new MeshBuilder();
+    const hl = p.headLen;
+    const hh = p.headH;
+    const hw = p.headW;
+    loft(hb, [
+        { p: [-hl * 0.12, 0, 0], rw: hw, rh: hh * 1.1 },
+        { p: [hl * 0.2, 0, 0], rw: hw * 0.8, rh: hh },
+        { p: [hl * 1.0, -hh * 0.1, 0], rw: hw * 0.08, rh: hh * 0.08, color: C.beak ?? C.head ?? C.body }
+    ], { sides: 5, color: C.head ?? C.body, bellyColor: C.belly, tipEnd: hl * 0.04 });
+    eyes(hb, hl * 0.02, hh * 0.45, hw * 0.75, hh * 0.3, C.eye ?? '#f0c030');
+    if (p.crest) slab(hb, [[hl * 0.15, hh * 0.6, 0], [-hl * 0.12, hh * 0.5, 0], [-hl * 0.3, hh * 0.6 + p.crest.h * 0.9, 0], [hl * 0.05, hh * 0.6 + p.crest.h, 0]], hw * 0.3, p.crest.color);
+    addMesh(head, hb, ctx);
+    parts.head = head;
+    // front limbs: the long wing-finger forearm used as a stilt, membrane folded against it
+    const legs = [
+        { x: front[0] * 0.85, y: front[1] - p.bodyR * 0.4, len: front[1] - p.bodyR * 0.4, front: true },
+        { x: 0, y: Y - p.bodyR * 0.3, len: Y - p.bodyR * 0.3, front: false }
+    ];
+    for (const lg of legs) {
+        for (const s of [-1, 1]) {
+            const pivot = group(body, lg.x, lg.y, s * p.bodyR * 0.75);
+            const lb = new MeshBuilder();
+            const knee = lg.front ? [0.02, -lg.len * 0.5, s * 0.03] : [-0.015, -lg.len * 0.5, s * 0.01];
+            const foot = [lg.front ? 0.01 : -0.005, -lg.len + 0.004, s * (lg.front ? 0.035 : 0.014)];
+            limb(lb, [0, 0, 0], knee, p.bodyR * (lg.front ? 0.3 : 0.26), p.bodyR * 0.2, C.arm ?? C.back, { sides: 4 });
+            limb(lb, knee, foot, p.bodyR * 0.2, p.bodyR * 0.13, C.arm ?? C.back, { sides: 4 });
+            if (lg.front) {
+                // the folded wing: a narrow sail of membrane along the forearm, the wing finger folded up behind
+                slab(lb, [[0, -0.005, s * 0.012], knee, [knee[0] - 0.035, knee[1] + 0.03, knee[2] + s * 0.005], [-0.035, 0.01, s * 0.015]], 0.005, C.membrane, { edgeColor: shade(C.membrane, 0.8) });
+                limb(lb, knee, [knee[0] - 0.09, knee[1] + 0.06, knee[2] + s * 0.004], p.bodyR * 0.12, p.bodyR * 0.06, C.arm ?? C.back, { sides: 3 });
+            }
+            addMesh(pivot, lb, ctx);
+            parts.legs.push({ pivot, side: s, phase: (lg.front ? 0 : Math.PI) + (s > 0 ? 0 : Math.PI), front: lg.front });
+        }
+    }
     return finalize(model);
 };
 
@@ -1221,30 +1386,30 @@ export const SPECIES_MODELS = {
     Leptostomia: { build: buildPterosaur, spec: { name: 'Leptostomia', bodyLen: 0.1, bodyR: 0.032, neckLen: 0.08, neckUp: 0.6, headLen: 0.22, headH: 0.02, headW: 0.018, wingSpan: 0.7, wingChord: 0.12, tailLen: 0.03, teeth: false, colors: { body: '#e8dcc4', belly: '#f6f0e2', back: '#b8a888', membrane: '#c87a4a', head: '#e8dcc4', beak: '#3a3430' } } },
     Afrotapejara: { build: buildPterosaur, spec: { name: 'Afrotapejara', bodyLen: 0.11, bodyR: 0.04, neckLen: 0.08, neckUp: 0.7, headLen: 0.12, headH: 0.04, headW: 0.028, wingSpan: 0.8, wingChord: 0.14, tailLen: 0.03, teeth: false, crest: { type: 'snout', h: 0.09, color: '#e03a2a', edge: '#f0c030' }, colors: { body: '#2e6a6a', belly: '#e8e0c8', back: '#1e4a4e', membrane: '#3a5a5a', head: '#2e6a6a', beak: '#f0c030' } } },
     Siroccopteryx: { build: buildPterosaur, spec: { name: 'Siroccopteryx', bodyLen: 0.12, bodyR: 0.038, neckLen: 0.07, headLen: 0.2, headH: 0.032, headW: 0.024, wingSpan: 1.1, wingChord: 0.13, tailLen: 0.03, crest: { type: 'snout', h: 0.03, color: '#e8e4dc' }, wingBand: '#1e1e22', colors: { body: '#f0ece2', belly: '#ffffff', back: '#b8b8b8', membrane: '#8a8a90', head: '#f0ece2', beak: '#e0c060' } } },
-    Alanqa: { build: buildPterosaur, spec: { name: 'Alanqa', grounded: true, bodyLen: 0.13, bodyR: 0.05, neckLen: 0.3, neckUp: 1.0, headLen: 0.28, headH: 0.04, headW: 0.03, wingSpan: 0.7, wingChord: 0.12, tailLen: 0.02, legLen: 0.16, teeth: false, crest: { type: 'back', h: 0.04, color: '#d0402a' }, colors: { body: '#e8dcc0', belly: '#f4ecd8', back: '#a89a7a', membrane: '#b8502e', neck: '#e8dcc0', head: '#e05a3a', beak: '#3a3028' } } },
+    Alanqa: { build: buildPterosaur, spec: { name: 'Alanqa', walking: true,  bodyLen: 0.13, bodyR: 0.05, neckLen: 0.32, neckUp: 1.05, headLen: 0.24, legLen: 0.17, headH: 0.036, headW: 0.026, wingSpan: 0.7, wingChord: 0.12, tailLen: 0.02, teeth: false, crest: { type: 'back', h: 0.04, color: '#d0402a' }, colors: { body: '#e8dcc0', belly: '#f4ecd8', back: '#a89a7a', membrane: '#b8502e', neck: '#e8dcc0', head: '#e05a3a', beak: '#3a3028' } } },
     'Injured Pterosaur': { build: buildPterosaur, spec: { name: 'Injured Pterosaur', grounded: true, bodyLen: 0.12, bodyR: 0.04, neckLen: 0.1, neckUp: 0.5, headLen: 0.18, headH: 0.035, wingSpan: 0.8, wingChord: 0.14, tailLen: 0.05, crest: { type: 'back', h: 0.045, color: '#c87a3a' }, colors: { body: '#8a5a3a', belly: '#c89a70', back: '#5a3a24', membrane: '#6a3a24', head: '#8a5a3a', beak: '#c8b090' } } },
     // --- dinosaurs ---
     // zebra-striped little hunter with a red face
-    Noasaurid: { build: buildBiped, spec: { name: 'Noasaurid', hipH: 0.34, bodyLen: 0.22, bodyR: 0.05, bodyH: 0.06, neckLen: 0.15, neckR: 0.026, neckS: 0.9, neckUp: 0.8, headLen: 0.12, headH: 0.045, headW: 0.032, skull: [1, 0.72, 0.45], tailLen: 0.6, tailR: 0.035, thighR: 0.038, armLen: 0.06, armR: 0.01, fluff: 0.25, stripes: true, mane: { h: 0.03, color: '#1e1e22' }, colors: { body: '#f0ece0', belly: '#ffffff', back: '#2a2a2e', stripe: '#1e1e22', head: '#d84a34', headTop: '#2a2a2e', eye: '#f0d040' } } },
+    Noasaurid: { build: buildBiped, spec: { name: 'Noasaurid', teethSize: 0.6,  hipH: 0.34, bodyLen: 0.22, bodyR: 0.05, bodyH: 0.06, neckLen: 0.15, neckR: 0.026, neckS: 0.9, neckUp: 0.8, headLen: 0.12, headH: 0.045, headW: 0.032, skull: [1, 0.72, 0.45], tailLen: 0.6, tailR: 0.035, thighR: 0.038, armLen: 0.06, armR: 0.01, fluff: 0.25, stripes: true, mane: { h: 0.03, color: '#1e1e22' }, colors: { body: '#f0ece0', belly: '#ffffff', back: '#2a2a2e', stripe: '#1e1e22', head: '#d84a34', headTop: '#2a2a2e', eye: '#f0d040' } } },
     // iguanodonts in bold zebra stripes, like the herds of the comics
-    Iguanodont: { build: buildBiped, spec: { name: 'Iguanodont', hipH: 0.32, bodyLen: 0.32, bodyR: 0.1, bodyH: 0.115, chestDepth: 1.1, neckLen: 0.13, neckR: 0.05, neckUp: 0.45, headTilt: -0.15, headLen: 0.16, headH: 0.07, headW: 0.05, skull: [1, 0.85, 0.7], snout: 0.55, tailLen: 0.48, tailR: 0.075, thighR: 0.068, armLen: 0.2, armR: 0.024, teeth: false, beak: '#2a2a2a', stripes: true, colors: { body: '#ece6d4', belly: '#f8f4e8', back: '#4a4a4e', stripe: '#2a2a2e', head: '#7a7a80', headTop: '#4a4a4e', claw: '#2a2420', eye: '#e0a020' } } },
+    Iguanodont: { build: buildBiped, spec: { name: 'Iguanodont', handsDown: true, thumbSpike: '#ece4cc', chestDrop: -0.03,  hipH: 0.32, bodyLen: 0.32, bodyR: 0.1, bodyH: 0.115, chestDepth: 1.1, neckLen: 0.13, neckR: 0.05, neckUp: 0.45, headTilt: -0.15, headLen: 0.16, headH: 0.07, headW: 0.05, skull: [1, 0.85, 0.7], snout: 0.55, tailLen: 0.48, tailR: 0.075, thighR: 0.068, armLen: 0.25, armR: 0.026, teeth: false, beak: '#2a2a2a', stripes: true, colors: { body: '#ece6d4', belly: '#f8f4e8', back: '#4a4a4e', stripe: '#2a2a2e', head: '#7a7a80', headTop: '#4a4a4e', claw: '#2a2420', eye: '#e0a020' } } },
     'Young Spinosaurus': spino(2, { body: '#3a2a22', belly: '#6a5040', back: '#24180e', head: '#3a2a22', headTop: '#24180e', neck: '#3a2a22', mouth: '#e06a2a', streak: '#e8a030', arm: '#3a2a22' }, 'Young Spinosaurus'),
     Spinosaurus: spino(4, { body: '#2e3a3a', belly: '#5a6a66', back: '#1c2626', head: '#2e3a3a', headTop: '#1c2626', neck: '#2e3a3a', mouth: '#c84a2a', streak: '#e8b030', arm: '#2e3a3a', eye: '#e86a2a' }, 'Spinosaurus'),
     // short-faced abelisaur in tiger stripes: ochre with black bars and a red, horned face
-    Rugops: { build: buildBiped, spec: { name: 'Rugops', hipH: 0.3, bodyLen: 0.3, bodyR: 0.08, bodyH: 0.095, neckLen: 0.1, neckR: 0.05, neckUp: 0.6, headLen: 0.15, headH: 0.1, headW: 0.06, skull: [1.05, 1, 0.75], snout: 0.7, tailLen: 0.5, tailR: 0.065, thighR: 0.062, armLen: 0.03, armR: 0.012, stripes: true, horn: { h: 0.025, r: 0.012, color: '#c02a1e' }, lacrimal: { h: 0.02, r: 0.012, color: '#c02a1e' }, colors: { body: '#e0a83a', belly: '#f4e0a8', back: '#9a6a1e', stripe: '#1e1a16', head: '#c8402a', headTop: '#8a2a1a', eye: '#f0e060' } } },
+    Rugops: { build: buildBiped, spec: { name: 'Rugops', teethSize: 0.5, nasalBumps: '#8a2a1a', featureScales: '#b07a26',  hipH: 0.3, bodyLen: 0.3, bodyR: 0.08, bodyH: 0.095, neckLen: 0.1, neckR: 0.05, neckUp: 0.6, headLen: 0.15, headH: 0.1, headW: 0.06, skull: [1.05, 1, 0.75], snout: 0.7, tailLen: 0.5, tailR: 0.065, thighR: 0.062, armLen: 0.022, armR: 0.01, stripes: true, horn: { h: 0.025, r: 0.012, color: '#c02a1e' }, lacrimal: { h: 0.02, r: 0.012, color: '#c02a1e' }, colors: { body: '#e0a83a', belly: '#f4e0a8', back: '#9a6a1e', stripe: '#1e1a16', head: '#c8402a', headTop: '#8a2a1a', eye: '#f0e060' } } },
     // lanky long-legged hunter: pale slate with dark bands and an orange throat
-    Deltadromeus: { build: buildBiped, spec: { name: 'Deltadromeus', hipH: 0.42, bodyLen: 0.26, bodyR: 0.065, bodyH: 0.075, neckLen: 0.15, neckR: 0.04, neckS: 0.6, neckUp: 0.75, headLen: 0.17, headH: 0.065, headW: 0.042, skull: [1, 0.8, 0.5], tailLen: 0.56, tailR: 0.05, thighR: 0.05, armLen: 0.12, armR: 0.015, crouch: 0.05, stripes: true, colors: { body: '#9aaab8', belly: '#f0ece2', back: '#4a5a6a', stripe: '#2e3a48', throat: '#e8822a', head: '#7a8a9a', eye: '#f0c030' } } },
+    Deltadromeus: { build: buildBiped, spec: { name: 'Deltadromeus', teethSize: 0.5,  hipH: 0.42, bodyLen: 0.26, bodyR: 0.065, bodyH: 0.075, neckLen: 0.15, neckR: 0.04, neckS: 0.6, neckUp: 0.75, headLen: 0.17, headH: 0.065, headW: 0.042, skull: [1, 0.8, 0.5], tailLen: 0.56, tailR: 0.05, thighR: 0.05, armLen: 0.12, armR: 0.015, crouch: 0.05, stripes: true, colors: { body: '#9aaab8', belly: '#f0ece2', back: '#4a5a6a', stripe: '#2e3a48', throat: '#e8822a', head: '#7a8a9a', eye: '#f0c030' } } },
     // carcharodontosaurid with a domed brow: rust red with a cream belly
-    Sauroniops: { build: buildBiped, spec: { name: 'Sauroniops', hipH: 0.31, bodyR: 0.088, bodyH: 0.1, neckLen: 0.14, neckR: 0.055, neckS: 0.7, headLen: 0.21, headH: 0.095, headW: 0.058, skull: [1.1, 0.92, 0.58], tailLen: 0.5, tailR: 0.072, thighR: 0.07, armLen: 0.1, armR: 0.02, crest: { h: 0.03, color: '#e8d8b0' }, spots: '#5a1e14', colors: { body: '#b04a2e', belly: '#f0dcb8', back: '#7a2e1c', head: '#a8422a', headTop: '#e8d8b0', eye: '#f0d040' } } },
+    Sauroniops: { build: buildBiped, spec: { name: 'Sauroniops', teethSize: 0.5, nasalBumps: '#7a2e1c', dome: '#e8d8b0',  hipH: 0.31, bodyR: 0.088, bodyH: 0.1, neckLen: 0.14, neckR: 0.055, neckS: 0.7, headLen: 0.21, headH: 0.095, headW: 0.058, skull: [1.1, 0.92, 0.58], tailLen: 0.5, tailR: 0.072, thighR: 0.07, armLen: 0.1, armR: 0.02, spots: '#5a1e14', colors: { body: '#b04a2e', belly: '#f0dcb8', back: '#7a2e1c', head: '#a8422a', headTop: '#e8d8b0', eye: '#f0d040' } } },
     // huge delta predator: sandy tan with brown rosettes and a blue-grey face
-    Bahariasaurus: { build: buildBiped, spec: { name: 'Bahariasaurus', hipH: 0.34, bodyLen: 0.29, bodyR: 0.088, bodyH: 0.1, neckLen: 0.15, neckR: 0.055, neckS: 0.7, headLen: 0.2, headH: 0.085, headW: 0.055, skull: [1, 0.85, 0.55], tailLen: 0.52, tailR: 0.07, thighR: 0.072, armLen: 0.11, armR: 0.02, spots: '#7a4a24', colors: { body: '#d8b47a', belly: '#f4ead2', back: '#a87a46', head: '#6a7a8e', headTop: '#4a5a6a', eye: '#f0c030' } } },
+    Bahariasaurus: { build: buildBiped, spec: { name: 'Bahariasaurus', teethSize: 0.5, nasalBumps: '#a87a46',  hipH: 0.34, bodyLen: 0.29, bodyR: 0.088, bodyH: 0.1, neckLen: 0.15, neckR: 0.055, neckS: 0.7, headLen: 0.2, headH: 0.085, headW: 0.055, skull: [1, 0.85, 0.55], tailLen: 0.52, tailR: 0.07, thighR: 0.072, armLen: 0.11, armR: 0.02, spots: '#7a4a24', colors: { body: '#d8b47a', belly: '#f4ead2', back: '#a87a46', head: '#6a7a8e', headTop: '#4a5a6a', eye: '#f0c030' } } },
     // the shark-toothed lizard: green with dark blotches and a lavender mouth, as on the comic cover
-    Carcharodontosaurus: { build: buildBiped, spec: { name: 'Carcharodontosaurus', hipH: 0.32, bodyR: 0.1, bodyH: 0.115, chestDepth: 1.12, bodyWidth: 1.08, neckLen: 0.14, neckR: 0.062, neckS: 0.6, headLen: 0.24, headH: 0.11, headW: 0.064, skull: [1.05, 0.95, 0.62], jowl: 0.5, tailLen: 0.5, tailR: 0.08, tailBase: 1.15, thighR: 0.08, armLen: 0.09, armR: 0.02, clawScale: 1.3, spots: '#1e4a26', lacrimal: { h: 0.018, r: 0.014, color: '#3a6a2e' }, colors: { body: '#5a9a3e', belly: '#d8e0a0', back: '#2e5e2a', head: '#5a9a3e', headTop: '#2e5e2a', mouth: '#a07ac8', jaw: '#a07ac8', eye: '#f0e040' } } },
+    Carcharodontosaurus: { build: buildBiped, spec: { name: 'Carcharodontosaurus', teethSize: 0.5, nasalBumps: '#2e5e2a',  hipH: 0.32, bodyR: 0.1, bodyH: 0.115, chestDepth: 1.12, bodyWidth: 1.08, neckLen: 0.14, neckR: 0.062, neckS: 0.6, headLen: 0.24, headH: 0.11, headW: 0.064, skull: [1.05, 0.95, 0.62], jowl: 0.5, tailLen: 0.5, tailR: 0.08, tailBase: 1.15, thighR: 0.08, armLen: 0.09, armR: 0.02, clawScale: 1.3, spots: '#1e4a26', lacrimal: { h: 0.018, r: 0.014, color: '#3a6a2e' }, colors: { body: '#5a9a3e', belly: '#d8e0a0', back: '#2e5e2a', head: '#5a9a3e', headTop: '#2e5e2a', mouth: '#a07ac8', jaw: '#a07ac8', eye: '#f0e040' } } },
     // sail-backed sauropod of the trails: terracotta with a cream underside
-    Rebbachisaurus: { build: buildQuadruped, spec: { name: 'Rebbachisaurus', hipH: 0.3, shoulderH: 0.27, bodyLen: 0.3, bodyR: 0.11, bodyH: 0.13, arch: 0.07, neckSegs: 3, neckLen: 0.34, neckUp: 0.15, neckBend: -0.12, neckR0: 0.06, neckR1: 0.028, headShape: 'diplo', headLen: 0.07, headH: 0.03, headW: 0.032, headPitch: -0.45, tailSegs: 4, tailLen: 0.7, tailR: 0.07, tailDroop: 0.1, tailCurl: 0.06, legR: 0.045, footR: 0.05, stripes: true, colors: { body: '#b8643a', belly: '#f0d8b0', back: '#7a3a20', stripe: '#9a4e2c', feet: '#5a3a28', eye: '#e8c030' } } },
+    Rebbachisaurus: { build: buildQuadruped, spec: { name: 'Rebbachisaurus', dorsalRidge: { h: 0.085, color: '#7a3a20' }, gauge: 0.78,  hipH: 0.3, shoulderH: 0.27, bodyLen: 0.3, bodyR: 0.11, bodyH: 0.13, arch: 0.07, neckSegs: 3, neckLen: 0.32, neckUp: 0.02, neckBend: -0.1, neckR0: 0.06, neckR1: 0.028, headShape: 'rebbach', headLen: 0.07, headH: 0.03, headW: 0.036, headPitch: -0.55, tailSegs: 4, tailLen: 0.7, tailR: 0.07, tailDroop: 0.1, tailCurl: 0.06, legR: 0.045, footR: 0.05, stripes: true, colors: { body: '#b8643a', belly: '#f0d8b0', back: '#7a3a20', stripe: '#9a4e2c', feet: '#5a3a28', eye: '#e8c030' } } },
     // titanosaurs: slate blue with pale bands, and the giant in warm brown
-    Aegyptosaurus: { build: buildQuadruped, spec: { name: 'Aegyptosaurus', hipH: 0.32, shoulderH: 0.34, bodyLen: 0.3, bodyR: 0.13, bodyH: 0.14, neckSegs: 4, neckLen: 0.5, neckUp: 0.6, neckBend: -0.08, neckR0: 0.07, neckR1: 0.03, headShape: 'camara', headLen: 0.08, headH: 0.04, headW: 0.036, headPitch: -0.2, tailSegs: 3, tailLen: 0.45, tailR: 0.075, tailDroop: 0.2, tailCurl: 0.08, legR: 0.055, footR: 0.06, stripes: true, colors: { body: '#6a7e96', belly: '#e0e4e0', back: '#46566e', stripe: '#a8b8c8', feet: '#3a4454', eye: '#e8c030' } } },
-    Paralititan: { build: buildQuadruped, spec: { name: 'Paralititan', hipH: 0.32, shoulderH: 0.4, bodyLen: 0.3, bodyR: 0.135, bodyH: 0.145, neckSegs: 4, neckLen: 0.58, neckUp: 0.8, neckBend: -0.06, neckR0: 0.075, neckR1: 0.034, headShape: 'brachio', headLen: 0.085, headH: 0.04, headW: 0.034, headPitch: -0.15, tailSegs: 3, tailLen: 0.42, tailR: 0.075, tailDroop: 0.25, tailCurl: 0.1, legR: 0.06, footR: 0.065, spots: '#5a3a24', colors: { body: '#8e6446', belly: '#e0c8a8', back: '#5e3e2a', feet: '#3e2a1e', eye: '#e8c030' } } }
+    Aegyptosaurus: { build: buildQuadruped, spec: { name: 'Aegyptosaurus', gauge: 0.95, osteoderms: '#46566e', columnHands: true,  hipH: 0.32, shoulderH: 0.34, bodyLen: 0.3, bodyR: 0.13, bodyH: 0.14, neckSegs: 4, neckLen: 0.5, neckUp: 0.72, neckBend: -0.05, neckR0: 0.07, neckR1: 0.03, headShape: 'titan', headLen: 0.08, headH: 0.04, headW: 0.036, headPitch: -0.2, tailSegs: 3, tailLen: 0.45, tailR: 0.075, tailDroop: 0.2, tailCurl: 0.08, legR: 0.055, footR: 0.06, stripes: true, colors: { body: '#6a7e96', belly: '#e0e4e0', back: '#46566e', stripe: '#a8b8c8', feet: '#3a4454', eye: '#e8c030' } } },
+    Paralititan: { build: buildQuadruped, spec: { name: 'Paralititan', gauge: 0.95, osteoderms: '#5e3e2a', columnHands: true,  hipH: 0.32, shoulderH: 0.4, bodyLen: 0.3, bodyR: 0.135, bodyH: 0.145, neckSegs: 4, neckLen: 0.58, neckUp: 0.92, neckBend: -0.05, neckR0: 0.075, neckR1: 0.034, headShape: 'titan', headLen: 0.085, headH: 0.04, headW: 0.036, headPitch: -0.15, tailSegs: 3, tailLen: 0.42, tailR: 0.075, tailDroop: 0.25, tailCurl: 0.1, legR: 0.06, footR: 0.065, spots: '#5a3a24', colors: { body: '#8e6446', belly: '#e0c8a8', back: '#5e3e2a', feet: '#3e2a1e', eye: '#e8c030' } } }
 };
 
 // Fallback for anything without an explicit entry
@@ -1273,9 +1438,11 @@ export const buildSpino = (level, ctx, colors = SPINO_COLORS, extra = {}) => {
     return buildBiped({
         name: extra.name || 'Spinosaurus',
         hipH: lerp(0.3, 0.235), bodyLen: lerp(0.22, 0.34), bodyR: lerp(0.068, 0.07), bodyH: lerp(0.08, 0.092), chestDrop: lerp(0, -0.012),
-        neckLen: lerp(0.1, 0.17), neckR: lerp(0.04, 0.04), neckUp: lerp(0.8, 0.55), neckS: lerp(0.3, 0.7),
-        headLen: lerp(0.2, 0.3), headH: lerp(0.075, 0.056), headW: lerp(0.055, 0.036), skull: [lerp(1, 0.95), lerp(0.75, 0.55), 0.5], skullWidth: [0.95, lerp(0.75, 0.6)],
-        snout: lerp(0.6, 0.55), teeth: true, beak: C.mouth, midSnout: C.mouth, rosette: C.mouth, eyeScale: lerp(1.7, 1.0),
+        // a long, fairly straight neck held forward and a long, low crocodile-like skull
+        neckLen: lerp(0.1, 0.19), neckR: lerp(0.04, 0.038), neckUp: lerp(0.75, 0.42), neckS: lerp(0.3, 0.25),
+        headLen: lerp(0.21, 0.33), headH: lerp(0.075, 0.052), headW: lerp(0.055, 0.034), skull: [lerp(1, 0.95), lerp(0.75, 0.55), 0.5], skullWidth: [0.95, lerp(0.75, 0.6)],
+        snout: lerp(0.6, 0.55), teeth: true, spinoSkull: true, teethSize: 0.85, beak: C.mouth, midSnout: C.mouth, rosette: C.mouth, eyeScale: lerp(1.7, 1.0),
+        webbed: C.web ?? shade(C.back, 1.3), flatClaws: true,
         crest: { h: lerp(0.004, 0.014), color: C.crest ?? C.back },
         tailLen: lerp(0.42, 0.56), tailR: lerp(0.055, 0.058), tailDepth: lerp(1.4, 2.1), tailLift: 0.01,
         thighR: lerp(0.055, 0.062), crouch: lerp(0, 0.08), armLen: lerp(0.08, 0.16), armR: lerp(0.014, 0.022), clawScale: lerp(1.4, 2.2),
