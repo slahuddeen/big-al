@@ -7,7 +7,21 @@ export const sharedUniforms = {
     // wind: x, y = direction on the ground (world xz), z = strength 0..1
     uWind: { value: new THREE.Vector3(1, 0, 0.3) },
     uDry: { value: 0 }, // 0 lush .. 1 parched (season)
-    uRain: { value: 0 } // wet ground darkens in the rain
+    uRain: { value: 0 }, // wet ground darkens in the rain
+    // wind phases (gusts, sway), integrated frame by frame so a change in wind
+    // strength changes the speed of the sway, not its position
+    uWindPhase: { value: new THREE.Vector2(0, 0) }
+};
+
+// Advance the sway by one frame at the current wind strength. Multiplying the
+// clock by a strength-dependent speed instead would make every change in
+// strength jump the phase by an amount that grows with the time played.
+export const advanceWind = (dt) => {
+    const s = sharedUniforms.uWind.value.z;
+    const p = sharedUniforms.uWindPhase.value;
+    // wrap after 100 turns of 2 pi: the shader also uses 0.3x and 0.83x these phases
+    p.x = (p.x + dt * (0.8 + s * 1.6)) % 628.3185307;
+    p.y = (p.y + dt * (1.5 + s * 3.0)) % 628.3185307;
 };
 
 // Foliage vertices carry a `sway` attribute (0 = rooted, 1 = free tip). The
@@ -18,9 +32,10 @@ const addSway = (material, key) => {
     material.onBeforeCompile = (shader) => {
         shader.uniforms.uTime = sharedUniforms.uTime;
         shader.uniforms.uWind = sharedUniforms.uWind;
+        shader.uniforms.uWindPhase = sharedUniforms.uWindPhase;
         shader.uniforms.uDry = sharedUniforms.uDry;
         shader.uniforms.uRain = sharedUniforms.uRain;
-        shader.vertexShader = 'attribute float sway;\nuniform float uTime;\nuniform vec3 uWind;\n' +
+        shader.vertexShader = 'attribute float sway;\nuniform float uTime;\nuniform vec3 uWind;\nuniform vec2 uWindPhase;\n' +
             shader.vertexShader.replace(
                 '#include <begin_vertex>',
                 `#include <begin_vertex>
@@ -28,10 +43,10 @@ const addSway = (material, key) => {
                 float strength = uWind.z;
                 // gusts travel downwind across the land
                 float along = dot(swWorld.xz, uWind.xy);
-                float gust = 0.55 + 0.45 * sin(along * 0.45 - uTime * (0.8 + strength * 1.6)) * (0.6 + 0.4 * sin(uTime * 0.31 + swWorld.x * 0.13));
-                float swPhase = uTime * (1.5 + strength * 3.0) + swWorld.x * 0.8 + swWorld.z * 0.6;
-                float lean = sway * (0.012 + 0.085 * strength * gust);
-                float flutter = sway * (0.018 + 0.03 * strength);
+                float gust = 0.55 + 0.45 * sin(along * 0.45 - uWindPhase.x) * (0.6 + 0.4 * sin(uWindPhase.x * 0.3 + swWorld.x * 0.13));
+                float swPhase = uWindPhase.y + swWorld.x * 0.8 + swWorld.z * 0.6;
+                float lean = sway * (0.012 + 0.06 * strength * gust);
+                float flutter = sway * (0.014 + 0.022 * strength);
                 transformed.x += uWind.x * lean + sin(swPhase) * flutter;
                 transformed.z += uWind.y * lean + cos(swPhase * 0.83) * flutter * 0.7;`
             );
