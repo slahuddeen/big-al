@@ -44,7 +44,10 @@ export const belly = (s, centreY) => smooth(0.15, -0.55, s.n[1]) * 0.6 + smooth(
 //  scaly: parts with scales instead of filaments (with scale size `scale`)
 export function scheme(o) {
     const base = C(o.base), back = C(o.back || o.base), belly = C(o.belly || o.base);
-    const skin = C(o.skin || '#4a423a'), sole = C(o.sole || o.skin || '#5a5048');
+    // bare skin defaults to a darker, greyer version of the plumage
+    const skin = o.skin ? C(o.skin) : mix(C(o.back || o.base), C('#4a4640'), 0.55);
+    const sole = C(o.sole || '#6a6058');
+    const feet = o.feet ? C(o.feet) : skin;
     const beak = o.beak ? C(o.beak) : null;
     const furBy = {
         head: 0.35, neck: 1.1, snout: 0, jaw: 0, brow: 0, crest: 0, thigh: 1, shin: 1, foot: 0, toe: 0, arm: 0.85, hand: 0.15, tail: 0.95, body: 1, wingbone: 0,
@@ -66,14 +69,14 @@ export function scheme(o) {
         if (s.tag === 'shin') f *= smooth(o.shinBare ?? 0.75, 0.2, s.u);
         if (s.tag === 'tail' && o.tailFurEnd !== undefined) f *= mix([1, 1, 1], [o.tailFurEnd, 0, 0], s.u)[0];
         if (scaly.has(s.tag)) {
-            col = s.tag === 'foot' || s.tag === 'toe' ? mix(skin, sole, smooth(0, -0.8, up)) : skin;
+            col = s.tag === 'foot' || s.tag === 'toe' ? mix(feet, sole, smooth(0, -0.8, up)) : skin;
             sc = o.scale ?? L * 0.003;
             rough = 0.65;
             if ((s.tag === 'snout' || s.tag === 'head') && furBy.snoutBack) f = fur * furBy.snoutBack * smooth(0.25, 0.0, s.u);
         }
         if (s.tag === 'shin') {
             const bare = smooth(0.55, 0.95, s.u) * (o.shinScales ?? 1);
-            col = mix(col, skin, bare);
+            col = mix(col, feet, bare);
             sc = bare > 0.3 ? o.scale ?? L * 0.003 : 0;
         }
         if (beak && (s.tag === 'snout' || s.tag === 'jaw')) {
@@ -81,6 +84,12 @@ export function scheme(o) {
             col = mix(col, beak, b);
             rough = mix([rough, 0, 0], [0.35, 0, 0], b)[0];
             if (b > 0.5) sc = 0;
+        }
+        if (s.tag === 'beak') {
+            col = beak || skin;
+            f = 0;
+            sc = 0;
+            rough = 0.35;
         }
         if (o.pattern) col = o.pattern(s, col, { m, up, x, y, z });
         const tip = o.tip ? mix(col, C(o.tip), o.tipAmt ?? 0.3) : mix(col, [1, 1, 1], 0.06);

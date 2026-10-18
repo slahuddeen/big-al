@@ -176,6 +176,12 @@ export function biped(S, p) {
     });
     rig.head = { occ, back, dir: hd, up: hu, at };
     rig.snoutTip = at(0.98, -0.1);
+    // a hooked horny beak over the tip of the upper jaw, and a beak on the lower jaw
+    if (q.beakHook > 0) {
+        const hk = q.beakHook;
+        S.chain([at(0.8, 0.1 - tipDrop * 0.6), at(0.95, 0.0 - tipDrop * 0.8), at(1.0 + hk * 0.03, -0.18 - hk * 0.18)], [q.headH * 0.15, q.headH * 0.12, q.headH * 0.04], { tag: 'beak', squash: [sw * q.snoutSquash * 0.95, 1], k: q.headH * 0.06, flow: mul(hd, -1) });
+        S.cone(at(0.78, -0.3 - tipDrop * 0.8), at(0.95, -0.27 - tipDrop - hk * 0.05), q.headH * 0.12, q.headH * 0.05, { tag: 'beak', squash: [sw * q.snoutSquash * 0.9, 0.9], k: q.headH * 0.05, flow: mul(hd, -1) });
+    }
 
     // arms. 'reach' holds them forward and down like a predator; 'fold' tucks them like a
     // bird's wing: upper arm back along the body, forearm forward, hand back again

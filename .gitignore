@@ -40,3 +40,4 @@ coverage/
 build/
 out/
 /.vs
+dist-lab

@@ -84,3 +84,27 @@ export function tailFan(tail, { from = 0.5, length, spread = 0.5, col, col2, ban
     [0.06, -0.06].forEach((z) => out.push({ at: p, dir: norm(add(t, [0, 0, z])), normal: [0, 1, 0], length: length * 1.05, width: length * 0.17, col, col2: tipCol || col2, bands: tipCol ? -1 : bands, style, curve: 0.03, asym: 1 }));
     return out;
 }
+
+// A row of quills or bristles standing along the top of a chain of points (neck, back,
+// tail): the long unbranched filaments of Beipiaosaurus, the tail bristles of Psittacosaurus
+export function ridgeQuills(points, radii, { from = 0, to = 1, count, length, lengthFn, width = 0.08, rise = 0.6, col, col2, tipCol, style = STYLE.ribbon, spread = 0.25, rows = 1 }) {
+    const n = points.length - 1;
+    const out = [];
+    for (let k = 0; k < count; k++) {
+        const u = lerp(from, to, count === 1 ? 0 : k / (count - 1));
+        const f = u * n, i = Math.min(n - 1, Math.floor(f));
+        const p = lerp3(points[i], points[i + 1], f - i);
+        const r = lerp(radii[i], radii[i + 1], f - i);
+        const t = norm(sub(points[i + 1], points[i]));
+        for (let row = 0; row < rows; row++) {
+            const side = rows === 1 ? 0 : (row / (rows - 1) - 0.5) * 2;
+            const base = add(p, [0, r * (0.85 - Math.abs(side) * 0.25), side * r * 0.5]);
+            // lean back along the chain, rising off the skin; jitter so they don't look combed
+            const j = Math.sin(k * 12.9898 + row * 4.1) * 0.5;
+            const dir = norm(add(mul(t, 1 - rise), [0, rise + j * 0.1, side * spread + j * 0.12]));
+            const len = (lengthFn ? lengthFn(u) : length) * (0.85 + 0.3 * Math.abs(Math.sin(k * 7.31 + row)));
+            out.push({ at: base, dir, normal: norm([side * 0.6 + j * 0.3, 0.2, 1]), length: len, width: len * width, col, col2: tipCol || col2 || col, bands: tipCol ? -1 : 0, style, curve: 0.18 + Math.abs(j) * 0.2, asym: 1 });
+        }
+    }
+    return out;
+}

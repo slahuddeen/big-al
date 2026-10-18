@@ -59,7 +59,7 @@ vec3 hills(vec2 uv, vec3 base) {
         float fi = float(i);
         float x = uv.x * (1.4 + fi * 0.6) + fi * 7.3;
         float ridge = 0.6 - fi * 0.075 + 0.2 * (fbm(vec2(x * 1.1, fi * 3.7)) - 0.5) + 0.05 * (vnoise(vec2(x * 9.0, fi)) - 0.5);
-        // tall, steep-sided peaks like the karst and volcanic crags of a shan shui scroll
+        // tall, steep-sided volcanic crags in the manner of a shan shui scroll
         float px2 = x * 1.3 + fi * 0.37;
         float pk = pow(max(0.0, 1.0 - abs(fract(px2) - 0.5) * (2.6 + 2.0 * h21(vec2(floor(px2), fi)))), 1.6);
         ridge += (0.1 + 0.16 * h21(vec2(floor(px2), fi + 9.0))) * pk * step(0.35, h21(vec2(floor(px2), fi * 5.0)));

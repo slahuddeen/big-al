@@ -21,6 +21,7 @@ const ink = new InkWash(renderer);
 
 const scene = new THREE.Scene();
 const PLAIN_BG = new THREE.Color('#d9d3c4');
+const PAINT_BG = new THREE.Color('#ffffff');
 scene.background = PLAIN_BG.clone();
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -64,11 +65,15 @@ function frame(model, def) {
     const yaw = Number(params.get('yaw') ?? 0.55);
     const pitch = Number(params.get('pitch') ?? 0.16);
     const narrow = view.clientWidth < 600;
-    const dist = r * Number(params.get('zoom') ?? (narrow ? 2.6 : 2.1));
+    // fit the animal's length and height into the view
+    const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const span = Math.max(size.x, size.z) * 0.8 + Math.min(size.x, size.z) * 0.2;
+    const fit = Math.max(size.y * 0.5 / t, span * 0.5 / (t * camera.aspect));
+    const dist = fit * Number(params.get('zoom') ?? (narrow ? 1.35 : 1.5)) + r * 0.3;
     const f = params.get('focus');
     const focus = f === 'head' && def?.rig?.head ? new THREE.Vector3(...def.rig.head.at(0.4, 0))
         : f === 'body' && def?.rig?.chest ? new THREE.Vector3(...def.rig.chest).lerp(new THREE.Vector3(...def.rig.hipC), 0.6)
-            : c.clone().add(new THREE.Vector3(0, narrow ? -size.y * 0.15 : -size.y * 0.05, 0));
+            : c.clone().add(new THREE.Vector3(0, narrow ? -size.y * 0.45 : -size.y * 0.05, 0));
     const fd = f === 'head' ? dist * 0.25 : f === 'body' ? dist * 0.4 : dist;
     camera.position.set(focus.x + Math.sin(yaw) * Math.cos(pitch) * fd, focus.y + Math.sin(pitch) * fd, focus.z + Math.cos(yaw) * Math.cos(pitch) * fd);
     controls.target.copy(focus);
@@ -165,15 +170,27 @@ function renderList() {
             b.dataset.sp = n;
             b.innerHTML = `<span class="nm"></span><span class="sz"></span>`;
             b.querySelector('.nm').textContent = n;
-            b.querySelector('.sz').textContent = SPECIES[n].length;
+            // the index keeps sizes short; the label card has the full wording
+            b.querySelector('.sz').textContent = SPECIES[n].length.replace(/\s*\(.*\)/, '').replace(' with streamers', '').replace('about ', '~');
             b.addEventListener('click', () => show(n, null));
             list.appendChild(b);
         });
     });
 }
 
+// the plain view sits on the page colour of the current theme
+const themeBg = () => {
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();
+    if (v) PLAIN_BG.set(v);
+    if (state.mode === 'plain') scene.background.copy(PLAIN_BG);
+    dirty = true;
+};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeBg);
+new MutationObserver(themeBg).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
 function setMode(mode) {
     state.mode = mode;
+    themeBg();
     $('mode-painted').setAttribute('aria-pressed', String(mode === 'painted'));
     $('mode-plain').setAttribute('aria-pressed', String(mode === 'plain'));
     dirty = true;
@@ -208,12 +225,18 @@ resize();
 
 function draw() {
     controls.update();
-    if (state.mode === 'painted') ink.render(scene, camera);
-    else renderer.render(scene, camera);
+    if (state.mode === 'painted') {
+        scene.background.copy(PAINT_BG);
+        ink.render(scene, camera);
+    } else {
+        scene.background.copy(PLAIN_BG);
+        renderer.render(scene, camera);
+    }
 }
 
 renderList();
 setMode(state.mode);
+if (params.has('nocard')) document.querySelectorAll('.card, .controls, .hint').forEach((el) => { el.hidden = true; });
 $('tog-fur').setAttribute('aria-pressed', String(state.fur));
 
 if (params.get('grid')) {

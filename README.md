@@ -1,3 +1,16 @@
+# Jehol (work in progress)
+
+This branch (`claude/yuty-jehol`) starts the third game: a young Yutyrannus in the Jehol lakes of Liaoning, north-east China, about 125 million years ago. So far it holds the model lab, for judging the animals before the game is built.
+
+* `npm run dev`, then open `/models.html`. Pick an animal, switch between the painted (ink-wash) and plain views, and orbit with the mouse or touch.
+* Bodies are sculpted from blended shapes (a signed distance field) and meshed with surface nets (`src/jehol/sculpt.js`).
+* Body plans are in `src/jehol/anatomy.js` (bipeds) and `src/jehol/bodyplans.js` (pterosaurs, four-legged dinosaurs, mammals, sprawling reptiles, turtles, fish). Each animal is in `src/jehol/species/`.
+* Fur and filament plumage are shell-rendered, and bare skin gets procedural scales (`skin.js`). Vaned feathers are instanced cards (`feathers.js`, `plumage.js`), and wings and fins are membranes (`membrane.js`).
+* The painted view is a post-process (`inkwash.js`).
+* `npx vite build --config vite.lab.config.js && node scripts/inline-lab.mjs out.html` makes a single self-contained page of the lab.
+
+The Spino game (below) is unchanged on this branch.
+
 Play it here: https://slahuddeen.github.io/big-al/spino/
 
 # Spino

@@ -17,8 +17,8 @@ export const STAGES = [
 // body proportions as fractions of total length: hatchling, adult
 const P0 = {
     femur: 0.11, tibia: 0.125, meta: 0.078, hipW: 0.024, thighR: 0.042, kneeR: 0.017, shinR: 0.016, ankleR: 0.0095, metaR: 0.0095,
-    toeLen: 0.062, toeR: 0.0075, toeClaw: 0.012, torso: 0.2, hipR: 0.043, bellyR: 0.055, chestR: 0.048, bellyDrop: 0.004, chestRise: 0.016,
-    neck: 0.1, neckR: 0.03, headNeckR: 0.027, head: 0.16, headH: 0.08, headW: 0.068, eyeR: 0.0165, tail: 0.4, tailR: 0.04,
+    toeLen: 0.062, toeR: 0.0085, toeClaw: 0.01, torso: 0.19, hipR: 0.046, bellyR: 0.062, chestR: 0.054, bellyDrop: 0.004, chestRise: 0.016,
+    neck: 0.085, neckR: 0.032, headNeckR: 0.03, head: 0.175, headH: 0.098, headW: 0.085, eyeR: 0.021, tail: 0.38, tailR: 0.04,
     humerus: 0.05, forearm: 0.038, hand: 0.042, armR: 0.0095, fingerR: 0.0045, handClaw: 0.013
 };
 const P1 = {
@@ -37,7 +37,7 @@ export function build(stageId = 'adult') {
     Object.assign(q, {
         legAng: [lerp(0.5, 0.4, g), lerp(-0.72, -0.6, g), lerp(0.36, 0.3, g)],
         neckRise: lerp(0.95, 0.72, g), neckS: lerp(0.3, 0.6, g),
-        snoutTip: lerp(0.6, 0.55, g), snoutSquash: lerp(0.8, 0.7, g), headTilt: lerp(-0.25, -0.12, g),
+        snoutTip: lerp(0.85, 0.55, g), snoutSquash: lerp(0.8, 0.7, g), headTilt: lerp(-0.25, -0.12, g),
         eyeAt: lerp(0.3, 0.24, g), eyeUp: lerp(0.18, 0.17, g), brow: lerp(0.3, 1.1, g), jaw: lerp(0.45, 0.55, g),
         bodySquash: 0.68, tailDroop: lerp(0.05, 0.09, g), tailSquash: 0.7, fingers: 3, armSpread: 0.2, armDrop: 0.75
     });
@@ -69,7 +69,7 @@ export function build(stageId = 'adult') {
     const tawny = C('#8a6440'), umber = C('#4a3424'), buff = C('#c9ab7e');
     const red = C('#c1261f'), skinDark = C('#3d3a37'), skinLight = C('#9c9081'), beak = C('#4a403a');
     const hipY = rig.hipY;
-    const furLen = L * lerp(0.022, 0.017, g);
+    const furLen = L * lerp(0.032, 0.017, g);
 
     const paint = (s) => {
         const [x, y, z] = s.p;
