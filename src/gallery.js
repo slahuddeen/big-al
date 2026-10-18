@@ -1,11 +1,12 @@
 // Dev-only gallery of every creature model and terrain tile (open /gallery.html)
 // ?pose=graze|browse|call|crouch|rest|sniff previews the behaviour poses
 import * as THREE from 'three';
-import { createMaterials, sharedUniforms } from './three/materials.js';
+import { createMaterials, sharedUniforms, advanceWind } from './three/materials.js';
 import { buildCreatureModel, buildBigAl, SPECIES_MODELS } from './three/creatures3d.js';
 import { buildCell } from './three/cells3d.js';
 import { animateModel } from './three/animation.js';
 import { TERRAIN_TYPES } from './data/terrain.js';
+import { isJeholDino, dinoTemplate, instantiateDino } from './jehol/dinoModels.js';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') || 'creatures';
@@ -34,7 +35,8 @@ if (view === 'creatures') {
     const names = only ? only.split(',') : ['Big Al 1', 'Big Al 2', 'Big Al 3', 'Big Al 4', ...Object.keys(SPECIES_MODELS)];
     const cols = Math.ceil(Math.sqrt(names.length * 1.4));
     names.forEach((name, i) => {
-        const model = name.startsWith('Big Al') ? buildBigAl(Number(name.slice(-1)), ctx) : buildCreatureModel(name, ctx);
+        const model = isJeholDino(name) ? instantiateDino(dinoTemplate(name, ctx), ctx.mat)
+            : name.startsWith('Big Al') ? buildBigAl(Number(name.slice(-1)), ctx) : buildCreatureModel(name, ctx);
         model.seed = i;
         const x = (i % cols) * 1.5;
         const z = Math.floor(i / cols) * 1.5;
@@ -118,9 +120,12 @@ addEventListener('pointerup', () => { drag = null; });
 resize();
 
 const clock = new THREE.Clock();
+let lastT = 0;
 const loop = () => {
     const t = clock.getElapsedTime();
     sharedUniforms.uTime.value = t;
+    advanceWind(Math.min(0.05, t - lastT));
+    lastT = t;
     const el = 0.62;
     camera.position.set(window.__center.x + Math.cos(az) * 40 * Math.cos(el), 40 * Math.sin(el), window.__center.z + Math.sin(az) * 40 * Math.cos(el));
     camera.lookAt(window.__center);

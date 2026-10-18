@@ -4,10 +4,11 @@
 // mist and post-processing. The game logic stays in the reducer; this class
 // only *shows* it.
 import * as THREE from 'three';
-import { createMaterials, sharedUniforms } from './materials.js';
+import { createMaterials, sharedUniforms, advanceWind } from './materials.js';
 import { buildCell, buildOutline, cellSurfaceY, randomPointInCell } from './cells3d.js';
 import { buildCreatureModel } from './creatures3d.js';
 import { gameTemplate, isSculpted, QUALITY } from '../jehol/gameModels.js';
+import { isJeholDino, dinoTemplate, instantiateDino } from '../jehol/dinoModels.js';
 import { animateModel } from './animation.js';
 import { MeshBuilder, blob, limb, loft, mulberry32, hashString } from './lowpoly.js';
 import { PostFX } from './postfx.js';
@@ -480,8 +481,13 @@ export class WorldRenderer {
     // ==================== CREATURES ====================
     getTemplate(species) {
         if (!this.templates.has(species)) {
-            // the Jehol animals are sculpted (see src/jehol); the insects and frogs keep the old low-poly builders
-            if (isSculpted(species)) {
+            // the Jehol dinosaurs are low-poly with sculpted feathered tails, the smaller Jehol animals
+            // are sculpted (see src/jehol), and the insects and frogs keep the old low-poly builders
+            if (isJeholDino(species)) {
+                const model = dinoTemplate(species, { mat: this.mats.creature, wingMat: this.mats.wing });
+                addOutlines(model.root, this.mats.outline, (m) => m.material !== this.mats.creature);
+                this.templates.set(species, model);
+            } else if (isSculpted(species)) {
                 this.templates.set(species, gameTemplate(species));
             } else {
                 const model = buildCreatureModel(species, { mat: this.mats.creature, wingMat: this.mats.wing });
@@ -495,6 +501,7 @@ export class WorldRenderer {
     // Clone a template (sharing geometry) and remap its animated parts
     instantiate(template) {
         if (template.sculpted) return template.instantiate();
+        if (template.skinned) return instantiateDino(template, this.mats.creature);
         const pathOf = (obj) => {
             const p = [];
             while (obj && obj !== template.root) {
@@ -2276,6 +2283,7 @@ export class WorldRenderer {
         const dt = Math.min(0.05, this.clock.getDelta());
         this.time += dt;
         sharedUniforms.uTime.value = this.time;
+        advanceWind(dt);
 
         const playerKey = this.state?.player;
         for (const tile of this.tiles.values()) {

@@ -1,11 +1,11 @@
 // Yutyrannus huali, "beautiful feathered tyrant": an early tyrannosaur relative about 9 m
 // long, covered in filaments up to 20 cm long, with a crest along its snout and three
-// fingers. The colours are invented (no pigment is known): adults are patterned like a
-// red-crowned crane, white with a charcoal neck and face and a red crest; the young are
-// brown and streaked for cover, like crane chicks.
+// fingers. The colours are invented (no pigment is known): adults are white like a
+// red-crowned crane, with a charcoal neck and face, a gold mantle, black slashes down the
+// flanks, a ringed tail and a red crest; the young are gold, streaked black for cover.
 import { Sculpt } from '../sculpt.js';
 import { biped, add, mul, lerp } from '../anatomy.js';
-import { C, mix, smooth, fbm, clamp01 } from '../paint.js';
+import { C, mix, smooth, fbm, clamp01, slashes, stripes } from '../paint.js';
 
 export const STAGES = [
     { id: 'hatchling', name: 'Hatchling', length: 0.6, g: 0 },
@@ -66,7 +66,7 @@ export function build(stageId = 'adult') {
     // colours by stage
     const adult = smooth(0.55, 0.95, g);
     const white = C('#ece6d8'), cream = C('#d9cdb4'), charcoal = C('#26262a'), ash = C('#6c6a6a');
-    const tawny = C('#8a6440'), umber = C('#4a3424'), buff = C('#c9ab7e');
+    const tawny = C('#c68a2a'), umber = C('#1e1712'), buff = C('#f0e2c0'), gold = C('#d4a03a');
     const red = C('#c1261f'), skinDark = C('#3d3a37'), skinLight = C('#9c9081'), beak = C('#4a403a');
     const hipY = rig.hipY;
     const furLen = L * lerp(0.032, 0.017, g);
@@ -75,13 +75,17 @@ export function build(stageId = 'adult') {
         const [x, y, z] = s.p;
         const up = s.n[1];
         const mott = fbm(x * 3 / L * 9, y * 3 / L * 9, z * 3 / L * 9);
-        // the young: brown with pale streaks running along the body
-        const streak = smooth(0.55, 0.75, fbm(x / L * 6, y / L * 70, z / L * 70));
-        let young = mix(tawny, umber, smooth(-0.2, 0.7, up) * 0.6 + mott * 0.3);
-        young = mix(young, buff, streak * 0.55 + smooth(0.1, -0.6, up) * 0.5);
-        // adults: white body, charcoal neck and face, grey wash on the back
-        let grown = mix(white, cream, mott * 0.5);
-        grown = mix(grown, ash, smooth(0.5, 0.95, up) * 0.25 * smooth(-L * 0.3, L * 0.1, x));
+        // the young: gold with black streaks running along the body, pale underneath
+        const streak = smooth(0.54, 0.62, fbm(x / L * 6, y / L * 45, z / L * 45)) * smooth(-0.4, 0.2, up);
+        let young = mix(tawny, mix(tawny, umber, 0.25), smooth(0.2, 0.9, up) * 0.7 + mott * 0.2);
+        young = mix(young, umber, streak * 0.85);
+        young = mix(young, buff, smooth(0.0, -0.6, up) * 0.85);
+        // adults: white body, a gold mantle over the shoulders, black slashes down the flanks
+        let grown = mix(white, cream, mott * 0.4);
+        grown = mix(grown, gold, smooth(-0.25, 0.45, up) * smooth(-L * 0.04, L * 0.12, x) * 0.9);
+        grown = mix(grown, ash, smooth(0.6, 0.95, up) * 0.15 * smooth(-L * 0.3, L * 0.1, x));
+        const flank = ['body', 'thigh'].includes(s.tag) || (s.tag === 'tail' && s.u < 0.35);
+        if (flank) grown = mix(grown, charcoal, slashes(x, y, z, 22 / L, 0.4, 0.3) * smooth(-0.55, -0.1, up) * smooth(0.92, 0.55, up));
         let col = mix(young, grown, adult);
         let fur = furLen;
         let scale = 0, rough = 0.85;
@@ -141,10 +145,10 @@ export function build(stageId = 'adult') {
                 break;
             case 'tail': {
                 fur *= lerp(1.1, 0.75, s.u);
-                // young: faint dark bands down the tail; adult: a dark tip
-                const band = smooth(0.35, 0.65, Math.sin(s.u * 40) * 0.5 + 0.5) * (1 - adult) * smooth(0.2, 0.5, s.u);
-                col = mix(col, umber, band * 0.6);
-                col = mix(col, charcoal, smooth(0.8, 0.97, s.u) * adult);
+                // young: black bands down the tail; adult: black rings towards a black tip
+                const band = stripes(s.u, 9, 0.35, 0.06) * (1 - adult) * smooth(0.2, 0.4, s.u);
+                col = mix(col, umber, band * 0.85);
+                col = mix(col, charcoal, Math.max(stripes(s.u, 8, 0.4, 0.05) * smooth(0.45, 0.55, s.u), smooth(0.85, 0.95, s.u)) * adult);
                 break;
             }
             default:

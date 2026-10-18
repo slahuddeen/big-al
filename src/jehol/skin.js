@@ -96,13 +96,13 @@ if (uWrinkle > 0.0) {
 // Fur and filament plumage as stacked shells. Each shell is the body pushed out along its
 // normals by a fraction of the local fur length and bent along aComb; strands are cut out
 // of each shell so they thin towards their tips.
-export function furShells(geometry, { shells = 22, density = 260, thickness = 1, clump = 0.5, curl = 0.0, sheen = 0, lift = 0.4, tuft = 0.5, irid = 0, rough = 0.9 } = {}) {
+export function furShells(geometry, { shells = 22, density = 260, thickness = 1, clump = 0.5, curl = 0.0, sheen = 0, lift = 0.4, tuft = 0.5, irid = 0, rough = 0.9, shade = 1 } = {}) {
     const group = new THREE.Group();
     // glossy, iridescent plumage (Microraptor) needs the physical material
     const base = irid > 0
         ? new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: rough, metalness: 0, iridescence: irid, iridescenceIOR: 1.6, iridescenceThicknessRange: [100, 330] })
         : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: rough, metalness: 0 });
-    const uniforms = { uDensity: { value: density }, uThick: { value: thickness }, uClump: { value: clump }, uCurl: { value: curl }, uSheen: { value: sheen }, uLift: { value: lift }, uTuft: { value: tuft } };
+    const uniforms = { uDensity: { value: density }, uThick: { value: thickness }, uClump: { value: clump }, uCurl: { value: curl }, uSheen: { value: sheen }, uLift: { value: lift }, uTuft: { value: tuft }, uShade: { value: shade } };
     for (let s = 1; s <= shells; s++) {
         const m = base.clone();
         const h = s / shells;
@@ -139,6 +139,7 @@ uniform float uThick;
 uniform float uClump;
 uniform float uSheen;
 uniform float uTuft;
+uniform float uShade;
 varying vec3 vBase;
 varying vec3 vBaseN;
 varying float vFur;
@@ -172,9 +173,10 @@ diffuseColor.rgb = mix(diffuseColor.rgb, vTipCol, smoothstep(0.25, 1.0, hs));
 // each lock of filaments catches the light a little differently, and the partings between
 // locks are darker
 float tuftD = length((q - tcen) - bn * dot(q - tcen, bn)) / 5.0;
-diffuseColor.rgb *= (0.92 + 0.16 * rnd) * (0.82 + 0.36 * jh31(tcell + 1.3)) * mix(1.0, 0.78, smoothstep(0.35, 0.7, tuftD) * (1.0 - uShell));
+// (uShade < 1 softens this for small, distant animals, where it would read as dark speckle)
+diffuseColor.rgb *= mix(1.0, (0.92 + 0.16 * rnd) * (0.82 + 0.36 * jh31(tcell + 1.3)) * mix(1.0, 0.78, smoothstep(0.35, 0.7, tuftD) * (1.0 - uShell)), uShade);
 // self-shadowing: the deeper layers sit in shadow
-diffuseColor.rgb *= mix(0.5, 1.0, pow(uShell, 0.6));`)
+diffuseColor.rgb *= mix(1.0 - 0.5 * uShade, 1.0, pow(uShell, 0.6));`)
                 .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 totalEmissiveRadiance += diffuseColor.rgb * uSheen * pow(uShell, 2.0) * 0.15;`);
         };

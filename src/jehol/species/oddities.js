@@ -2,7 +2,7 @@
 // Mei long; the beaked bird Confuciusornis; and the parrot-beaked Psittacosaurus.
 import { Sculpt } from '../sculpt.js';
 import { biped, add, mul, lerp3 } from '../anatomy.js';
-import { C, mix, smooth, scheme } from '../paint.js';
+import { C, mix, smooth, scheme, stripes, spots } from '../paint.js';
 import { foldedWing, spreadWing, tailFan, ridgeQuills } from '../plumage.js';
 import { STYLE } from '../feathers.js';
 import { SMALL, sized } from './theropods.js';
@@ -17,13 +17,19 @@ export const Caudipteryx = (() => {
             neck: 0.14, neckR: 0.017, headNeckR: 0.013, neckRise: 1.0, head: 0.075, headH: 0.036, headW: 0.026, snoutTip: 0.75, eyeR: 0.008, eyeAt: 0.33,
             tail: 0.22, tailR: 0.02, tailLift: 0.3, humerus: 0.06, forearm: 0.05, hand: 0.05, armPose: 'fold', beakHook: 0.2
         }));
+        // the banded tail feathers are known from fossils; the rest is invented: white, with a
+        // black stripe down the back of the neck and an orange face
         const paint = scheme({
-            L, base: '#6f6458', back: '#4a4038', belly: '#e9e2d4', beak: '#3a3430', beakFrom: 0.55, fur: 0.014, mottle: 0.2,
-            pattern: (s, col) => (s.tag === 'neck' || s.tag === 'jaw' ? mix(col, C('#f1ece2'), smooth(-0.1, -0.6, s.n[1]) * 0.9) : col)
+            L, base: '#efe9dd', back: '#ddd4c2', belly: '#f7f3ea', skin: '#d0602e', beak: '#2a2420', beakFrom: 0.55, fur: 0.014, mottle: 0.1,
+            pattern: (s, col, { up }) => {
+                if (s.tag === 'neck' || s.tag === 'head') col = mix(col, C('#171311'), smooth(0.25, 0.75, up) * (s.tag === 'head' ? 0.6 : 1));
+                if (s.tag === 'body') col = mix(col, C('#171311'), smooth(0.55, 0.9, up) * 0.85);
+                return col;
+            }
         });
         const list = [
-            ...foldedWing(rig.armR, { primary: 0.15, primaries: 8, secondaries: 6, col: '#2a2522', col2: '#f2ece2', bands: 2, coverCol: '#5a4e44' }),
-            ...foldedWing(rig.armL, { primary: 0.15, primaries: 8, secondaries: 6, col: '#2a2522', col2: '#f2ece2', bands: 2, coverCol: '#5a4e44' }),
+            ...foldedWing(rig.armR, { primary: 0.15, primaries: 8, secondaries: 6, col: '#171311', col2: '#f2ece2', bands: 2, coverCol: '#171311' }),
+            ...foldedWing(rig.armL, { primary: 0.15, primaries: 8, secondaries: 6, col: '#171311', col2: '#f2ece2', bands: 2, coverCol: '#171311' }),
             // a raised fan for display, its feathers banded dark and light as in some fossils
             ...tailFan(rig.tail, { from: 0.45, length: 0.17, spread: 0.7, col: '#1f1b19', col2: '#efe8dc', bands: 2, count: 6, frond: false, style: STYLE.vane })
         ];
@@ -38,24 +44,27 @@ export const Incisivosaurus = (() => {
         const L = 1.0;
         const S = new Sculpt();
         const rig = biped(S, sized(L, {
-            ...SMALL, femur: 0.1, tibia: 0.12, meta: 0.068, head: 0.08, headH: 0.042, headW: 0.032, snoutTip: 0.85, eyeR: 0.0085, eyeAt: 0.34, eyeUp: 0.2,
+            ...SMALL, femur: 0.1, tibia: 0.12, meta: 0.068, head: 0.07, headH: 0.05, headW: 0.034, snoutTip: 0.92, snoutSquash: 0.8, eyeR: 0.0085, eyeAt: 0.36, eyeUp: 0.22,
+            neckR: 0.016, bellyR: 0.033,
             tail: 0.48, humerus: 0.055, forearm: 0.045, hand: 0.05, armPose: 'fold', beakHook: 0.1
         }));
         // the buck teeth: two big incisor-like teeth at the front of the upper jaw
         const { at, dir } = rig.head;
         [1, -1].forEach((sd) => S.extra({ type: 'claw', at: at(0.93, -0.24, 0.045 * sd), dir: [dir[0] * 0.6, -0.8, 0], up: [1, 0, 0], length: 0.014, radius: 0.0045, curve: 0.2, color: '#e9e1cc' }));
+        // colours invented: gold with black spots, a white throat and blue face skin
         const paint = scheme({
-            L, base: '#a08560', back: '#6d5536', belly: '#ece3cf', skin: '#5a6e86', feet: '#6a5a48', sole: '#5a5048', beak: '#3a3430', beakFrom: 0.75, fur: 0.02, mottle: 0.3,
+            L, base: '#d8a43a', back: '#b47e22', belly: '#f4ead4', skin: '#4a6e9a', feet: '#6a5a48', sole: '#5a5048', beak: '#2e2824', beakFrom: 0.75, fur: 0.02, mottle: 0.1,
             furBy: { snoutBack: 0.5 },
-            pattern: (s, col, { x, y, z }) => {
-                // dark spots over the back
-                const sp = Math.sin(x * 160) * Math.sin(y * 150 + z * 40) * Math.sin(z * 170);
-                return mix(col, C('#3b2c1c'), smooth(0.25, 0.45, sp) * smooth(0.1, 0.6, s.n[1]) * (s.tag === 'body' || s.tag === 'tail' ? 0.7 : 0));
+            pattern: (s, col, { up }) => {
+                const spotted = ['body', 'tail', 'thigh', 'neck'].includes(s.tag);
+                col = mix(col, C('#18120e'), spotted ? spots(s.p, L * 0.045, 0.3) * smooth(-0.5, 0.0, up) : 0);
+                if (s.tag === 'neck' || s.tag === 'jaw') col = mix(col, C('#f4ead4'), smooth(-0.2, -0.6, up) * 0.9);
+                return col;
             }
         });
         const list = [
-            ...foldedWing(rig.armR, { primary: 0.12, primaries: 8, secondaries: 7, col: '#4a3a28', col2: '#d9c9a8', tipCol: '#d9c9a8' }),
-            ...foldedWing(rig.armL, { primary: 0.12, primaries: 8, secondaries: 7, col: '#4a3a28', col2: '#d9c9a8', tipCol: '#d9c9a8' })
+            ...foldedWing(rig.armR, { primary: 0.12, primaries: 8, secondaries: 7, col: '#18120e', col2: '#d8a43a', bands: 2, tipCol: '#18120e' }),
+            ...foldedWing(rig.armL, { primary: 0.12, primaries: 8, secondaries: 7, col: '#18120e', col2: '#d8a43a', bands: 2, tipCol: '#18120e' })
         ];
         S.extra({ type: 'feathers', list });
         return { sculpt: S, paint, rig, res: 240, fur: { shells: 20, density: 800, thickness: 1.2, lift: 0.45, tuft: 0.6 }, skin: { bump: 0.3 }, eye: { iris: '#c58a2c' }, length: L };
@@ -77,16 +86,22 @@ export const Beipiaosaurus = (() => {
             tail: 0.28, tailR: 0.028, tailDroop: 0.06, tailSquash: 0.75,
             humerus: 0.1, forearm: 0.085, hand: 0.06, armR: 0.009, fingers: 3, fingerR: 0.004, handClaw: 0.045, armSpread: 0.25, armDrop: 0.85
         }));
+        // colours invented: black, with a white face and throat and a white-tipped mane of quills
         const paint = scheme({
-            L, base: '#5a4330', back: '#3a2a1e', belly: '#8a7058', skin: '#3f3833', beak: '#2e2925', beakFrom: 0.7, fur: 0.07, mottle: 0.25,
-            furBy: { head: 0.2, neck: 0.9, hand: 0.1, snoutBack: 0.15 }
+            L, base: '#221d1a', back: '#151210', belly: '#3a322c', skin: '#3f3833', beak: '#2e2925', beakFrom: 0.7, fur: 0.07, mottle: 0.12,
+            furBy: { head: 0.2, neck: 0.9, hand: 0.1, snoutBack: 0.15 },
+            pattern: (s, col, { up }) => {
+                if (s.tag === 'head' || s.tag === 'brow') return C('#efe8dc');
+                if (s.tag === 'neck') col = mix(col, C('#efe8dc'), smooth(0.6, 0.2, s.u) * 0.5 + smooth(-0.1, -0.6, up) * smooth(0.9, 0.4, s.u));
+                return col;
+            }
         });
         // long, broad, unbranched quills standing up through the fuzz on the neck, back and tail
         const torsoTop = [rig.chest, lerp3(rig.chest, rig.hipC, 0.5), rig.hipC].map((p, i) => add(p, [0, [0.02, 0.03, 0.01][i] * L, 0]));
         const list = [
-            ...ridgeQuills([...rig.neck].reverse(), [0.022, 0.02, 0.019, 0.018, 0.016, 0.015, 0.014].map((r) => r * L), { from: 0.05, to: 0.95, count: 24, rows: 4, length: 0.14, width: 0.05, rise: 0.35, col: '#3b2a1c', tipCol: '#e8dcc4' }),
-            ...ridgeQuills(torsoTop, [0.045, 0.06, 0.038].map((r) => r * L), { count: 22, rows: 4, length: 0.15, width: 0.05, rise: 0.35, col: '#3b2a1c', tipCol: '#e8dcc4' }),
-            ...ridgeQuills(rig.tail, rig.tailRad, { from: 0, to: 0.85, count: 16, rows: 4, length: 0.13, width: 0.05, rise: 0.3, col: '#3b2a1c', tipCol: '#e8dcc4' })
+            ...ridgeQuills([...rig.neck].reverse(), [0.022, 0.02, 0.019, 0.018, 0.016, 0.015, 0.014].map((r) => r * L), { from: 0.05, to: 0.95, count: 24, rows: 4, length: 0.14, width: 0.05, rise: 0.35, col: '#151210', tipCol: '#f2ece0' }),
+            ...ridgeQuills(torsoTop, [0.045, 0.06, 0.038].map((r) => r * L), { count: 22, rows: 4, length: 0.15, width: 0.05, rise: 0.35, col: '#151210', tipCol: '#f2ece0' }),
+            ...ridgeQuills(rig.tail, rig.tailRad, { from: 0, to: 0.85, count: 16, rows: 4, length: 0.13, width: 0.05, rise: 0.3, col: '#151210', tipCol: '#f2ece0' })
         ];
         S.extra({ type: 'feathers', list });
         return { sculpt: S, paint, rig, res: 260, fur: { shells: 24, density: 300, thickness: 1.25, lift: 0.45, tuft: 0.7, curl: 0.2 }, skin: { bump: 0.3 }, eye: { iris: '#6a4a20' }, claw: '#d6cbb5', length: L };
@@ -103,18 +118,20 @@ export const MeiLong = (() => {
             ...SMALL, femur: 0.1, tibia: 0.13, meta: 0.08, sickle: true, head: 0.09, headH: 0.036, headW: 0.03, snoutTip: 0.4, eyeR: 0.0105, eyeAt: 0.32, eyeUp: 0.2,
             tail: 0.5, humerus: 0.05, forearm: 0.045, hand: 0.05, armPose: 'fold'
         }));
+        // colours invented: white, barred black like a zebra across the back and tail
         const paint = scheme({
-            L, base: '#8a8170', back: '#5c5446', belly: '#e9e4d8', fur: 0.012, mottle: 0.35,
+            L, base: '#ede7db', back: '#ddd4c2', belly: '#f7f3ea', fur: 0.012, mottle: 0.1,
             furBy: { snoutBack: 0.4 },
-            pattern: (s, col, { x }) => {
-                // speckled back and barred tail
-                if (s.tag === 'tail') col = mix(col, C('#2e2a24'), smooth(0.7, 0.85, Math.sin(s.u * 50) * 0.5 + 0.5) * 0.7);
+            pattern: (s, col, { x, up }) => {
+                if (s.tag === 'tail') return mix(col, C('#18140f'), stripes(s.u, 10, 0.42, 0.06) * smooth(0.05, 0.12, s.u));
+                if (['body', 'thigh', 'neck'].includes(s.tag)) col = mix(col, C('#18140f'), stripes(x / L, 14, 0.36, 0.06) * smooth(-0.35, 0.1, up));
+                if (s.tag === 'head' || s.tag === 'brow') col = mix(col, C('#18140f'), smooth(0.3, 0.8, up) * 0.8);
                 return col;
             }
         });
         const list = [
-            ...foldedWing(rig.armR, { primary: 0.07, primaries: 8, secondaries: 7, col: '#4c463c', col2: '#8a8170', tipCol: '#2a2622' }),
-            ...foldedWing(rig.armL, { primary: 0.07, primaries: 8, secondaries: 7, col: '#4c463c', col2: '#8a8170', tipCol: '#2a2622' })
+            ...foldedWing(rig.armR, { primary: 0.07, primaries: 8, secondaries: 7, col: '#18140f', col2: '#ede7db', bands: 2, tipCol: '#18140f' }),
+            ...foldedWing(rig.armL, { primary: 0.07, primaries: 8, secondaries: 7, col: '#18140f', col2: '#ede7db', bands: 2, tipCol: '#18140f' })
         ];
         S.extra({ type: 'feathers', list });
         return { sculpt: S, paint, rig, res: 240, fur: { shells: 18, density: 1500, thickness: 1.2, lift: 0.45, tuft: 0.6 }, skin: { bump: 0.3 }, eye: { iris: '#e0b23a', ring: '#4a3010', pupil: 0.4 }, length: L };

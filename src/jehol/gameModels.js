@@ -205,16 +205,95 @@ export function gameTemplate(species) {
     return t;
 }
 
-function buildTemplate(def, { species, player }) {
+// Keep only the triangles skinned (by at least half their weight) to the bones in `keep`,
+// drop the unused vertices, and renumber the skin indices with `remap` (old -> new)
+function keepTriangles(geo, keep, remap) {
+    const si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
+    const nV = geo.attributes.position.count;
+    const ok = new Uint8Array(nV);
+    for (let v = 0; v < nV; v++) {
+        let w = 0;
+        for (let c = 0; c < 4; c++) if (keep.has(si.getComponent(v, c))) w += sw.getComponent(v, c);
+        ok[v] = w >= 0.5 ? 1 : 0;
+    }
+    const src = geo.index ? geo.index.array : Array.from({ length: nV }, (_, i) => i);
+    const newId = new Int32Array(nV).fill(-1);
+    const order = [];
+    const tris = [];
+    for (let t = 0; t < src.length; t += 3) {
+        const a = src[t], b = src[t + 1], c = src[t + 2];
+        if (!(ok[a] && ok[b] && ok[c])) continue;
+        for (const v of [a, b, c]) {
+            if (newId[v] < 0) { newId[v] = order.length; order.push(v); }
+            tris.push(newId[v]);
+        }
+    }
+    const out = new THREE.BufferGeometry();
+    for (const [name, attr] of Object.entries(geo.attributes)) {
+        const k = attr.itemSize;
+        const arr = new attr.array.constructor(order.length * k);
+        order.forEach((v, i) => { for (let c = 0; c < k; c++) arr[i * k + c] = attr.array[v * k + c]; });
+        out.setAttribute(name, new THREE.BufferAttribute(arr, k, attr.normalized));
+    }
+    const nsi = out.attributes.skinIndex, nsw = out.attributes.skinWeight;
+    for (let v = 0; v < order.length; v++) {
+        let sum = 0;
+        for (let c = 0; c < 4; c++) {
+            const old = nsi.getComponent(v, c);
+            if (keep.has(old)) { nsi.setComponent(v, c, remap.get(old)); sum += nsw.getComponent(v, c); }
+            else { nsi.setComponent(v, c, 0); nsw.setComponent(v, c, 0); }
+        }
+        for (let c = 0; c < 4; c++) nsw.setComponent(v, c, nsw.getComponent(v, c) / (sum || 1));
+    }
+    out.setIndex(tris);
+    return out;
+}
+
+// The sculpted tail on its own: its skin, fur shells and feathers on the three tail bones,
+// ready to graft onto a low-poly body. Returns attach(parent, { x, y, T, r0 }) which puts
+// the tail's base at (x, y) in the parent's units, T long, and returns the tail bones.
+export function sculptTail(labName, stage, { fit = 'length', scale = 1, overlap = 0.5 } = {}) {
+    const def = SPECIES[labName].build(stage, {});
+    const t = buildTemplate(def, { species: labName, player: false, only: ['tail0', 'tail1', 'tail2'] });
+    const pts = def.rig.tail;
+    let len = 0;
+    for (let i = 1; i < pts.length; i++) len += dist(pts[i - 1], pts[i]);
+    const rad0 = def.rig.tailRad ? def.rig.tailRad[0] : len * 0.06;
+    return (parent, { x, y, T, r0 }) => {
+        const s = (fit === 'radius' ? r0 / rad0 : T / len) * scale;
+        // the low-poly bodies are chunkier than the sculpted ones: thicken the tail across
+        // so its base meets the hips
+        const thick = Math.min(1.8, Math.max(1, (r0 * 0.9) / (rad0 * s)));
+        const inner = t.inner;
+        inner.removeFromParent();
+        inner.scale.set(s, s * thick, s * thick);
+        // sink the base a little into the body so the join is hidden
+        inner.position.set(x - pts[0][0] * s + r0 * overlap, y - pts[0][1] * s * thick, -pts[0][2] * s * thick);
+        parent.add(inner);
+        return ['tail0', 'tail1', 'tail2'].map((n) => inner.getObjectByName(`b_${n}`));
+    };
+}
+
+function buildTemplate(def, { species, player, only = null }) {
     const realLen = def.length || 1;
     const mobile = QUALITY.mobile;
     // coarser meshes and fewer shells for small animals and phones
     const res = Math.round((player ? 110 : realLen < 0.5 ? 60 : realLen < 3 ? 76 : 92) * (mobile ? 0.8 : 1));
     const shells = Math.max(3, (player ? 10 : realLen < 0.5 ? 5 : 7) - (mobile ? 2 : 0));
-    const sk = skeletonFor(def);
+    const full = skeletonFor(def);
+    const fullIndex = new Map(full.bones.map((b, i) => [b.name, i]));
+    const skin = (s) => full.skin(s).map(([name, w]) => [fullIndex.get(name) ?? 0, w]);
+    let geo = def.sculpt.mesh({ res, paint: def.paint, skin });
+    let sk = full;
+    if (only) {
+        // a part of the animal on its own (a grafted tail): the bones in `only`, the first as root
+        const bones = full.bones.filter((b) => only.includes(b.name)).map((b) => ({ ...b, parent: only.includes(b.parent) ? b.parent : null }));
+        const remap = new Map(bones.map((b, i) => [fullIndex.get(b.name), i]));
+        geo = keepTriangles(geo, new Set(remap.keys()), remap);
+        sk = { ...full, bones };
+    }
     const boneIndex = new Map(sk.bones.map((b, i) => [b.name, i]));
-    const skin = (s) => sk.skin(s).map(([name, w]) => [boneIndex.get(name) ?? 0, w]);
-    const geo = def.sculpt.mesh({ res, paint: def.paint, skin });
+    const kept = (name) => boneIndex.has(name);
     geo.computeBoundingBox();
     const bb = geo.boundingBox;
     const len = bb.max.x - bb.min.x;
@@ -258,7 +337,9 @@ function buildTemplate(def, { species, player }) {
     inner.add(body);
     body.bind(skeleton);
     if (def.fur) {
-        const fur = furShells(geo, { ...def.fur, shells, density: (def.fur.density || 300) * 0.5, thickness: (def.fur.thickness || 1) * 1.15 });
+        // fewer shells seen from further away: soften the tuft partings and self-shadowing so the
+        // coat keeps its colours instead of turning to dark speckle
+        const fur = furShells(geo, { ...def.fur, shells, density: (def.fur.density || 300) * 0.5, thickness: (def.fur.thickness || 1) * 1.15, shade: player ? 0.6 : 0.4 });
         fur.children.slice().forEach((m) => {
             // shells do not write depth, so the ink outline follows the body and not every strand
             m.material.depthWrite = false;
@@ -272,7 +353,7 @@ function buildTemplate(def, { species, player }) {
         });
     }
     // fine parts meshed on their own grid ride on the head (crests) or body (armour)
-    for (const part of def.details || []) {
+    for (const part of only ? [] : def.details || []) {
         const dg = part.sculpt.mesh({ res: Math.round((part.res || 100) * 0.6), paint: part.paint || def.paint });
         dg.computeBoundingBox();
         const c = dg.boundingBox.getCenter(new THREE.Vector3()).toArray();
@@ -292,13 +373,15 @@ function buildTemplate(def, { species, player }) {
     const clawsByBone = new Map();
     for (const x of def.sculpt.extras) {
         if (x.type === 'eye') {
+            if (only) continue;
             const m = new THREE.Mesh(eyeGeo, eyeMat);
             m.scale.setScalar(x.r);
             m.quaternion.setFromRotationMatrix(basis(x.dir, [0, 1, 0]));
             attach(boneObjs, sk, boneIndex.has('head') ? 'head' : 'body', m, x.at);
         } else if (x.type === 'claw') {
             // claws (and spikes and teeth) are merged into one mesh per bone and colour
-            const b = x.tag ? tagBone(x.tag, x.at) : nearestBone(sk, x.at);
+            const b = x.tag ? tagBone(x.tag, x.at) : nearestBone(full, x.at);
+            if (!kept(b)) continue;
             const key = `${b}|${x.color || ''}`;
             if (!clawsByBone.has(key)) clawsByBone.set(key, { bone: b, color: x.color, geos: [] });
             const bp = sk.bones.find((o) => o.name === b).pos;
@@ -312,12 +395,14 @@ function buildTemplate(def, { species, player }) {
                 if (f.tag === 'arm') b = boneIndex.has(`arm${side(f.at)}`) ? `arm${side(f.at)}` : 'body';
                 else if (f.tag === 'leg') b = `leg${side(f.at)}`;
                 else if (f.tag === 'tail') b = nearestBone(sk, f.at, ['tail0', 'tail1', 'tail2']);
-                else b = nearestBone(sk, f.at, ['body', 'neck0', 'neck1', 'head', 'tail0', 'tail1', 'tail2']);
+                else b = nearestBone(full, f.at, ['body', 'neck0', 'neck1', 'head', 'tail0', 'tail1', 'tail2']);
+                if (!kept(b)) continue;
                 const key = `${b}|${JSON.stringify(x.style || {})}`;
                 if (!feathersByBone.has(key)) feathersByBone.set(key, { bone: b, style: x.style || {}, list: [] });
                 feathersByBone.get(key).list.push(f);
             }
         } else if (x.type === 'mesh') {
+            if (only) continue;
             const b = x.bone && boneIndex.has(x.bone) ? x.bone : 'body';
             attach(boneObjs, sk, b, x.object, [0, 0, 0]);
         }

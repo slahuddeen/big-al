@@ -62,15 +62,16 @@ On a phone: tap to move, drag to pan, pinch to zoom, and twist or slide two fing
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000/big-al/jehol/
+npm run dev      # http://localhost:3000
 npm run build    # served from /big-al/jehol/
 ```
 
 * This branch (`claude/yuty-jehol`) is the Yutyrannus game. Big Al lives on `main` and Spino on `claude/spino-kemkem`.
 * Species, habitats and spawn tables are in `src/data/species.js`, field-guide facts in `src/data/speciesFacts.js`, biomes in `src/data/terrain.js` and world generation (the basin, lakes, rivers and vents) in `src/world/worldGen.js`.
 * Seasons, snow, freezing and eruptions are in `src/game/weather.js`; cold, warmth and shelter in `src/game/environment.js`.
-* The animals are sculpted in `src/jehol/`: signed-distance bodies meshed with surface nets (`sculpt.js`), body plans (`anatomy.js`, `bodyplans.js`), fur shells and scales (`skin.js`), feathers (`feathers.js`, `plumage.js`) and membranes (`membrane.js`). Each species is in `src/jehol/species/`. `src/jehol/gameModels.js` turns them into lighter skinned meshes for the game.
-* The model lab: open `/big-al/jehol/models.html` on the dev server to inspect every animal close up.
+* The dinosaurs in the game (`src/jehol/dinoModels.js`) have low-poly bodies built like Big Al's and Spino's (`buildBiped` and `buildQuadruped` in `src/three/creatures3d.js`), with a filament coat and wing feathers added in `src/jehol/dinoDress.js` and the sculpted feathered tail of the lab model grafted on (`sculptTail` in `src/jehol/gameModels.js`). Open `/gallery.html?only=Dilong,Zhenyuanlong,player:4` to see them.
+* The other animals are sculpted in `src/jehol/`: signed-distance bodies meshed with surface nets (`sculpt.js`), body plans (`anatomy.js`, `bodyplans.js`), fur shells and scales (`skin.js`), feathers (`feathers.js`, `plumage.js`) and membranes (`membrane.js`). Each species is in `src/jehol/species/`. `src/jehol/gameModels.js` turns them into lighter skinned meshes for the game.
+* The model lab: open `/models.html` on the dev server to inspect every animal close up.
 * The ink-wash look of the world is in `src/three/postfx.js`, the terrain palette and plants in `src/three/cells3d.js`, and the UI theme at the end of `src/index.css`.
 * Add `?seed=1234` to replay a map and `?turn=30` to start later in the year (deep winter at 30; the first eruption on seed 1234 is at turns 22 to 26).
 * Dev console helpers: `spawnCreature('Microraptor')`, `setStats({ level: 4, weight: 1300 })`, `teleport('hotspring', 30)`.

@@ -33,6 +33,53 @@ export function noise3(x, y, z) {
 }
 export const fbm = (x, y, z) => noise3(x, y, z) * 0.55 + noise3(x * 2.1, y * 2.1, z * 2.1) * 0.3 + noise3(x * 4.3, y * 4.3, z * 4.3) * 0.15;
 
+// ---------- bold patterns: each returns a 0..1 mask ----------
+const fract = (v) => v - Math.floor(v);
+
+// stripes across a coordinate t: n per unit, `width` the share of each period that is stripe
+export const stripes = (t, n, width = 0.35, soft = 0.05) => {
+    const f = fract(t * n);
+    return smooth(0, soft, f) * smooth(width, width - soft, f);
+};
+
+// distance (in cell units) from p to the nearest of a jittered lattice of points, and that point's id
+export function cells(x, y, z) {
+    const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+    let d = 9, id = 0;
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) {
+        const cx = xi + a, cy = yi + b, cz = zi + c;
+        const px = cx + hash(cx, cy, cz), py = cy + hash(cy + 7.1, cz, cx), pz = cz + hash(cz + 3.3, cx, cy);
+        const dd = Math.hypot(px - x, py - y, pz - z);
+        if (dd < d) { d = dd; id = hash(cx + 0.5, cy + 0.5, cz + 0.5); }
+    }
+    return [d, id];
+}
+
+// round spots `size` metres apart; `r` is the spot radius as a share of the spacing
+export const spots = (p, size, r = 0.28, soft = 0.05) => {
+    const [d] = cells(p[0] / size, p[1] / size, p[2] / size);
+    return smooth(r + soft, r - soft, d);
+};
+
+// broken rings, like a leopard's rosettes (ring 1) with an optional paler centre (centre 1)
+export const rosettes = (p, size, r0 = 0.17, r1 = 0.33) => {
+    const [d, id] = cells(p[0] / size, p[1] / size, p[2] / size);
+    const ring = smooth(r0 - 0.04, r0 + 0.02, d) * smooth(r1 + 0.04, r1 - 0.02, d);
+    const gap = smooth(0.25, 0.4, noise3(p[0] / size * 4, p[1] / size * 4, p[2] / size * 4 + id * 9));
+    return { ring: ring * gap, centre: smooth(r0 + 0.02, r0 - 0.04, d) };
+};
+
+// tapering diagonal slashes on the side of the body (x forward, y up): n per metre,
+// tilted by `angle` from vertical; broken up so they read as brush strokes, not hoops
+export const slashes = (x, y, z, n, angle = 0.35, width = 0.32) => {
+    const ca = Math.cos(angle), sa = Math.sin(angle);
+    const t = x * ca + y * sa;
+    const along = -x * sa + y * ca;
+    const k = Math.floor(t * n);
+    const brk = smooth(0.32, 0.5, noise3(along * n * 1.4, z * n * 0.5, k * 3.7));
+    return stripes(t, n, width * (0.6 + 0.5 * brk), 0.06) * brk;
+};
+
 // 0 on the back, 1 on the belly: for countershading
 export const belly = (s, centreY) => smooth(0.15, -0.55, s.n[1]) * 0.6 + smooth(centreY + 0.1, centreY - 0.25, s.p[1]) * 0.4;
 
