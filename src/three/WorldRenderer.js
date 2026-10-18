@@ -4,7 +4,7 @@
 // mist and post-processing. The game logic stays in the reducer; this class
 // only *shows* it.
 import * as THREE from 'three';
-import { createMaterials, sharedUniforms } from './materials.js';
+import { createMaterials, sharedUniforms, advanceWind } from './materials.js';
 import { buildCell, buildOutline, cellSurfaceY, randomPointInCell } from './cells3d.js';
 import { buildCreatureModel, buildBigAl } from './creatures3d.js';
 import { animateModel } from './animation.js';
@@ -2087,6 +2087,7 @@ export class WorldRenderer {
         const dt = Math.min(0.05, this.clock.getDelta());
         this.time += dt;
         sharedUniforms.uTime.value = this.time;
+        advanceWind(dt);
 
         const playerKey = this.state?.player;
         for (const tile of this.tiles.values()) {

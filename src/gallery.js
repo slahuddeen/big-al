@@ -1,7 +1,7 @@
 // Dev-only gallery of every creature model and terrain tile (open /gallery.html)
 // ?pose=graze|browse|call|crouch|rest|sniff previews the behaviour poses
 import * as THREE from 'three';
-import { createMaterials, sharedUniforms } from './three/materials.js';
+import { createMaterials, sharedUniforms, advanceWind } from './three/materials.js';
 import { buildCreatureModel, buildBigAl, SPECIES_MODELS } from './three/creatures3d.js';
 import { buildCell } from './three/cells3d.js';
 import { animateModel } from './three/animation.js';
@@ -117,9 +117,12 @@ addEventListener('pointerup', () => { drag = null; });
 resize();
 
 const clock = new THREE.Clock();
+let lastT = 0;
 const loop = () => {
     const t = clock.getElapsedTime();
     sharedUniforms.uTime.value = t;
+    advanceWind(Math.min(0.05, t - lastT));
+    lastT = t;
     const el = 0.62;
     camera.position.set(window.__center.x + Math.cos(az) * 40 * Math.cos(el), 40 * Math.sin(el), window.__center.z + Math.sin(az) * 40 * Math.cos(el));
     camera.lookAt(window.__center);
