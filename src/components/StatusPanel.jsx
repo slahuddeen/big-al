@@ -44,7 +44,7 @@ const StatusPanel = ({ gameState, sheet = false }) => {
                     <CreaturePortrait species="Big Al" level={level} size={66} height={58} className="anim-bob" />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <div className="panel-title text-[22px] leading-none text-[color:var(--accent)]">Spino</div>
+                    <div className="panel-title text-[22px] leading-none text-[color:var(--accent)]">Yutyrannus</div>
                     <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                         <span className="chip" style={{ color: 'var(--ink)' }}><Icon name="level" size={12} />{capitalise(LEVEL_NAMES[level])}</span>
                         <span className="chip pixel" style={{ color: 'var(--accent)', fontSize: 12 }}>{formatWeight(weight)}</span>
@@ -74,7 +74,7 @@ const StatusPanel = ({ gameState, sheet = false }) => {
                     <div className="space-y-1">
                         {gameState.pack.map((m) => (
                             <div key={m.id} className="flex items-center gap-2" title={`${m.name}: ${Math.round(m.health)}% health. Adds bite power and shares your kills.`}>
-                                <CreaturePortrait species="Young Spinosaurus" size={34} height={22} />
+                                <CreaturePortrait species="Young Yutyrannus" size={34} height={22} />
                                 <span className="text-[12px] font-semibold w-12 truncate">{m.name}</span>
                                 <div className="meter flex-1" style={{ height: 5 }}><i style={{ width: `${Math.max(0, m.health)}%`, background: 'var(--health)' }} /></div>
                             </div>

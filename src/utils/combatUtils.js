@@ -182,9 +182,9 @@ export const calculateEnergyGain = (speciesData, creatureSize, playerWeight, pla
                 SPECIES_DATA[name] === speciesData
             );
 
-            if (['Dragonfly', 'Cricket', 'Centipede'].includes(speciesName)) {
+            if (['Mayfly', 'Lacewing', 'Cricket'].includes(speciesName)) {
                 speciesBonus = 1.8; // These are perfect hatchling food!
-            } else if (['Fish', 'Frog', 'Scorpion'].includes(speciesName)) {
+            } else if (['Lycoptera', 'Frog', 'Salamander', 'Xianglong', 'Eomaia'].includes(speciesName)) {
                 speciesBonus = 1.4; // Good secondary prey
             }
         }
@@ -202,8 +202,9 @@ export const calculateEnergyGain = (speciesData, creatureSize, playerWeight, pla
 // Chance an animal bolts before you can close in
 export const escapeChance = (speciesName, speciesData, creatureSize, playerWeight, playerLevel) => {
     const escapeBaseChance = {
-        Dragonfly: 0.2, Cricket: 0.15, Centipede: 0.05, Scorpion: 0.08, Frog: 0.12, Lizard: 0.15, Fish: 0.12,
-        Leptostomia: 0.25, Afrotapejara: 0.22, Siroccopteryx: 0.18, Alanqa: 0.1, Noasaurid: 0.15, Araripesuchus: 0.1, Iguanodont: 0.1, Enantiornithine: 0.3, Dromaeosaur: 0.15
+        Mayfly: 0.2, Lacewing: 0.2, Cricket: 0.15, Salamander: 0.05, Frog: 0.12, Lycoptera: 0.15, Xianglong: 0.3, Eomaia: 0.2,
+        Confuciusornis: 0.3, Dendrorhynchoides: 0.3, Sinopterus: 0.22, Feilongus: 0.15, Microraptor: 0.25, 'Mei long': 0.18,
+        Sinosauropteryx: 0.15, Caudipteryx: 0.2, Incisivosaurus: 0.12, Psittacosaurus: 0.1, Zhenyuanlong: 0.15, Jinzhousaurus: 0.08, Hyphalosaurus: 0.15
     };
     let baseEscape = escapeBaseChance[speciesName] || 0.08;
     const sizeRatio = (speciesData.weight * creatureSize) / playerWeight;

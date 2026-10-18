@@ -8,11 +8,11 @@ import { calculateFiercenessRatio, calculateAgilityRatio, calculateInjuries, cal
 import { calculateVisibility } from '../utils/visibilitySystem.js';
 import { executeCreatureBehavior } from '../utils/creatureBehaviors.js';
 import { ABILITIES, ATTACK_MODS, hasPassive, abilityReady, inCover } from './abilities.js';
-import { isMisty, WATER_SOURCES, thirstFactor, shelterOf } from './environment.js';
+import { isMisty, WATER_SOURCES, thirstFactor, shelterOf, warmthOf } from './environment.js';
 import { generatePois, POI_TYPES } from './pois.js';
 import { GOALS } from './goals.js';
 import { DIETS, factsOf } from '../data/speciesFacts.js';
-import { seasonOf, isDrought, DRIES_UP, isRaining, weatherAt, seasonSpawnFactor } from './weather.js';
+import { seasonOf, isDrought, DRIES_UP, isRaining, isSnowing, snowAt, weatherAt, seasonSpawnFactor, eruptionAt } from './weather.js';
 import {
     MAX_WEIGHT,
     HEALING_RATE,
@@ -22,16 +22,16 @@ import {
     getTimeOfDay
 } from './gameConstants.js';
 
-// Growth stages: a 1kg hatchling grows into a seven-tonne river giant
+// Growth stages: a hatchling under a kilogram grows into a 1.4-tonne feathered tyrant
 export const LEVEL_NAMES = ['', 'hatchling', 'juvenile', 'sub-adult', 'adult'];
-export const LEVEL_WEIGHTS = [0, 20, 500, 2500, MAX_WEIGHT];
+export const LEVEL_WEIGHTS = [0, 15, 250, 800, MAX_WEIGHT];
 
 export const PREY_SIZE_CATEGORIES = {
-    'tiny': ['Dragonfly', 'Centipede', 'Cricket', 'Scorpion'],
-    'small': ['Frog', 'Lizard', 'Fish', 'Lapparentophis', 'Hamadachelys', 'Leptostomia', 'Araripesuchus', 'Afrotapejara', 'Enantiornithine', 'Simoliophis', 'Pachyrhachis'],
-    'medium': ['Noasaurid', 'Lungfish', 'Calamopleurus', 'Bawitius', 'Tribodus', 'Siroccopteryx', 'Injured Pterosaur', 'Alanqa', 'Dromaeosaur', 'Obaichthys'],
-    'large': ['Iguanodont', 'Young Spinosaurus', 'River Plesiosaur', 'Mawsonia', 'Laganosuchus', 'Elosuchus', 'Rugops', 'Deltadromeus', 'Kaprosuchus'],
-    'huge': ['Onchopristis', 'Aegisuchus', 'Sauroniops', 'Bahariasaurus', 'Carcharodontosaurus', 'Spinosaurus', 'Rebbachisaurus', 'Aegyptosaurus', 'Paralititan']
+    'tiny': ['Mayfly', 'Lacewing', 'Cricket'],
+    'small': ['Frog', 'Salamander', 'Lycoptera', 'Xianglong', 'Eomaia', 'Dendrorhynchoides', 'Confuciusornis', 'Mei long', 'Sinosauropteryx', 'Monjurosuchus', 'Peipiaosteus', 'Manchurochelys', 'Hyphalosaurus', 'Microraptor'],
+    'medium': ['Sinopterus', 'Changyuraptor', 'Liaoningosaurus', 'Feilongus', 'Repenomamus', 'Incisivosaurus', 'Caudipteryx', 'Dilong', 'Zhenyuanlong', 'Sinocalliopteryx', 'Psittacosaurus'],
+    'large': ['Beipiaosaurus', 'Young Yutyrannus'],
+    'huge': ['Jinzhousaurus', 'Yutyrannus', 'Dongbeititan']
 };
 
 const MAX_BEHAVIOR_LOG_SIZE = 15;
@@ -60,12 +60,11 @@ const passable = (state, key) => {
 };
 
 // ---------- water ----------
-// Fish need water; land animals will not follow you into the deep channels and
-// lakes, so for a spinosaur the river is a refuge as well as a larder
-export const WATERY = new Set(['river', 'stream', 'lake', 'waterhole', 'marsh', 'mangrove', 'sea']);
+// Fish need water; land animals will not follow you into the deep river and lakes,
+// so once you are big enough to swim them, the water is a refuge
+export const WATERY = new Set(['river', 'stream', 'lake', 'waterhole', 'marsh', 'hotspring']);
 export const DEEP = new Set(['river', 'lake']);
-// fish also live in the pools of the floodplain and the tidal flats
-const FISH_WATERS = new Set(['river', 'stream', 'lake', 'waterhole', 'marsh', 'mangrove', 'floodplain', 'beach']);
+const FISH_WATERS = new Set(['river', 'stream', 'lake', 'waterhole', 'marsh']);
 export const inWater = (state) => WATERY.has(state.cells.get(state.player)?.terrain);
 export const inDeepWater = (state) => DEEP.has(state.cells.get(state.player)?.terrain);
 export const canEnter = (state, key, c) => {
@@ -77,7 +76,7 @@ export const canEnter = (state, key, c) => {
 };
 const fromLand = (c) => !AQUATIC.has(c.species) && !SEMI_AQUATIC.has(c.species) && !FLYERS.has(c.species);
 
-// How fierce Big Al is (same measure the combat maths uses)
+// How fierce the player is (same measure the combat maths uses)
 export const playerFierceness = (state) => Math.max(1, state.weight * (Math.log10(Math.max(1, state.fitness)) / 2));
 // How dangerous a creature is right now (wounded animals are weaker)
 export const creatureThreat = (c) => {
@@ -93,7 +92,12 @@ export const sleepBlockers = (state) => {
 // ---------- weather helpers ----------
 export const raining = (state) => state.worldSeed !== null && isRaining(state.worldSeed, state.moveNumber);
 export const weatherNow = (state) => (state.worldSeed !== null ? weatherAt(state.worldSeed, state.moveNumber) : 'clear');
-// Can you drink here? Small waters dry up in the drought; in the rain there are puddles everywhere
+export const snowing = (state) => state.worldSeed !== null && isSnowing(state.worldSeed, state.moveNumber);
+export const eruptionNow = (state) => (state.worldSeed !== null ? eruptionAt(state.worldSeed, state.moveNumber) : { phase: 'none', strength: 0 });
+export const ashFalling = (state) => eruptionNow(state).phase === 'ashfall';
+// Snow lying on the ground: you can eat it, and it holds your tracks
+export const snowCover = (state) => snowAt(state.moveNumber);
+// Can you drink here? Small waters freeze in deep winter; in rain or snow there is water everywhere
 export const drinkableAt = (state, key) => {
     const t = state.cells.get(key)?.terrain;
     if (!WATER_SOURCES.has(t)) return false;
@@ -102,32 +106,33 @@ export const drinkableAt = (state, key) => {
 export const canDrink = (state) => {
     const here = state.cells.get(state.player);
     if (!here) return false;
-    return raining(state) || [state.player, ...here.neighbors].some((k) => drinkableAt(state, k));
+    return raining(state) || snowing(state) || snowCover(state) > 0.4 || [state.player, ...here.neighbors].some((k) => drinkableAt(state, k));
 };
 
 // How well a small dinosaur can hide here (0..1)
 const COVER_SCORE = {
-    river: 0.9, lake: 0.9, mangrove: 0.85, marsh: 0.8, stream: 0.55, waterhole: 0.5,
-    deadfall: 0.9, denseforest: 0.85, jungle: 0.85, oldgrowth: 0.75, galleryforest: 0.75, forest: 0.7, youngforest: 0.7,
-    marsh: 0.7, fernprairie: 0.65, boulderfield: 0.65, katydidmeadow: 0.55, forestedge: 0.55, scrubland: 0.55,
-    openwoods: 0.5, ginkgogrove: 0.5, rocky: 0.45, riverbank: 0.45, termitemounds: 0.4, deadforest: 0.35, nest: 0.35, hills: 0.3,
-    desert: 0.1, beach: 0.1, sauropodgrounds: 0.15
+    deadfall: 0.9, denseforest: 0.85, oldgrowth: 0.8, galleryforest: 0.75, forest: 0.7, marsh: 0.75, basalt: 0.65,
+    boulderfield: 0.65, fernprairie: 0.6, ginkgogrove: 0.55, openwoods: 0.5, scrubland: 0.55, crags: 0.5, deadforest: 0.4,
+    hotspring: 0.5, meadow: 0.45, hills: 0.35, nest: 0.35, floodplain: 0.35, riverbank: 0.3, stream: 0.35, waterhole: 0.3,
+    lavafield: 0.3, ashflat: 0.1, sauropodgrounds: 0.15
 };
-// Too big to hide on land from the sub-adult stage, but you can always sink into the water
-export const canHideHere = (state) => state.level <= 2 || inWater(state);
+// Too big to hide from the sub-adult stage
+export const canHideHere = (state) => state.level <= 2 && !inDeepWater(state);
 export const hideChance = (state, creature = null) => {
     const here = state.cells.get(state.player);
     let p = COVER_SCORE[here?.terrain] ?? 0.2;
-    // under water only the eyes and nostrils show, whatever your size; on land a juvenile is harder to tuck away
-    if (!inWater(state)) p *= state.level === 1 ? 1 : 0.7;
-    else if (creature && !fromLand(creature)) p *= 0.6; // crocodiles and fish see you fine down there
+    if (state.level === 2) p *= 0.75; // a lanky juvenile is harder to tuck away
     if (raining(state)) p *= 1.25;
     if (playerMisty(state)) p *= 1.2;
+    // snow holds your tracks; a blizzard covers them
+    if (weatherNow(state) === 'blizzard') p *= 1.3;
+    else if (snowCover(state) > 0.3) p *= 0.65;
+    if (ashFalling(state)) p *= 1.2;
     if (creature?.engaged) p *= 0.65; // much harder once it has its eye on you
     return Math.max(0.05, Math.min(0.95, p));
 };
 
-// Hatchet bites are for animals at least a good fraction of Big Al's size
+// Hatchet bites are for animals at least a good fraction of the player's size
 export const hatchetTarget = (state, c) => (SPECIES_DATA[c.species]?.weight ?? 0) * (c.size ?? 1) >= state.weight * 0.4;
 export const playerMisty = (state) => {
     const here = state.cells.get(state.player);
@@ -156,7 +161,7 @@ const getPreySizeMultiplier = (playerLevel, playerWeight, speciesName) => {
     return multiplier;
 };
 
-const GIANTS = new Set(['Rebbachisaurus', 'Aegyptosaurus', 'Paralititan']);
+const GIANTS = new Set(['Dongbeititan']);
 const makeCreature = (species, state, size, extra = {}) => {
     const sd = SPECIES_DATA[species];
     const minAge = sd.minimumAge || 0.1;
@@ -173,9 +178,9 @@ const makeCreature = (species, state, size, extra = {}) => {
 // A grown sauropod fills half an area on its own: at most two per area
 export const MAX_GIANTS_PER_CELL = 2;
 export const isBigGiant = (c) => GIANTS.has(c.species) && (c.size ?? 1) > 0.3;
-// How much room a grown giant takes up: a Paralititan, one of the largest animals that
-// ever lived, fills an area on its own; two of the others fit side by side
-const GIANT_LOAD = { Paralititan: 2 };
+// How much room a grown giant takes up: a Dongbeititan, the largest animal in the
+// Jehol, fills an area on its own
+const GIANT_LOAD = {};
 export const giantLoad = (c) => (isBigGiant(c) ? GIANT_LOAD[c.species] ?? 1 : 0);
 const countGiants = (list) => (list || []).reduce((sum, c) => sum + giantLoad(c), 0);
 
@@ -187,7 +192,7 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
     const poi = key ? state.pois?.get(key) : null;
     if (poi?.type === 'sauropodcarcass' && poi.portions > 0) {
         // a fallen giant draws in every predator around
-        Object.assign(dist, { Carcharodontosaurus: 0.15, Sauroniops: 0.1, Bahariasaurus: 0.1, Rugops: 0.15, Deltadromeus: 0.12, Noasaurid: 0.25, Alanqa: 0.2, Araripesuchus: 0.2 });
+        Object.assign(dist, { Yutyrannus: 0.15, Sinocalliopteryx: 0.15, Zhenyuanlong: 0.2, Dilong: 0.2, Repenomamus: 0.2, Feilongus: 0.12, Sinosauropteryx: 0.2 });
     }
     const phase = phaseOf(state);
     const spawned = [];
@@ -198,7 +203,8 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
         attempts++;
         if (FLYERS.has(species) && flyers <= 0) continue;
         let chance = dist[species] * getPreySizeMultiplier(state.level, state.weight, species) * chanceScale * activityFactor(species, phase) * seasonSpawnFactor(terrain, species, state.moveNumber);
-        if (state.level <= 2 && ['Carcharodontosaurus', 'Sauroniops', 'Bahariasaurus', 'Spinosaurus', 'Aegisuchus', 'Onchopristis'].includes(species)) chance *= 0.05;
+        if (state.level <= 2 && ['Yutyrannus', 'Dongbeititan'].includes(species)) chance *= 0.05;
+        if (ashFalling(state)) chance *= 0.5; // animals shelter from the ash
         if (GIANTS.has(species) && terrain === 'sauropodgrounds') chance = Math.max(chance, dist[species] * chanceScale); // herds are always on the move here
         if (Math.random() >= chance) continue;
         const [gMin, gMax] = GROUP_SIZE[species] || [1, 1];
@@ -214,7 +220,7 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
             const load = GIANT_LOAD[species] ?? 1;
             const adults = Math.min(Math.floor((MAX_GIANTS_PER_CELL - giantsHere - countGiants(spawned)) / load), 1 + Math.floor(Math.random() * 2));
             if (adults <= 0) continue;
-            // a calf or two walk among the adults (only one beside a Paralititan)
+            // a calf or two walk among the adults (only one beside a Dongbeititan)
             const young = Math.min(max - existing - spawned.length - adults, Math.floor(Math.random() * (load > 1 ? 2 : 3)));
             for (let i = 0; i < adults; i++) spawned.push(makeCreature(species, state, undefined, { herd, heading }));
             for (let i = 0; i < young; i++) spawned.push(makeCreature(species, state, 0.01 + Math.random() * 0.07, { herd, heading }));
@@ -223,7 +229,7 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
         spawned.push(makeCreature(species, state, undefined, { herd, heading }));
         for (let i = 1; i < n; i++) {
             // herds bring their young along (a young sauropod is tiny next to its parents)
-            const young = species === 'Iguanodont' && Math.random() < 0.5;
+            const young = (species === 'Jinzhousaurus' || species === 'Psittacosaurus') && Math.random() < 0.5;
             spawned.push(makeCreature(species, state, young ? 0.15 + Math.random() * 0.25 : undefined, { herd, heading }));
         }
     }
@@ -231,7 +237,7 @@ const rollSpawns = (terrain, state, { chanceScale = 1, max = MAX_CREATURES_PER_H
 };
 
 export const initialGameState = {
-    player: null, // key of the cell Big Al stands on
+    player: null, // key of the cell the player stands on
     cells: new Map(), // key -> { key, x, z, terrain, level, neighbors, discovered, visited, visible, inRange, inSight }
     worldSeed: null,
     selectedHex: null,
@@ -269,7 +275,7 @@ export const initialGameState = {
 
     notifications: [],
     eventLog: [],
-    currentThought: "You crack out of your egg... those bugs look delicious!",
+    currentThought: "You break out of your egg in the warm nest mound. The air outside is cold...",
 
     gamePhase: 'exploring',
     gameOver: false,
@@ -295,9 +301,9 @@ const applyGrowth = (level, weight, notifications) => {
     let n = addNotification(notifications, { type: 'levelup', message: `You've grown into a ${LEVEL_NAMES[newLevel]}!` });
     const learned = Object.values(ABILITIES).filter((a) => a.level > level && a.level <= newLevel).map((a) => a.name);
     const advice = {
-        2: 'Bugs are getting less satisfying. You can swim the big river now: fish, turtles and lungfish wait there.',
-        3: 'Small fish will not keep you going now. Hunt the big fish, crocodiles and the odd iguanodont.',
-        4: 'You are the river king. Sawfish, giant coelacanths and even titanosaurs are prey now. Watch for Carcharodontosaurus.'
+        2: 'Bugs are not enough now. Hunt mammals, lizards, birds and the little feathered dinosaurs. Once you reach 25kg you can swim the rivers and lakes.',
+        3: 'You are too big to hide. Hunt Psittacosaurus and the raptors that once hunted you.',
+        4: 'You are a feathered tyrant. Jinzhousaurus herds and even Dongbeititan are prey. Only another grown Yutyrannus can stand against you.'
     };
     if (learned.length || advice[newLevel]) {
         n = addNotification(n, { type: 'levelup', message: `${learned.length ? `New abilities: ${learned.join(', ')}. ` : ''}${advice[newLevel] || ''}` });
@@ -305,8 +311,8 @@ const applyGrowth = (level, weight, notifications) => {
     return { level: newLevel, notifications: n };
 };
 
-// A spinosaur grows to more than three times an allosaur's weight, so it puts weight on faster
-const GROWTH_SCALE = 3;
+// How fast meals turn into growth
+const GROWTH_SCALE = 1.2;
 
 // Feeding: shared by hunting and scavenging
 const feed = (state, energyGain, preySize, weightFactor = 1) => {
@@ -338,7 +344,7 @@ const addCarcass = (carcasses, key, carcass) => {
     return out;
 };
 
-// Neighbouring cell that gets a creature furthest from Big Al
+// Neighbouring cell that gets a creature furthest from the player
 const escapeCell = (state, fromKey, occupancy, creature = null) => {
     let best = null;
     let bestD = -1;
@@ -368,7 +374,7 @@ const towardPlayer = (state, fromKey) => {
     return best;
 };
 
-// Chance a creature that means to attack has actually spotted Big Al
+// Chance a creature that means to attack has actually spotted the player
 const noticeChance = (state, creature, opts = {}) => {
     const sd = SPECIES_DATA[creature.species] || {};
     let p = 1;
@@ -377,6 +383,8 @@ const noticeChance = (state, creature, opts = {}) => {
     if (state.hiddenAt === state.moveNumber) p *= 0.25;
     if (inWater(state) && fromLand(creature)) p *= inDeepWater(state) ? 0.3 : 0.6; // low in the water you are hard to spot from the bank
     if (raining(state)) p *= weatherNow(state) === 'storm' ? 0.5 : 0.65; // rain hides your scent
+    if (weatherNow(state) === 'blizzard') p *= 0.55;
+    if (ashFalling(state)) p *= 0.7;
     if (inCover(state)) p *= 0.8;
     if (playerMisty(state)) p *= 0.6;
     if (hasPassive(state, 'tiny') && (sd.weight || 1) * (creature.size || 1) > state.weight * 100) p *= 0.45;
@@ -399,7 +407,7 @@ const attackDamage = (state, creature, rawDamage) => {
 export const counterDamage = (state, c) => attackDamage(state, c, (SPECIES_DATA[c.species]?.danger ?? 1) * (c.size ?? 1));
 
 // ==================== CREATURE TURN ====================
-// Animals act on their own; attacks only land from Big Al's own area, so an
+// Animals act on their own; attacks only land from the player's own area, so an
 // aggressive animal next door charges in first. Hunters may keep chasing you
 // for a few turns, packs gang up, and sauropod herds walk their migration routes.
 const headingFor = (id) => {
@@ -482,7 +490,8 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                 if (creature.chasing > 0 && !gameState.gameOver) {
                     const dist = distanceToPlayer(gameState, hexKey);
                     creature.chasing -= 1;
-                    const loseTrail = opts.evading || (inCover(gameState, playerMisty(gameState)) && Math.random() < 0.3) || (raining(gameState) && Math.random() < 0.35) || dist > 3 || (creature.lostUntil ?? -1) >= turn || (fromLand(creature) && inDeepWater(gameState));
+                    const tracks = snowCover(gameState) > 0.3 && weatherNow(gameState) !== 'blizzard';
+                    const loseTrail = opts.evading || (!tracks && inCover(gameState, playerMisty(gameState)) && Math.random() < 0.3) || ((raining(gameState) || weatherNow(gameState) === 'blizzard') && Math.random() < 0.35) || dist > 3 || (creature.lostUntil ?? -1) >= turn || (fromLand(creature) && inDeepWater(gameState));
                     if (loseTrail) {
                         creature.chasing = 0;
                         if (dist <= 3) behaviorLog.push({ id: uid('log'), type: 'creature_movement', creature: creature.species, creatureId: creature.id, hexKey, message: `The ${creature.species} loses your trail.`, near: true });
@@ -547,7 +556,7 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                         if (gameState.gameOver || dist > 2) {
                             // nothing to do
                         } else if (threat < pf * 0.25 || (hasPassive(gameState, 'apex') && isPredator && threat < pf * 0.6)) {
-                            // Big Al is far too big to pick a fight with: it backs off instead
+                            // the player is far too big to pick a fight with: it backs off instead
                             const to = escapeCell(gameState, hexKey, occupancy, creature);
                             if (to && roomAt(to, creature)) {
                                 destKey = to;
@@ -566,7 +575,7 @@ const processCreatureBehaviors = (gameState, opts = {}) => {
                         } else if (Math.random() < noticeChance(gameState, creature, opts)) {
                             let canStrike = true;
                             if (dist === 1) {
-                                // charge into Big Al's area to attack
+                                // charge into the player's area to attack
                                 if (roomAt(player, creature)) {
                                     destKey = player;
                                     move(hexKey, player, creature);
@@ -655,8 +664,8 @@ const killPlayer = (state, reason, thought) => ({
     ...state, gameOver: true, gamePhase: 'dead', deathReason: reason, currentThought: thought
 });
 
-const PACK_NAMES = ['Scar', 'Ember', 'Ridge', 'Quill', 'Talon', 'Ash', 'Fern', 'Flint', 'Rust', 'Sable'];
-const OPEN_COUNTRY = new Set(['plains', 'fernprairie', 'katydidmeadow', 'fernsavanna', 'savanna', 'steppe', 'scrubland', 'floodplain', 'sauropodgrounds', 'termitemounds', 'hills']);
+const PACK_NAMES = ['Ash', 'Ember', 'Quill', 'Frost', 'Talon', 'Pine', 'Fern', 'Flint', 'Cinder', 'Sable'];
+const OPEN_COUNTRY = new Set(['meadow', 'fernprairie', 'scrubland', 'floodplain', 'sauropodgrounds', 'ashflat', 'hills']);
 
 // Bookkeeping for a kill (journal, stats used by the goals)
 const recordKill = (state, species, mass) => {
@@ -674,7 +683,7 @@ const recordKill = (state, species, mass) => {
     };
 };
 
-// Some blows land on a hunting companion instead of Big Al
+// Some blows land on a hunting companion instead of the player
 const hitCompanion = (state, damage, creature) => {
     if (!state.pack?.length || Math.random() > 0.35) return null;
     const i = Math.floor(Math.random() * state.pack.length);
@@ -771,9 +780,13 @@ const passTime = (state, { energyCost, terrain, heal = HEALING_RATE, thirstMul =
     const weight = Math.max(0.5, state.weight - metabolismRate);
     const energy = Math.max(0, state.energy - energyCost);
     const season = seasonOf(state.moveNumber).name;
-    let hydration = Math.max(0, state.hydration - 2.2 * thirstFactor(terrain) * thirstMul * (season === 'dry' ? 1.35 : 0.8));
+    let hydration = Math.max(0, state.hydration - 2.2 * thirstFactor(terrain) * thirstMul * (season === 'summer' ? 1.15 : 0.8) * (ashFalling(state) ? 1.3 : 1));
     if (['river', 'lake'].includes(terrain) || (terrain === 'stream' && !isDrought(state.moveNumber))) hydration = Math.min(100, hydration + 30);
-    if (state.worldSeed !== null && isRaining(state.worldSeed, state.moveNumber)) hydration = Math.min(100, hydration + 8);
+    if (state.worldSeed !== null && (isRaining(state.worldSeed, state.moveNumber) || isSnowing(state.worldSeed, state.moveNumber))) hydration = Math.min(100, hydration + 8);
+    // the winter cold burns energy, most of all for something small in the open. Shelter, the
+    // hot springs and nest-mates to huddle with all help
+    const cold = coldAt(state, terrain);
+    const energyAfterCold = Math.max(0, energy - cold);
     let fitness = state.fitness;
     if (hydration <= 0) {
         fitness = Math.max(0, fitness - 6);
@@ -781,7 +794,20 @@ const passTime = (state, { energyCost, terrain, heal = HEALING_RATE, thirstMul =
     } else if (hydration > 15 && energy > 10) {
         fitness = Math.min(100, fitness + heal);
     }
-    return { weight, energy, hydration, fitness, notifications };
+    return { weight, energy: energyAfterCold, hydration, fitness, notifications, cold };
+};
+
+// Energy lost to the cold this turn
+export const coldAt = (state, terrain) => {
+    if (state.worldSeed === null) return 0;
+    const season = seasonOf(state.moveNumber);
+    if (season.name !== 'winter') return 0;
+    const w = weatherAt(state.worldSeed, state.moveNumber);
+    const chill = 0.5 + snowAt(state.moveNumber) * 0.6 + (w === 'blizzard' ? 0.8 : w === 'snow' ? 0.3 : 0);
+    const exposed = 1 - warmthOf(terrain);
+    const small = Math.max(0.3, 1 - Math.log10(Math.max(1, state.weight)) / 4);
+    const huddle = 1 - Math.min(0.5, (state.pack || []).length * 0.25);
+    return Math.round(chill * exposed * small * huddle * 4 * 10) / 10;
 };
 
 const contextualThought = (state) => {
@@ -792,29 +818,82 @@ const contextualThought = (state) => {
     if (state.fitness < 35) return 'Every step hurts. Somewhere safe to sleep would help.';
     if (here && playerMisty(state)) return 'Mist hangs low. You can barely see, but nothing can see you either.';
     if (phase === 3) return 'Night falls. Things move in the dark.';
+    if (seasonOf(state.moveNumber).name === 'winter' && coldAt(state, here?.terrain) > 1.5) return 'The cold bites through your down. Find shelter, or warm water.';
     if (state.level === 1) {
-        const t = ['Those dragonflies look tasty but so fast!', 'Little fish flicker in the shallows...', 'Everything is so big. Stay near the water.', 'The big river is too strong for me yet.'];
+        const t = ['Crickets in the ferns... and so many mayflies!', 'Stay in the ferns. Things with claws live here.', 'Everything is so big.', 'Something rustles in the dark under the trees.'];
         return t[Math.floor(Math.random() * t.length)];
     }
     if (state.level === 2) {
-        const t = ["Bugs aren't as filling as they used to be...", 'The river is full of fish. Time to swim.', 'On land I am slow. In the water I am fast.'];
+        const t = ["Bugs aren't as filling as they used to be...", 'Your legs are long now. You can outrun most things.', 'The little raptors look like food now, not danger.'];
         return t[Math.floor(Math.random() * t.length)];
     }
     return THOUGHTS[Math.floor(Math.random() * THOUGHTS.length)];
 };
 
-const DENSE = new Set(['denseforest', 'oldgrowth', 'jungle', 'galleryforest', 'deadfall', 'youngforest', 'forest']);
+const DENSE = new Set(['denseforest', 'oldgrowth', 'deadfall']);
 export const crampedIn = (state, terrain) => state.level >= 3 && DENSE.has(terrain);
 
-// Companions walk with Big Al, heal slowly and grow alongside him; a starving pack breaks up
+// Companions walk with the player, heal slowly and grow alongside him; a starving pack breaks up
 const followPack = (state, energy) => (state.pack || [])
     .filter(() => energy > 15 || Math.random() > 0.15)
     .map((m) => ({ ...m, weight: Math.max(m.weight, state.weight * 0.7), health: Math.min(100, m.health + 3) }));
 
 const setCooldown = (state, id) => ({ ...state.cooldowns, [id]: state.moveNumber + ABILITIES[id].cooldown });
 
+// ==================== ERUPTIONS ====================
+// On the worst turn of an eruption, gas and ash pour down into the low ground
+// around the lakes. Everything caught there dies, and the lakes fill with dead fish.
+// This is how the Jehol fossil beds formed.
+const GAS_GROUND = new Set(['lake', 'riverbank', 'marsh', 'floodplain', 'stream', 'waterhole', 'galleryforest', 'river']);
+export const gasZone = (state) => {
+    const world = state.worldSeed !== null ? getWorld(state.worldSeed) : null;
+    if (!world) return new Set();
+    const vents = world.cells.filter((c) => c.terrain === 'volcanic');
+    if (!vents.length) return new Set();
+    const e = eruptionAt(state.worldSeed, state.moveNumber);
+    const vent = vents[(e.start ?? 0) % vents.length];
+    const zone = new Set();
+    for (const c of world.cells) {
+        if (!GAS_GROUND.has(c.terrain) || c.level > 4) continue;
+        if (Math.hypot(c.x - vent.x, c.z - vent.z) < 34) zone.add(c.key);
+    }
+    return zone;
+};
+const volcanicGas = (state) => {
+    const zone = gasZone(state);
+    if (!zone.size) return state;
+    const creatures = new Map(state.creatures);
+    let carcasses = new Map(state.carcasses || []);
+    let dead = 0;
+    for (const key of zone) {
+        const list = creatures.get(key) || [];
+        const survivors = list.filter((c) => FLYERS.has(c.species));
+        for (const c of list) {
+            if (FLYERS.has(c.species)) continue;
+            dead++;
+            carcasses = addCarcass(carcasses, key, { species: c.species, size: c.size, turn: state.moveNumber, portions: Math.max(1, Math.min(6, Math.round(preyMass(c) / Math.max(1, state.weight)))) });
+        }
+        if (survivors.length) creatures.set(key, survivors);
+        else creatures.delete(key);
+        // dead fish wash up in the lakes
+        const t = state.cells.get(key)?.terrain;
+        if ((t === 'lake' || t === 'river') && Math.random() < 0.6) carcasses = addCarcass(carcasses, key, { species: 'Lycoptera', size: 1, turn: state.moveNumber, portions: 3 });
+    }
+    const next = { ...state, creatures, carcasses };
+    let notifications = next.notifications;
+    if (zone.has(state.player)) {
+        const dmg = Math.round(Math.max(25, 70 - state.level * 12));
+        next.fitness = Math.max(0, state.fitness - dmg);
+        notifications = addNotification(notifications, { type: 'death', message: `Choking gas rolls down over the water! -${dmg} health` });
+        if (next.fitness <= 0) return killPlayer({ ...next, notifications }, 'gas', 'The gas from the volcano settles over you...');
+    } else {
+        notifications = addNotification(notifications, { type: 'warning', message: dead ? 'Gas from the volcano has poured into the low ground by the lakes. Nothing there survived; there will be carcasses.' : 'Gas from the volcano has poured into the low ground by the lakes.' });
+    }
+    return { ...next, notifications };
+};
+
 // ==================== EXPLORATION BOOKKEEPING ====================
-// Runs after every action: records species, habitats and landmarks Big Al has
+// Runs after every action: records species, habitats and landmarks the player has
 // seen, and keeps the event log in step with the notifications.
 const recordDiscoveries = (prev, next) => {
     let state = next;
@@ -862,12 +941,29 @@ const recordDiscoveries = (prev, next) => {
         const a = seasonOf(prev.moveNumber);
         const b = seasonOf(state.moveNumber);
         const say = (type, message) => { state = { ...state, notifications: addNotification(state.notifications, { type, message }) }; };
-        if (a.name !== b.name) say('weather', b.name === 'wet' ? 'The rains have come. The basin turns green and the herds spread out across the plains.' : 'The dry season begins. Water will get scarce; animals will gather at the rivers.');
-        else if (!isDrought(prev.moveNumber) && isDrought(state.moveNumber)) say('weather', 'Drought. Streams, waterholes and marshes are drying up.');
+        if (a.name !== b.name) {
+            if (b.name === 'winter') say('weather', 'Winter is coming. The cold will burn your energy; shelter in the forests, by the hot springs or with your nest-mates. Insects and frogs are disappearing.');
+            else {
+                say('weather', 'Spring returns. The snow melts and the forest wakes up.');
+                state = { ...state, stats: { ...state.stats, winters: (state.stats.winters || 0) + 1 } };
+            }
+        } else if (!isDrought(prev.moveNumber) && isDrought(state.moveNumber)) say('weather', 'Deep winter. Ponds and streams have frozen; eat snow, or find the lakes and hot springs.');
         const wa = weatherAt(state.worldSeed, prev.moveNumber);
         const wb = weatherAt(state.worldSeed, state.moveNumber);
         if (wa !== wb && wb === 'storm') say('weather', 'A storm rolls in. Rain hides your scent.');
         else if (wa !== wb && wb === 'rain' && wa !== 'storm') say('weather', 'It starts to rain. Your scent washes away.');
+        else if (wa !== wb && wb === 'blizzard') say('weather', 'A blizzard. It covers your tracks, but the cold is brutal.');
+        else if (wa !== wb && wb === 'snow' && wa !== 'blizzard') say('weather', 'It starts to snow. Your tracks will show in it.');
+        // eruptions
+        const ea = eruptionAt(state.worldSeed, prev.moveNumber);
+        const eb = eruptionAt(state.worldSeed, state.moveNumber);
+        if (eb.phase === 'rumble' && ea.phase !== 'rumble') say('combat', 'The ground shakes. A column of smoke rises from the volcano. Get away from the lakes and the low ground!');
+        if (eb.phase === 'ashfall' && ea.phase !== 'ashfall') say('weather', 'Ash is falling. It is hard to see and hard to breathe.');
+        if (eb.gas && !ea.gas) state = volcanicGas(state);
+        if (ea.phase === 'clearing' && eb.phase === 'none' && !state.gameOver) {
+            state = { ...state, stats: { ...state.stats, eruptions: (state.stats.eruptions || 0) + 1 } };
+            say('success', 'The ash settles. You survived the eruption.');
+        }
     }
     // goals
     if (state.mapGenerated && !state.gameOver && (prev.stats !== state.stats || prev.level !== state.level || prev.pack !== state.pack || prev.journal !== state.journal)) {
@@ -904,7 +1000,7 @@ const coreReducer = (state, action) => {
                     visited: false, visible: false, discovered: false, inRange: false, inSight: false
                 });
             }
-            return { ...state, worldSeed: seed, cells, player: world.spawnKey, mapGenerated: true, pois: generatePois(world), migration: ((seed * 9301 + 49297) % 233280) / 233280 * Math.PI * 2 };
+            return { ...state, worldSeed: seed, cells, player: world.spawnKey, mapGenerated: true, moveNumber: action.turn || state.moveNumber, pois: generatePois(world), migration: ((seed * 9301 + 49297) % 233280) / 233280 * Math.PI * 2 };
         }
 
         case 'MOVE_PLAYER': {
@@ -914,32 +1010,32 @@ const coreReducer = (state, action) => {
             if (!targetHex) return state;
             const terrain = TERRAIN_TYPES[targetHex.terrain];
 
-            if (targetHex.terrain === 'quicksand') {
+            if (targetHex.terrain === 'mudpot') {
                 return {
-                    ...killPlayer(state, 'sank', 'You step into the quicksand and sink rapidly...'),
+                    ...killPlayer(state, 'sank', 'You step into the boiling mud...'),
                     player: target,
-                    notifications: addNotification(state.notifications, { type: 'death', message: 'You stepped into quicksand and were pulled down into its depths!' })
+                    notifications: addNotification(state.notifications, { type: 'death', message: 'The crust gave way over a pool of boiling volcanic mud.' })
                 };
             }
             if (!terrain.passable) return state;
             if (terrain.minWeight > 0 && state.weight < terrain.minWeight) {
                 const river = targetHex.terrain === 'river';
                 return {
-                    ...killPlayer(state, river ? 'drowned' : 'sank', river ? 'The current sweeps your small body away...' : 'You sink into the terrain...'),
+                    ...killPlayer(state, 'drowned', 'The cold water closes over your small body...'),
                     player: target,
                     notifications: addNotification(state.notifications, {
-                        type: 'death', message: river ? "You swam out into the great river, but you are still too small. The current swept you away!" : 'The terrain proved too dangerous for your size!'
+                        type: 'death', message: river ? 'You swam out into the river, but you are still too small. The cold current swept you away!' : 'You swam out into the deep lake, but you are still too small to swim it.'
                     })
                 };
             }
 
             const dashing = state.dashArmed;
             const sizeMultiplier = Math.max(0.4, Math.min(2.0, Math.pow(state.weight / 150, 0.4)));
-            // a big body and a sail crash through thick woods
+            // a big body crashes through thick woods
             const cramped = crampedIn(state, targetHex.terrain);
-            // a spinosaur swims well and walks badly: water gets cheaper as you grow, land dearer
+            // swimming is hard work; long young legs make walking cheap
             const water = WATERY.has(targetHex.terrain);
-            const swimMul = water ? (hasPassive(state, 'legs') ? 0.6 : 0.85) : 1 + Math.max(0, state.level - 2) * 0.08;
+            const swimMul = water ? 1.15 : hasPassive(state, 'legs') ? 0.82 : 1;
             const energyCost = Math.round(terrain.energyCost * sizeMultiplier * swimMul * (cramped ? 1 + 0.35 * (state.level - 2) : 1)) + (dashing ? ABILITIES.dash.energy : 0);
             const timed = passTime(state, { energyCost, terrain: targetHex.terrain });
             let { fitness, notifications } = timed;
@@ -949,19 +1045,20 @@ const coreReducer = (state, action) => {
                 fitness = Math.max(0, fitness - damage);
                 notifications = addNotification(notifications, { type: 'injury', message: `Moving through ${terrain.name} hurt you! -${damage} health` });
             }
+            if (timed.cold >= 2 && Math.random() < 0.35) notifications = addNotification(notifications, { type: 'injury', message: `The cold drains you. -${Math.round(timed.cold)} energy` });
             const growth = applyGrowth(state.level, timed.weight, notifications);
             notifications = growth.notifications;
 
             if (timed.energy <= 0) {
                 return {
-                    ...killPlayer(state, 'starved', state.level === 1 ? 'Your tiny body finally gives in to hunger...' : 'Even your massive body cannot survive without food...'),
-                    notifications: addNotification(notifications, { type: 'death', message: 'You collapse from exhaustion and starvation!' })
+                    ...killPlayer(state, timed.cold > 1.5 ? 'cold' : 'starved', timed.cold > 1.5 ? 'The cold takes the last of your strength...' : state.level === 1 ? 'Your tiny body finally gives in to hunger...' : 'Even your massive body cannot survive without food...'),
+                    notifications: addNotification(notifications, { type: 'death', message: timed.cold > 1.5 ? 'You collapse in the snow, cold and starving.' : 'You collapse from exhaustion and starvation!' })
                 };
             }
             if (fitness <= 0) {
                 const thirst = timed.hydration <= 0;
                 return {
-                    ...killPlayer(state, thirst ? 'dehydrated' : 'injuries', thirst ? 'The heat takes the last of your strength...' : 'Your wounds prove too severe...'),
+                    ...killPlayer(state, thirst ? 'dehydrated' : 'injuries', thirst ? 'Thirst takes the last of your strength...' : 'Your wounds prove too severe...'),
                     notifications: addNotification(notifications, { type: 'death', message: thirst ? 'You died of thirst.' : 'Your injuries prove fatal!' })
                 };
             }
@@ -993,7 +1090,7 @@ const coreReducer = (state, action) => {
                 ...behaviorState,
                 selectedHex: null,
                 currentThought: behaviorState.gameOver ? behaviorState.currentThought
-                    : cramped && Math.random() < 0.5 ? 'Your sail snags in the branches. The open rivers suit you better now.' : contextualThought(behaviorState)
+                    : cramped && Math.random() < 0.5 ? 'Branches snag your filaments. Open ground suits you better now.' : contextualThought(behaviorState)
             };
         }
 
@@ -1017,7 +1114,7 @@ const coreReducer = (state, action) => {
             });
             const healed = Math.round(timed.fitness - state.fitness);
             let notifications = addNotification(timed.notifications, {
-                type: 'rest', message: `You sleep through the ${getTimeOfDay(state.moveNumber).phaseName.toLowerCase()}${wallow ? ' in the cool mud' : ''}. ${healed > 0 ? `+${healed} health` : state.fitness >= 100 ? 'You wake rested.' : 'You are too hungry or thirsty to heal.'}`
+                type: 'rest', message: `You sleep through the ${getTimeOfDay(state.moveNumber).phaseName.toLowerCase()}${wallow ? ' by the warm pool' : ''}. ${healed > 0 ? `+${healed} health` : state.fitness >= 100 ? 'You wake rested.' : 'You are too hungry, thirsty or cold to heal.'}`
             });
             let slept = {
                 ...state,
@@ -1059,20 +1156,21 @@ const coreReducer = (state, action) => {
             const after = withBehaviors(slept, processCreatureBehaviors(slept, { asleep: true }));
             if (after.gameOver) return after;
             if (after.fitness <= 0) return killPlayer(after, timed.hydration <= 0 ? 'dehydrated' : 'injuries', 'You never wake up...');
-            return { ...after, currentThought: wallow ? 'The mud is cool on your wounds.' : night ? 'You doze through the dark hours.' : 'A short nap in the warm sun.' };
+            return { ...after, currentThought: wallow ? 'The warm water soaks into your aching legs.' : night ? 'You doze through the dark hours, fluffed up against the cold.' : 'A short nap in a patch of sun.' };
         }
 
         case 'DRINK': {
             if (state.gameOver) return state;
             const here = state.cells.get(state.player);
             const sources = [state.player, ...here.neighbors].filter((k) => drinkableAt(state, k));
-            if (!sources.length && !raining(state)) return state;
+            const snowy = snowing(state) || snowCover(state) > 0.4;
+            if (!sources.length && !raining(state) && !snowy) return state;
             let next = {
                 ...state,
                 hydration: 100,
                 stats: { ...state.stats, drinks: (state.stats.drinks || 0) + 1 },
                 lastPlayerAction: { id: uid('act'), type: 'drink' },
-                currentThought: 'Cool water. Much better.'
+                currentThought: !sources.length && snowy ? 'You scoop up mouthfuls of snow.' : 'Cold water. Much better.'
             };
             // crocodiles wait at the water's edge
             for (const key of sources) {
@@ -1154,9 +1252,9 @@ const coreReducer = (state, action) => {
                     creatures,
                     creatureBehaviorLog: [...state.creatureBehaviorLog, ...log].slice(-MAX_BEHAVIOR_LOG_SIZE),
                     notifications: addNotification(state.notifications, {
-                        type: 'info', message: scared.length ? `Your roar scatters ${scared.length} animal${scared.length > 1 ? 's' : ''}.` : 'You roar. Nothing nearby is impressed.'
+                        type: 'info', message: scared.length ? `You flush your crest and roar. ${scared.length} animal${scared.length > 1 ? 's' : ''} scatter.` : 'You flush your crest and roar. Nothing nearby is impressed.'
                     }),
-                    currentThought: scared.length ? 'They know who rules here now.' : 'Your roar echoes across the basin.'
+                    currentThought: scared.length ? 'They know who rules here now.' : 'Your roar echoes off the crags.'
                 };
             }
             return state;
@@ -1170,7 +1268,7 @@ const coreReducer = (state, action) => {
             if (state.pois.get(state.player)?.type === 'lookout') rangeBonus += 2;
             if (phase === 3 || phase === 4) rangeBonus -= 1;
             if (here && isMisty(here.terrain, phase, here.key)) rangeBonus -= 1;
-            if (weatherNow(state) === 'storm') rangeBonus -= 1;
+            if (['storm', 'blizzard'].includes(weatherNow(state)) || ashFalling(state)) rangeBonus -= 1;
             const newHexes = calculateVisibility(state.player, state.cells, state.worldSeed, { rangeBonus });
             const newCreatures = new Map(state.creatures);
             for (const [hexKey, creatures] of newCreatures.entries()) {
@@ -1415,11 +1513,11 @@ const coreReducer = (state, action) => {
                 next.creatureBehaviorLog = [...state.creatureBehaviorLog, { id: uid('log'), type: 'creature_attack', creature: c.species, creatureId: c.id, hexKey: state.player, charged: false, message: '', damage: dmg }].slice(-MAX_BEHAVIOR_LOG_SIZE);
                 if (next.fitness <= 0) return killPlayer(next, 'combat', `The ${c.species} sniffed you out...`);
             } else if (lost.length) {
-                next.notifications = addNotification(state.notifications, { type: 'success', message: `${inWater(state) ? `You sink into the ${terrainName} until only your eyes show.` : `You freeze in the ${terrainName}.`} The ${[...new Set(lost)].join(' and the ')} ${lost.length > 1 ? 'lose' : 'loses'} your trail.` });
+                next.notifications = addNotification(state.notifications, { type: 'success', message: `You freeze in the ${terrainName}. The ${[...new Set(lost)].join(' and the ')} ${lost.length > 1 ? 'lose' : 'loses'} your trail.` });
                 next.currentThought = 'Still... perfectly still...';
                 next.stats = { ...state.stats, hidden: (state.stats.hidden || 0) + 1 };
             } else {
-                next.notifications = addNotification(state.notifications, { type: 'info', message: inWater(state) ? `You slide under the surface of the ${terrainName}. Nothing on the bank will see you easily this turn.` : `You crouch low in the ${terrainName}. Nothing will see you easily this turn.` });
+                next.notifications = addNotification(state.notifications, { type: 'info', message: `You crouch low in the ${terrainName}. Nothing will see you easily this turn.` });
                 next.currentThought = 'Small and still. Invisible.';
             }
             return next;
@@ -1488,11 +1586,11 @@ const coreReducer = (state, action) => {
             return { ...next, creatures, notifications };
         }
 
-        // Fish alongside a young spinosaur, a clutch-mate
+        // Hunt alongside a young Yutyrannus, a nest-mate
         case 'INVITE': {
             if (state.gameOver || state.level < 2 || (state.pack || []).length >= 2) return state;
             const here = state.creatures.get(state.player) || [];
-            const c = here.find((x) => x.id === action.creatureId && x.species === 'Young Spinosaurus');
+            const c = here.find((x) => x.id === action.creatureId && x.species === 'Young Yutyrannus');
             if (!c || c.engaged) return state;
             let next = { ...state, creatures: removeCreature(state.creatures, state.player, c.id) };
             const ratio = preyMass(c) / state.weight;
@@ -1501,19 +1599,19 @@ const coreReducer = (state, action) => {
                 const used = new Set((state.pack || []).map((m) => m.name));
                 const name = PACK_NAMES.find((n) => !used.has(n) && Math.random() < 0.5) || PACK_NAMES.find((n) => !used.has(n)) || 'Sibling';
                 next.pack = [...(state.pack || []), { id: c.id, name, weight: Math.max(preyMass(c), state.weight * 0.7), health: 100, joined: state.moveNumber }];
-                next.notifications = addNotification(state.notifications, { type: 'levelup', message: `The young spinosaur falls in beside you. ${name} fishes with you now.` });
-                next.currentThought = 'Two sets of jaws in the shallows.';
+                next.notifications = addNotification(state.notifications, { type: 'levelup', message: `The young Yutyrannus falls in beside you. ${name} hunts with you now, and you huddle together against the cold.` });
+                next.currentThought = 'Two sets of jaws, and someone to keep warm with.';
                 next.lastPlayerAction = { id: uid('act'), type: 'recruit', creatureId: c.id };
             } else {
                 const to = escapeCell(state, state.player, new Map([...next.creatures].map(([k, l]) => [k, l.length])));
                 if (to) next.creatures = placeCreature(next.creatures, to, { ...c, lastBehaviorTurn: state.moveNumber });
-                next.notifications = addNotification(state.notifications, { type: 'warning', message: 'The young spinosaur snaps at you and slides off into the water.' });
+                next.notifications = addNotification(state.notifications, { type: 'warning', message: 'The young Yutyrannus snaps at you and stalks off into the trees.' });
                 next.currentThought = 'Not today, then.';
             }
             return next;
         }
 
-        // Eat what other predators (or Big Al) left behind
+        // Eat what other predators (or the player) left behind
         case 'SCAVENGE': {
             if (state.gameOver) return state;
             const playerKey = state.player;

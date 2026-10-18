@@ -1379,11 +1379,15 @@ export const buildMammal = (spec, ctx) => buildSprawler({
 const spino = (level, colors, name) => ({ build: (spec, ctx) => buildSpino(level, ctx, colors, { name }), spec: {} });
 
 export const SPECIES_MODELS = {
+    // the Jehol small fry (the larger animals are sculpted: see src/jehol)
+    Mayfly: { build: buildDragonfly, minLen: 0.15, spec: { colors: { thorax: '#8a7a5a', abdomen: '#c8b48a', band: '#5a4a3a', eye: '#2a2a2a', wing: '#f0f2f4', wingEdge: '#9aa4aa' } } },
+    Lacewing: { build: buildDragonfly, minLen: 0.17, spec: { colors: { thorax: '#3a3a2a', abdomen: '#5a5a3a', band: '#2a2a1a', eye: '#c8a040', wing: '#e8d8b0', wingEdge: '#4a3a2a' } } },
+    Salamander: { build: buildSprawler, minLen: 0.16, spec: { name: 'Salamander', bodyLen: 0.3, bodyR: 0.045, bodyH: 0.035, legH: 0.03, sprawl: 0.06, headLen: 0.09, headH: 0.03, headW: 0.05, snout: 0.9, tailLen: 0.55, tailR: 0.035, colors: { body: '#3a3a30', belly: '#d8b04a', back: '#262620', stripe: '#c8a040' }, stripes: false } },
     Dragonfly: { build: buildDragonfly, minLen: 0.17, spec: { colors: { thorax: '#6aa832', abdomen: '#9a3a1e', band: '#2f5a1e', eye: '#7ad040', wing: '#d8f0ff', wingEdge: '#6a8aa8' } } },
     Centipede: { build: buildCentipede, minLen: 0.2, spec: { colors: { body: '#b8582a', alt: '#8f3e1c', legs: '#e08a40' } } },
     Cricket: { build: buildCricket, minLen: 0.15, spec: { colors: { body: '#6a5a2a', belly: '#9a8a4a', head: '#4a3a1a', legs: '#5a4a24', thigh: '#7a6a32', wing: '#8a7a3a' } } },
     Scorpion: { build: buildScorpion, minLen: 0.17, spec: { colors: { body: '#3b2a20', legs: '#5a4030', claw: '#6a4426', tail: '#7a5a2a', sting: '#c88a2a' } } },
-    Frog: { build: buildFrog, minLen: 0.16, spec: { colors: { body: '#5aa040', belly: '#e0e080', spots: '#2f6a22', legs: '#4a8a34', eye: '#e8b020' } } },
+    Frog: { build: buildFrog, minLen: 0.16, spec: { colors: { body: '#6a7a4a', belly: '#e0d8a8', spots: '#3a4a2a', legs: '#5a6a3e', eye: '#c8a030' } } },
     Lizard: { build: buildSprawler, spec: { name: 'Lizard', bodyLen: 0.26, bodyR: 0.055, bodyH: 0.04, legH: 0.04, sprawl: 0.06, headLen: 0.11, headH: 0.04, headW: 0.04, snout: 0.5, tailLen: 0.6, tailR: 0.04, colors: { body: '#d9822b', belly: '#f0b060', back: '#b8641c', stripe: '#c0702a' }, stripes: false } },
     // --- water life ---
     Fish: { build: buildFish, minLen: 0.17, spec: { len: 0.32, depth: 0.075, colors: { body: '#f0902c', belly: '#f8d27a', back: '#c8601c', fin: '#e06a24', eye: '#1a1a1a' } } },

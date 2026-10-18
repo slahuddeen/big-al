@@ -222,7 +222,7 @@ export class Sculpt {
     }
 
     // Mesh the field. `res` is the number of cells along the longest side.
-    mesh({ res = 200, paint } = {}) {
+    mesh({ res = 200, paint, skin } = {}) {
         const bb = this.bounds();
         const size = [bb[3] - bb[0], bb[4] - bb[1], bb[5] - bb[2]];
         const h = Math.max(...size) / res;
@@ -340,7 +340,7 @@ export class Sculpt {
         geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
         geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
         geo.setIndex(index);
-        if (paint) this.paintGeometry(geo, paint, h);
+        if (paint) this.paintGeometry(geo, paint, h, skin);
         geo.computeBoundingSphere();
         geo.userData.cell = h;
         return geo;
@@ -348,7 +348,9 @@ export class Sculpt {
 
     // Per-vertex paint, blended between the primitives that shape each vertex.
     // paint(s) returns { col, fur, tip, scale, rough } for one primitive's point of view.
-    paintGeometry(geo, paint, h) {
+    // skin(s) returns [[boneIndex, weight], ...] for one primitive's point of view; the
+    // weights blend between primitives the same way the colours do
+    paintGeometry(geo, paint, h, skin) {
         const pos = geo.attributes.position.array;
         const nrm = geo.attributes.normal.array;
         const count = pos.length / 3;
@@ -357,6 +359,9 @@ export class Sculpt {
         const comb = new Float32Array(count * 3);
         const fur = new Float32Array(count);
         const mat = new Float32Array(count * 2);
+        const skinIndex = skin ? new Uint16Array(count * 4) : null;
+        const skinWeight = skin ? new Float32Array(count * 4) : null;
+        const boneW = new Map();
         const cands = [];
         const s = { p: [0, 0, 0], n: [0, 0, 0] };
         for (let i = 0; i < count; i++) {
@@ -368,6 +373,7 @@ export class Sculpt {
             cands.forEach((c) => { dmin = Math.min(dmin, c.d); });
             let wsum = 0;
             const acc = { c: [0, 0, 0], t: [0, 0, 0], f: 0, sc: 0, r: 0, cb: [0, 0, 0] };
+            boneW.clear();
             for (const c of cands) {
                 const blend = Math.max(c.op.k * 0.3, h * 0.6);
                 const wgt = Math.exp(-(c.d - dmin) / blend);
@@ -384,6 +390,7 @@ export class Sculpt {
                     acc.cb[a] += (c.flow ? c.flow[a] : 0) * wgt;
                 }
                 acc.f += (r.fur || 0) * wgt;
+                if (skin) for (const [b, bw] of skin(s)) boneW.set(b, (boneW.get(b) || 0) + bw * wgt);
                 acc.sc += (r.scale || 0) * wgt;
                 acc.r += (r.rough ?? 0.8) * wgt;
                 wsum += wgt;
@@ -400,6 +407,15 @@ export class Sculpt {
             const cl = Math.hypot(cb[0], cb[1], cb[2]) || 1;
             comb.set([cb[0] / cl, cb[1] / cl, cb[2] / cl], i * 3);
             fur[i] = acc.f / wsum;
+            if (skin) {
+                const top = [...boneW.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+                const tot = top.reduce((a, [, w]) => a + w, 0) || 1;
+                top.forEach(([b, w], k) => {
+                    skinIndex[i * 4 + k] = b;
+                    skinWeight[i * 4 + k] = w / tot;
+                });
+                if (!top.length) skinWeight[i * 4] = 1;
+            }
             mat[i * 2] = acc.sc / wsum;
             mat[i * 2 + 1] = acc.r / wsum;
         }
@@ -408,6 +424,10 @@ export class Sculpt {
         geo.setAttribute('aComb', new THREE.BufferAttribute(comb, 3));
         geo.setAttribute('aFur', new THREE.BufferAttribute(fur, 1));
         geo.setAttribute('aMat', new THREE.BufferAttribute(mat, 2));
+        if (skin) {
+            geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndex, 4));
+            geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeight, 4));
+        }
     }
 }
 

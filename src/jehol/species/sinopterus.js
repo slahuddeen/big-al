@@ -3,14 +3,14 @@
 // small animals. Covered in fuzzy pycnofibres. The colours are invented: a pale body, dark
 // wings, and a red and gold crest for display.
 import { Sculpt } from '../sculpt.js';
-import { pterosaur } from '../bodyplans.js';
+import { pterosaur, flightWingEdges } from '../bodyplans.js';
 import { add, mul, lerp } from '../anatomy.js';
 import { C, mix, smooth, fbm } from '../paint.js';
 import { membrane } from '../membrane.js';
 
-export function build() {
+export function build(stage, { pose } = {}) {
     const S = new Sculpt();
-    const rig = pterosaur(S, { femur: 0.045, tibia: 0.068, head: 0.13, headH: 0.04, headW: 0.026, tip: 0.3, beakDrop: 0.12, neck: 0.11, neckR: 0.009, headNeckR: 0.0075, eyeR: 0.0062, eyeAt: 0.22 });
+    const rig = pterosaur(S, { pose, femur: 0.045, tibia: 0.068, head: 0.13, headH: 0.04, headW: 0.026, tip: 0.3, beakDrop: 0.12, neck: 0.11, neckR: 0.009, headNeckR: 0.0075, eyeR: 0.0062, eyeAt: 0.22 });
     const H = rig.head;
 
     // the crest: a bony prong from the back of the skull, and a soft crest above the snout
@@ -65,6 +65,11 @@ export function build() {
     // the folded wing membrane hangs between the folded finger and the flank
     [rig.armR, rig.armL].forEach((arm, i) => {
         const s = i === 0 ? 1 : -1;
+        if (pose === 'fly') {
+            const { lead, trail } = flightWingEdges(rig, s);
+            S.extra({ type: 'mesh', bone: s > 0 ? 'armR' : 'armL', object: membrane(lead, trail, { col: '#5d4b3e', col2: '#2e2520', rays: 40, sag: 0.004, sagDir: [0, -1, 0] }) });
+            return;
+        }
         const leg = s > 0 ? rig.legR : rig.legL;
         const trailing = [add(arm.elbow, [-0.004, -0.006, 0]), add(arm.sh, [-0.025, -0.012, 0.012 * s]), add(leg.hip, [0.0, 0.004, 0.016 * s])];
         S.extra({ type: 'mesh', object: membrane(arm.wf.slice(1), trailing, { col: '#5d4b3e', col2: '#2e2520', sag: 0.006, sagDir: [0, -0.6, s * 0.5], rays: 40 }) });

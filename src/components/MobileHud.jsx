@@ -1,6 +1,6 @@
 import React from 'react';
 import { getTimeOfDay } from '../game/gameConstants.js';
-import { LEVEL_NAMES, LEVEL_WEIGHTS, weatherNow, playerMisty } from '../game/gameState.js';
+import { LEVEL_NAMES, LEVEL_WEIGHTS, weatherNow, playerMisty, eruptionNow } from '../game/gameState.js';
 import { seasonOf, isDrought } from '../game/weather.js';
 import { formatWeight, capitalise } from '../utils/format.js';
 import CreaturePortrait from './CreaturePortrait.jsx';
@@ -35,7 +35,7 @@ const MobileHud = ({ gameState, onOpen }) => {
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                        <span className="panel-title text-[14px] leading-none" style={{ color: 'var(--accent)' }}>Spino</span>
+                        <span className="panel-title text-[14px] leading-none" style={{ color: 'var(--accent)' }}>Yutyrannus</span>
                         <span className="text-[11px] text-ink-muted truncate">{capitalise(LEVEL_NAMES[level])} · <span className="pixel text-ink">{formatWeight(weight)}</span></span>
                     </div>
                     <div className="meter mt-1" style={{ height: 3 }}>
@@ -56,8 +56,9 @@ const MobileHud = ({ gameState, onOpen }) => {
                     <div className="flex items-center justify-end gap-1 mt-1">
                         {weather !== 'clear' && <Icon name={weather === 'cloudy' ? 'cloud' : weather} size={12} />}
                         {playerMisty(gameState) && <Icon name="mist" size={12} />}
-                        <span className="text-[10px] font-bold leading-none" style={{ color: season.name === 'wet' ? '#8fd46a' : drought ? '#ef8f55' : '#e8c060' }}>
-                            {season.name === 'wet' ? 'Wet' : drought ? 'Drought' : 'Dry'} {Math.ceil(season.turnsLeft / 5)}d
+                        {eruptionNow(gameState).phase !== 'none' && <Icon name="ash" size={12} style={{ color: '#e08a6a' }} />}
+                        <span className="text-[10px] font-bold leading-none" style={{ color: season.name === 'summer' ? '#7fae6a' : drought ? '#9ac8e8' : '#c8d4e0' }}>
+                            {season.name === 'summer' ? 'Summer' : drought ? 'Frozen' : 'Winter'} {Math.ceil(season.turnsLeft / 5)}d
                         </span>
                     </div>
                 </div>

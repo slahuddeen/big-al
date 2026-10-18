@@ -54,12 +54,12 @@ button {
 }
 
 .panel-title {
-    font-family: 'Cinzel', Georgia, serif;
+    font-family: 'Spectral', Georgia, serif;
     letter-spacing: 0.02em;
 }
 
 .pixel {
-    font-family: 'Cinzel', Georgia, serif;
+    font-family: 'Spectral', Georgia, serif;
 }
 
 .label {
@@ -221,7 +221,7 @@ button {
     position: absolute;
     top: 3px;
     left: 5px;
-    font-family: 'Cinzel', Georgia, serif;
+    font-family: 'Spectral', Georgia, serif;
     font-size: 10px;
     color: var(--dim);
 }
@@ -233,7 +233,7 @@ button {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Cinzel', Georgia, serif;
+    font-family: 'Spectral', Georgia, serif;
     font-size: 20px;
     color: var(--ink);
 }
@@ -344,43 +344,62 @@ button {
 
 @tailwind utilities;
 
-/* ---------- Age of Reptiles comic theme ----------
-   Panels are drawn like comic frames: an ink-dark page inside a cream border with
-   a flat offset shadow, serif capitals for titles and the cover's red as the accent. */
+/* ---------- Ink-wash theme ----------
+   Panels are slabs of dark ink on the painted landscape, edged with a thin line of
+   paper colour; titles in a book serif, and a seal's vermilion as the accent. */
 :root {
-    --accent: #e2533e;
-    --accent-deep: #a82e24;
-    --ink: #f4ead6;
-    --muted: #c4b59a;
-    --dim: #8c7e66;
-    --line: rgba(244, 228, 196, 0.2);
-    --line-strong: rgba(244, 228, 196, 0.38);
-    background: #12100c;
+    --accent: #d2543f;
+    --accent-deep: #9e2f25;
+    --celadon: #8fb3a2;
+    --ink: #efe9dc;
+    --muted: #bdb5a4;
+    --dim: #868072;
+    --line: rgba(239, 233, 220, 0.16);
+    --line-strong: rgba(239, 233, 220, 0.32);
+    --water: #7fb8c4;
+    background: #e8e3d6;
 }
-html, body, #root { background: #12100c; }
+html, body, #root { background: #e8e3d6; }
 .panel {
-    background: linear-gradient(180deg, rgba(30, 25, 19, 0.9) 0%, rgba(20, 17, 13, 0.88) 100%);
-    border: 2px solid rgba(240, 226, 196, 0.82);
-    border-radius: 3px;
-    box-shadow: 5px 5px 0 rgba(8, 6, 4, 0.65);
+    background: linear-gradient(180deg, rgba(30, 29, 27, 0.9) 0%, rgba(22, 21, 20, 0.88) 100%);
+    border: 1px solid rgba(239, 233, 220, 0.4);
+    border-radius: 2px;
+    box-shadow: 0 8px 24px rgba(20, 18, 14, 0.28), inset 0 0 0 3px rgba(22, 21, 20, 0.6), inset 0 0 0 4px rgba(239, 233, 220, 0.08);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
 }
+.panel-title, .pixel {
+    font-family: 'Spectral', Georgia, serif;
+}
 .panel-title {
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
+    letter-spacing: 0.03em;
+    font-weight: 600;
 }
-.card { border-radius: 3px; }
-.action-slot { border-radius: 4px; }
-.btn { border-radius: 3px; }
+.brush {
+    font-family: 'Zhi Mang Xing', 'Kaiti SC', 'STKaiti', serif;
+    font-weight: 400;
+}
+.seal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-deep);
+    color: #f6efe3;
+    border-radius: 3px;
+    font-family: 'Zhi Mang Xing', 'Kaiti SC', serif;
+    line-height: 1;
+}
+.card { border-radius: 2px; }
+.action-slot { border-radius: 2px; }
+.btn { border-radius: 2px; }
 .btn-primary {
-    background: linear-gradient(180deg, #e8604a, #b8372a);
-    border-color: #f4dcc0;
-    color: #fff6ea;
-    box-shadow: 3px 3px 0 rgba(8, 6, 4, 0.6);
+    background: linear-gradient(180deg, #c84a38, #9e2f25);
+    border-color: rgba(246, 239, 227, 0.55);
+    color: #f6efe3;
+    box-shadow: 0 2px 0 rgba(20, 18, 14, 0.5);
 }
-.chip { border-radius: 3px; }
+.btn-primary:hover:not(:disabled) { background: linear-gradient(180deg, #d65a46, #ad382c); }
+.chip { border-radius: 2px; }
 /* dim disabled slots with colour rather than opacity: an opacity layer over the
    panel's backdrop blur can ghost the neighbouring slot in some browsers */
 .action-slot.disabled { opacity: 1; background: rgba(0, 0, 0, 0.18); }
@@ -418,7 +437,7 @@ html, body, #root { background: #12100c; }
     font-weight: 700;
 }
 @keyframes fabPulse {
-    50% { box-shadow: 0 0 0 4px rgba(239, 95, 85, 0.45), 5px 5px 0 rgba(8, 6, 4, 0.65); }
+    50% { box-shadow: 0 0 0 4px rgba(210, 84, 63, 0.45), 0 8px 24px rgba(20, 18, 14, 0.28); }
 }
 .fab.danger { color: #ffd8d0; border-color: #ef5f55; animation: fabPulse 1.2s ease-in-out infinite; }
 html, body { overscroll-behavior: none; }

@@ -110,7 +110,7 @@ const Minimap = ({ gameState, onLook, camera }) => {
     return (
         <div className="panel p-2 anim-fade" onMouseDown={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-1 pb-1.5">
-                <span className="label flex items-center gap-1"><Icon name="map" size={12} />{wide ? 'Kem Kem Rivers' : 'Nearby'}</span>
+                <span className="label flex items-center gap-1"><Icon name="map" size={12} />{wide ? 'Jehol Lakes' : 'Nearby'}</span>
                 <button type="button" className="chip hover:text-ink" onClick={() => setWide(!wide)}>{wide ? 'Zoom in' : 'Whole basin'}</button>
             </div>
             <canvas ref={ref} onClick={click} className="rounded-lg cursor-crosshair block" style={{ width: W, height: H }} title="Click to look there" />
@@ -120,7 +120,7 @@ const Minimap = ({ gameState, onLook, camera }) => {
                     ['rotR', 'Rotate right (E)', () => camera.rotate(1)],
                     ['plus', 'Zoom in (+ or mouse wheel)', () => camera.zoom(1.25)],
                     ['minus', 'Zoom out (-)', () => camera.zoom(0.8)],
-                    ['target', 'Centre on Spino (C)', () => camera.center()]
+                    ['target', 'Centre on Yutyrannus (C)', () => camera.center()]
                 ].map(([icon, title, fn]) => (
                     <button key={icon} type="button" title={title} onClick={fn} className="btn flex-1 !h-[28px] !p-0 !rounded-md">
                         <Icon name={icon} size={14} />

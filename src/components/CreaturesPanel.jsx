@@ -43,7 +43,7 @@ const Stat = ({ label, value, color, title }) => (
     </div>
 );
 
-const GIANT_SPECIES = new Set(['Rebbachisaurus', 'Aegyptosaurus', 'Paralititan']);
+const GIANT_SPECIES = new Set(['Dongbeititan']);
 
 const CreatureCard = ({ creature, gameState, dispatch, guarded }) => {
     const sd = SPECIES_DATA[creature.species];
@@ -62,7 +62,7 @@ const CreatureCard = ({ creature, gameState, dispatch, guarded }) => {
     else threat = 'dangerous';
     const attack = (style) => dispatch({ type: 'ATTACK_CREATURE', creatureId: creature.id, style });
     const misty = playerMisty(gameState);
-    const canInvite = creature.species === 'Young Spinosaurus' && gameState.level >= 2 && (gameState.pack || []).length < 2 && !creature.engaged;
+    const canInvite = creature.species === 'Young Yutyrannus' && gameState.level >= 2 && (gameState.pack || []).length < 2 && !creature.engaged;
 
     // alternative attacks from Big Al's abilities
     const styles = ['pounce', 'ambush', 'hatchet']
@@ -112,7 +112,7 @@ const CreatureCard = ({ creature, gameState, dispatch, guarded }) => {
                 <Stat label="Catch" value={`${base.catch}%`} color={base.catch >= 70 ? 'var(--good)' : base.catch >= 40 ? 'var(--warn)' : 'var(--bad)'} title="Chance you reach it before it bolts" />
             </div>
             <div className={`px-2.5 pb-2.5 grid gap-1.5 ${styles.length + (canInvite ? 1 : 0) >= 3 ? 'grid-cols-2' : 'grid-flow-col auto-cols-fr'}`}>
-                {canInvite && <AttackButton label="Fish together" icon="paw" primary onClick={() => dispatch({ type: 'INVITE', creatureId: creature.id })} reason="Invite this young spinosaur to fish alongside you" />}
+                {canInvite && <AttackButton label="Hunt together" icon="paw" primary onClick={() => dispatch({ type: 'INVITE', creatureId: creature.id })} reason="Invite this young Yutyrannus to hunt with you. Yutyrannus may have lived and hunted in groups" />}
                 <AttackButton label={creature.engaged ? 'Bite' : 'Attack'} icon="claw" primary={!canInvite && threat !== 'dangerous'} onClick={() => attack('normal')} />
                 {styles.map((st) => (
                     <AttackButton key={st.id} label={ABILITIES[st.id].name.replace(' Bite', '')} icon={st.id} note={st.note} disabled={!!st.reason} reason={st.reason || ABILITIES[st.id].desc} onClick={() => attack(st.id)} />
@@ -212,7 +212,7 @@ const PoiCard = ({ poi, dispatch }) => {
 };
 
 // Everything on Big Al's area, plus a glance at what's next door
-// What is in Spino's area, for the phone's "area" button
+// What is in the player's area, for the phone's "area" button
 export const areaInfo = (gameState) => {
     const here = gameState.cells.get(gameState.player);
     const creatures = gameState.creatures.get(gameState.player) || [];

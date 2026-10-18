@@ -15,112 +15,109 @@ const createTerrain = (name, emoji, color, config = {}) => ({
     minWeight: config.minWeight || 0,
 });
 
-// The Kem Kem river system, North Africa, about 95 million years ago
+// The Jehol lakes of Liaoning, north-east China, about 125 million years ago:
+// forest and lakes in valleys among volcanoes, with cold winters
 export const TERRAIN_TYPES = {
     // ---- WATER ----
-    sea: createTerrain("Tethys Sea", "", "#1d6f8c", {
-        passable: false, isWater: true, category: 'water', visibility: 3,
-        description: "The open Tethys: too rough and salty even for a spinosaur"
+    lake: createTerrain("Volcanic Lake", "", "#6f9aa0", {
+        isWater: true, category: 'water', visibility: 3, energyCost: 9, minWeight: 25,
+        description: "A deep, still lake in a volcanic basin. Its muddy bottom has no oxygen, which is why the fossils here are so perfect"
     }),
-    river: createTerrain("Great River", "", "#2563eb", {
-        isWater: true, category: 'water', description: "Deep main channel. The current sweeps tiny hatchlings away; once you are bigger it is your home",
-        dangerLevel: 2, energyCost: 10, fitnessRisk: 0.05, minWeight: 4
+    river: createTerrain("River", "", "#5e8ea0", {
+        isWater: true, category: 'water', description: "A cold, fast river between the lakes. Too strong for a small animal",
+        dangerLevel: 2, energyCost: 10, fitnessRisk: 0.04, minWeight: 25
     }),
-    stream: createTerrain("Braided Shallows", "", "#38bdf8", {
-        isWater: true, category: 'water', description: "Shallow channels braiding between sandbars, full of small fish", energyCost: 7
+    stream: createTerrain("Stream", "", "#7aa8b0", {
+        isWater: true, category: 'water', description: "A clear stream over pebbles, full of mayfly larvae and little fish", energyCost: 7
     }),
-    lake: createTerrain("Oxbow Lake", "", "#0ea5e9", {
-        isWater: true, category: 'water', description: "A loop of old river cut off by a flood: still, deep and full of fish", energyCost: 8, visibility: 3
+    waterhole: createTerrain("Pond", "", "#6a9a98", {
+        description: "A small pond in the forest. It freezes over in deep winter", dangerLevel: 1, energyCost: 6
     }),
-    waterhole: createTerrain("Pool", "", "#0369a1", {
-        description: "A pool left by the last flood. In the dry season it shrinks and traps its fish", dangerLevel: 1, energyCost: 6
+    marsh: createTerrain("Horsetail Marsh", "", "#5d7a58", {
+        visibility: 1, category: 'water', description: "Shallow water thick with horsetails and reeds, alive with frogs", energyCost: 9
     }),
-    marsh: createTerrain("Fern Swamp", "", "#365314", {
-        visibility: 1, category: 'water', description: "Warm swamp of ferns and horsetails, alive with frogs", energyCost: 9
+    hotspring: createTerrain("Hot Springs", "", "#8ab8b0", {
+        category: 'water', description: "Steaming pools ringed with white mineral crust. Warm, even in the snow; the water tastes of sulphur", energyCost: 7
     }),
-    mangrove: createTerrain("Mangrove Delta", "", "#2f6b4a", {
-        visibility: 1, category: 'water', description: "Tidal channels among stilt-rooted trees where the rivers meet the sea", energyCost: 9
-    }),
-    beach: createTerrain("Tidal Flats", "", "#c9b27a", {
-        description: "Glistening mud the tide leaves behind: stranded fish and stalking pterosaurs", energyCost: 7, visibility: 3
-    }),
-    riverbank: createTerrain("Sandbar", "", "#d7b26a", {
-        category: 'water', description: "Sandbars and banks where crocodiles bask and turtles lay their eggs", dangerLevel: 1, energyCost: 7
-    }),
-    dryriverbed: createTerrain("Dry Channel", "", "#a8a29e", {
-        category: 'desert', description: "An old channel the river has abandoned", energyCost: 8
-    }),
-    floodplain: createTerrain("Floodplain", "", "#84cc16", {
-        category: 'plains', description: "Open mud and fern flats that the river covers every wet season", energyCost: 7
-    }),
-
-    // ---- WOODS ----
-    galleryforest: createTerrain("Conifer Gallery", "", "#166534", {
-        visibility: 1, category: 'forest', description: "A strip of tall conifers along the banks", energyCost: 9
-    }),
-    forest: createTerrain("Conifer Woods", "", "#16a34a", {
-        visibility: 1, category: 'forest', description: "Dry conifer woods away from the water", energyCost: 9
-    }),
-    denseforest: createTerrain("Fern Brake", "", "#166534", {
-        visibility: 1, blocksLOS: true, category: 'forest', description: "Head-high thicket of Weichselia ferns", energyCost: 11, fitnessRisk: 0.04
-    }),
-    jungle: createTerrain("Tree-Fern Thicket", "", "#15803d", {
-        visibility: 1, blocksLOS: true, category: 'forest', description: "Steamy thicket of tree ferns and cycads", energyCost: 12, fitnessRisk: 0.05
-    }),
-    openwoods: createTerrain("Open Woods", "", "#65a30d", {
-        visibility: 2, category: 'forest', description: "Scattered conifers and early flowering shrubs", energyCost: 7
-    }),
-    deadfall: createTerrain("Log Jam", "", "#854d0e", {
-        visibility: 1, category: 'forest', description: "Trees piled up by the last great flood: hiding place for small things", energyCost: 10, fitnessRisk: 0.05
+    riverbank: createTerrain("Lakeshore", "", "#b8a682", {
+        category: 'water', description: "Mud and shingle at the water's edge, printed with the tracks of everything that comes to drink", dangerLevel: 1, energyCost: 7
     }),
 
     // ---- OPEN GROUND ----
-    plains: createTerrain("Fern Flats", "", "#ca8a04", {
-        category: 'plains', description: "Open low fern cover", energyCost: 7
+    meadow: createTerrain("Flower Meadow", "", "#a8b06a", {
+        category: 'plains', description: "Ferns and some of the world's first flowering plants, small and weedy", energyCost: 7
     }),
-    fernprairie: createTerrain("Fern Meadow", "", "#a3e635", {
-        category: 'plains', description: "Rolling green ferns where iguanodonts graze", energyCost: 7
+    fernprairie: createTerrain("Fern Glade", "", "#88a464", {
+        category: 'plains', description: "An open glade of knee-high ferns where Psittacosaurus graze", energyCost: 7
     }),
-    savanna: createTerrain("Dry Savanna", "", "#eab308", {
-        category: 'plains', description: "Sun-baked open land dotted with umbrella conifers", energyCost: 7
+    floodplain: createTerrain("Wet Meadow", "", "#90a46c", {
+        category: 'plains', description: "Low, soggy ground between the lakes, with puddles and horsetails", energyCost: 8
     }),
-    scrubland: createTerrain("Scrub", "", "#65a30d", {
-        category: 'plains', description: "Low thorny shrubs", energyCost: 8
+    scrubland: createTerrain("Cycad Scrub", "", "#9a9a62", {
+        category: 'plains', description: "Stubby cycads and bushy seed-plants on dry slopes", energyCost: 8
     }),
-    sauropodgrounds: createTerrain("Titan Trail", "", "#a16207", {
-        category: 'plains', description: "A path trampled by titanosaur herds on the move",
-        energyCost: 7, dangerLevel: 4
+    sauropodgrounds: createTerrain("Titan Trail", "", "#a89a6a", {
+        category: 'plains', description: "A path pounded flat by the rare sauropod herds on the move", energyCost: 7, dangerLevel: 3
+    }),
+    ashflat: createTerrain("Ash Flats", "", "#b8b4a8", {
+        category: 'desert', description: "Grey ash from the last eruption, barely grown over. Thirsty, open ground", energyCost: 8, visibility: 3
     }),
 
-    // ---- HIGH AND DRY ----
-    mountains: createTerrain("Highlands", "", "#6b7280", {
-        passable: false, blocksLOS: true, category: 'mountain', description: "Impassable highlands at the edge of the basin"
+    // ---- WOODS ----
+    forest: createTerrain("Conifer Forest", "", "#4f7a5c", {
+        visibility: 1, category: 'forest', description: "Tall conifers related to pines and monkey puzzles", energyCost: 9
     }),
-    hills: createTerrain("Red Hills", "", "#c2410c", {
-        category: 'mountain', description: "Rolling red hills", energyCost: 11, visibility: 3
+    oldgrowth: createTerrain("Old Forest", "", "#3e6650", {
+        visibility: 1, blocksLOS: true, category: 'forest', description: "Huge old conifers and deep shade. Gliders and climbers live in the canopy", energyCost: 10
     }),
-    rocky: createTerrain("Hamada", "", "#78716c", {
-        category: 'mountain', description: "Stony desert plateau", energyCost: 10, fitnessRisk: 0.08
+    ginkgogrove: createTerrain("Ginkgo Grove", "", "#8aa45a", {
+        visibility: 2, category: 'forest', description: "Fan-leaved ginkgo trees. Their leaves turn gold before winter", energyCost: 8
     }),
-    boulderfield: createTerrain("Boulder Field", "", "#94a3b8", {
-        category: 'mountain', description: "Jumble of sun-cracked boulders", energyCost: 11, fitnessRisk: 0.06, visibility: 2
+    denseforest: createTerrain("Fern Thicket", "", "#4a7050", {
+        visibility: 1, blocksLOS: true, category: 'forest', description: "A head-high tangle of ferns and tree ferns", energyCost: 11, fitnessRisk: 0.03
     }),
-    desert: createTerrain("Dunes", "", "#d97706", {
-        category: 'desert', description: "Red sand dunes beyond the reach of the river", energyCost: 13, dangerLevel: 1
+    galleryforest: createTerrain("Lakeside Forest", "", "#56806a", {
+        visibility: 1, category: 'forest', description: "Trees leaning over the water at the lake's edge", energyCost: 9
     }),
-    badlands: createTerrain("Red Badlands", "", "#c2410c", {
-        category: 'desert', description: "Eroded red and cream banded slopes", energyCost: 12
+    openwoods: createTerrain("Open Woods", "", "#8a9c62", {
+        visibility: 2, category: 'forest', description: "Scattered conifers, ginkgos and cycads", energyCost: 7
     }),
-    mesa: createTerrain("Mesa", "", "#ea580c", {
-        blocksLOS: true, category: 'desert', description: "Flat-topped sandstone butte", energyCost: 13, visibility: 3
+    deadforest: createTerrain("Ash-Killed Forest", "", "#8a8478", {
+        visibility: 2, category: 'forest', description: "Grey trunks still standing where an ash fall killed the forest", energyCost: 8
     }),
-    quicksand: createTerrain("Sinking Mud", "", "#f59e0b", {
-        category: 'desert', description: "Treacherous sucking mud - instant death!",
+    deadfall: createTerrain("Windfall", "", "#7a7050", {
+        visibility: 1, category: 'forest', description: "Fallen trunks piled by storms: hiding places for small things", energyCost: 10, fitnessRisk: 0.04
+    }),
+
+    // ---- HIGH GROUND ----
+    hills: createTerrain("Wooded Hills", "", "#7a9068", {
+        category: 'mountain', description: "Rolling hills dark with conifers", energyCost: 10, visibility: 3
+    }),
+    crags: createTerrain("Volcanic Crags", "", "#7a7a80", {
+        category: 'mountain', description: "Steep pillars of old volcanic rock, misty and crowned with pines. You can see a long way from here", energyCost: 12, visibility: 3, fitnessRisk: 0.05
+    }),
+    basalt: createTerrain("Basalt Columns", "", "#5a5c60", {
+        category: 'mountain', description: "Six-sided columns of cooled lava, like giant steps", energyCost: 11, fitnessRisk: 0.05
+    }),
+    boulderfield: createTerrain("Tuff Boulders", "", "#9a948a", {
+        category: 'mountain', description: "Blocks of hardened ash, tumbled from the hillsides", energyCost: 11, fitnessRisk: 0.04
+    }),
+    lavafield: createTerrain("Lava Field", "", "#3e3634", {
+        category: 'desert', description: "Black, broken lava, still warm in places", energyCost: 12, fitnessRisk: 0.08, dangerLevel: 2
+    }),
+    volcanic: createTerrain("Volcano", "", "#4a3a36", {
+        passable: false, blocksLOS: true, category: 'mountain', description: "An active volcano. When it erupts, ash falls across the whole basin"
+    }),
+    mountains: createTerrain("Mountains", "", "#6a6e74", {
+        passable: false, blocksLOS: true, category: 'mountain', description: "Impassable mountains at the edge of the basin"
+    }),
+    mudpot: createTerrain("Boiling Mud", "", "#9a8a72", {
+        category: 'desert', description: "Bubbling volcanic mud - deadly!",
         energyCost: 15, fitnessRisk: 1.0, passable: true, dangerLevel: 5
     }),
 
     // ---- SPECIAL ----
-    nest: createTerrain("Nesting Sandbank", "", "#a16207", {
-        category: 'special', description: "Warm sand above the flood line where spinosaurs lay their eggs", energyCost: 6, dangerLevel: 1
+    nest: createTerrain("Nest Mound", "", "#9a8462", {
+        category: 'special', description: "A mound of earth and rotting plants that a Yutyrannus scraped together to keep its eggs warm", energyCost: 6, dangerLevel: 1
     })
 };

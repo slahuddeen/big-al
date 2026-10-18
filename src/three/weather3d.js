@@ -1,13 +1,14 @@
 // ==================== WEATHER EFFECTS ====================
-// Rain, the odd lightning flash, and quiet signs of the wind: a few faint
-// streaks curling downwind, and leaves (or dust in the dry season) tumbling
-// past. Everything lives in a box around the camera target and is recycled.
+// Rain, snow, volcanic ash, the odd lightning flash, and quiet signs of the wind:
+// a few faint streaks curling downwind, and leaves tumbling past (gold before
+// winter). Everything lives in a box around the camera target and is recycled.
 import * as THREE from 'three';
 
 const RAIN = 900;
 const STREAKS = 14;
 const STREAK_PTS = 10;
 const FLECKS = 40;
+const FLAKES = 1400;
 const BOX = 9; // half-size of the box around the camera target
 
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -55,16 +56,70 @@ export class WeatherLayer {
         this.dummy = new THREE.Object3D();
         this.tmpColor = new THREE.Color();
 
+        // ---- snow and ash: soft round flakes drifting down ----
+        this.flakes = Array.from({ length: FLAKES }, () => ({ x: rnd(-BOX, BOX), y: rnd(0, 7), z: rnd(-BOX, BOX), s: rnd(0.6, 1.4), ph: rnd(0, 6.28) }));
+        const fg = new THREE.BufferGeometry();
+        fg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(FLAKES * 3), 3));
+        const dot = document.createElement('canvas');
+        dot.width = dot.height = 32;
+        const g2 = dot.getContext('2d');
+        const grad = g2.createRadialGradient(16, 16, 0, 16, 16, 16);
+        grad.addColorStop(0, 'rgba(255,255,255,1)');
+        grad.addColorStop(0.5, 'rgba(255,255,255,0.7)');
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        g2.fillStyle = grad;
+        g2.fillRect(0, 0, 32, 32);
+        this.flakeTex = new THREE.CanvasTexture(dot);
+        this.flakeMat = new THREE.PointsMaterial({ map: this.flakeTex, color: '#ffffff', size: 4, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false });
+        this.snowPoints = new THREE.Points(fg, this.flakeMat);
+        this.snowPoints.frustumCulled = false;
+        this.snowPoints.renderOrder = 9;
+        this.snowPoints.visible = false;
+        this.group.add(this.snowPoints);
+
         this.flash = 0;
         this.nextFlash = rnd(3, 8);
         this.thunder = null;
     }
 
     // centre: camera target; wind: {x, z (unit dir), strength}; rain 0..1 (storm > 1); dry 0..1; zoom: camera zoom
-    update(dt, time, { centre, wind, rain, storm, dry, zoom = 1 }) {
+    update(dt, time, { centre, wind, rain, storm, dry, zoom = 1, snow = 0, ash = 0 }) {
         const box = BOX / Math.max(0.5, zoom);
         const wx = wind.x * wind.strength;
         const wz = wind.z * wind.strength;
+
+        // ---- snow and ash ----
+        const fall = Math.max(snow, ash);
+        this.snowPoints.visible = fall > 0.01;
+        if (this.snowPoints.visible) {
+            const isAsh = ash > snow;
+            this.flakeMat.color.set(isAsh ? '#6a625c' : '#ffffff');
+            this.flakeMat.opacity = Math.min(1, fall) * (isAsh ? 0.75 : 0.9);
+            this.flakeMat.size = (isAsh ? 3 : 4.5) * (window.devicePixelRatio > 1 ? 1.5 : 1);
+            const pos = this.snowPoints.geometry.attributes.position.array;
+            const n = Math.floor(FLAKES * Math.min(1, 0.25 + fall * 0.75));
+            const speed = isAsh ? 0.7 : 0.9 + snow * 0.6;
+            for (let i = 0; i < FLAKES; i++) {
+                const d = this.flakes[i];
+                d.y -= speed * d.s * dt;
+                d.x += (wx * (isAsh ? 1.2 : 2.2) + Math.sin(time * 1.3 + d.ph) * 0.15) * dt;
+                d.z += (wz * (isAsh ? 1.2 : 2.2) + Math.cos(time * 1.1 + d.ph) * 0.15) * dt;
+                if (d.y < 0 || Math.abs(d.x) > box || Math.abs(d.z) > box) {
+                    d.y = rnd(4, 7);
+                    d.x = rnd(-box, box) - wx * 2;
+                    d.z = rnd(-box, box) - wz * 2;
+                }
+                const o = i * 3;
+                if (i >= n) {
+                    pos[o + 1] = -999;
+                    continue;
+                }
+                pos[o] = centre.x + d.x;
+                pos[o + 1] = centre.y + d.y;
+                pos[o + 2] = centre.z + d.z;
+            }
+            this.snowPoints.geometry.attributes.position.needsUpdate = true;
+        }
 
         // ---- rain ----
         const rainA = Math.min(1, rain);
@@ -165,15 +220,15 @@ export class WeatherLayer {
                 if (i < want) {
                     f.life = 0;
                     f.dur = rnd(3.5, 6.5);
-                    f.dust = dry > 0.4 && Math.random() < dry * 0.6;
+                    f.dust = snow > 0.3 && Math.random() < 0.5;
                     f.pos.set(centre.x + rnd(-box, box) - wx * 3, centre.y + (f.dust ? rnd(0.05, 0.5) : rnd(0.4, 2.2)), centre.z + rnd(-box, box) - wz * 3);
                     f.vy = f.dust ? rnd(-0.02, 0.06) : rnd(-0.35, -0.12);
                     f.spin.set(rnd(-4, 4), rnd(-3, 3), rnd(-5, 5));
                     f.size = f.dust ? rnd(0.3, 0.6) : rnd(0.8, 1.3);
-                    // wet season: green leaves; dry: brown and straw leaves and pale dust
-                    if (f.dust) this.tmpColor.set('#d8c49a');
-                    else if (dry > 0.5) this.tmpColor.set(Math.random() < 0.5 ? '#9a6a32' : '#c09a4a');
-                    else this.tmpColor.set(Math.random() < 0.7 ? '#5f9a34' : '#8ab040');
+                    // summer: green leaves; autumn: gold ginkgo leaves; winter: brown leaves and powder snow
+                    if (f.dust) this.tmpColor.set('#e8e6e0');
+                    else if (dry > 0.5) this.tmpColor.set(Math.random() < 0.6 ? '#d8a832' : '#a8743a');
+                    else this.tmpColor.set(Math.random() < 0.7 ? '#4f7a4a' : '#7a9a52');
                     this.flecks.setColorAt(i, this.tmpColor);
                     this.flecks.instanceColor.needsUpdate = true;
                 } else f.dur = 0;
@@ -227,5 +282,8 @@ export class WeatherLayer {
         this.streakMat.dispose();
         this.flecks.geometry.dispose();
         this.fleckMat.dispose();
+        this.snowPoints.geometry.dispose();
+        this.flakeMat.dispose();
+        this.flakeTex.dispose();
     }
 }

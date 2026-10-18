@@ -1,6 +1,6 @@
 // Mammals, lake and forest reptiles, fish, and two more pterosaurs
 import { Sculpt } from '../sculpt.js';
-import { mammal, sprawler, turtle, fish, pterosaur } from '../bodyplans.js';
+import { mammal, sprawler, turtle, fish, pterosaur, flightWingEdges } from '../bodyplans.js';
 import { add, mul, lerp, lerp3 } from '../anatomy.js';
 import { C, mix, smooth, scheme, fbm } from '../paint.js';
 import { membrane } from '../membrane.js';
@@ -8,7 +8,7 @@ import { membrane } from '../membrane.js';
 const furOnly = { snout: 0.25, jaw: 0.3, head: 0.6, brow: 0.6, ear: 0.25, nose: 0, paw: 0.05, neck: 1, body: 1, thigh: 1, shin: 0.7, arm: 0.8, tail: 0.9 };
 
 export const Repenomamus = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 0.7;
         const S = new Sculpt();
         const rig = mammal(S, {
@@ -36,7 +36,7 @@ export const Repenomamus = (() => {
 })();
 
 export const Eomaia = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 0.2;
         const S = new Sculpt();
         const rig = mammal(S, {
@@ -55,7 +55,7 @@ export const Eomaia = (() => {
 })();
 
 export const Hyphalosaurus = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 0.8;
         const S = new Sculpt();
         // a swimming reptile with a very long neck and small head
@@ -85,7 +85,7 @@ export const Hyphalosaurus = (() => {
 })();
 
 export const Monjurosuchus = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 0.4;
         const S = new Sculpt();
         const rig = sprawler(S, {
@@ -116,7 +116,7 @@ export const Monjurosuchus = (() => {
 })();
 
 export const Xianglong = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 0.15;
         const S = new Sculpt();
         const rig = sprawler(S, {
@@ -150,7 +150,7 @@ export const Xianglong = (() => {
 })();
 
 export const Manchurochelys = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 0.25;
         const S = new Sculpt();
         const rig = turtle(S, { shell: 0.25, shellH: 0.055, shellW: 0.19, head: 0.042, neck: 0.035, limb: 0.032, limbR: 0.0085, tail: 0.03, eyeR: 0.0045 });
@@ -214,7 +214,7 @@ const fins = (S, rig, { col, col2, dorsalAt = 0.45, dorsalH = 0.6, dorsalLen = 0
 };
 
 export const Lycoptera = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 0.08;
         const S = new Sculpt();
         const rig = fish(S, { len: 0.068, depth: 0.016, width: 0.008, headLen: 0.017, eyeR: 0.002, tailFork: 0.8, tailH: 0.013 });
@@ -231,7 +231,7 @@ export const Lycoptera = (() => {
 })();
 
 export const Peipiaosteus = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 0.35;
         const S = new Sculpt();
         // a small, scaleless relative of sturgeons and paddlefish, with a pointed snout
@@ -249,12 +249,12 @@ export const Peipiaosteus = (() => {
 })();
 
 export const Feilongus = (() => {
-    function build() {
+    function build(stage, { pose } = {}) {
         const L = 0.9;
         const S = new Sculpt();
         // long jaws with an overbite, lined with thin teeth, and a crest at each end of the skull
         const rig = pterosaur(S, {
-            humerus: 0.11, forearm: 0.18, meta: 0.17, wingFinger: 0.6, femur: 0.08, tibia: 0.12, footLen: 0.045,
+            pose, humerus: 0.11, forearm: 0.18, meta: 0.17, wingFinger: 0.6, femur: 0.08, tibia: 0.12, footLen: 0.045,
             torso: 0.13, chestR: 0.035, bellyR: 0.036, hipR: 0.024, neck: 0.25, neckR: 0.016, headNeckR: 0.012,
             head: 0.38, headH: 0.042, headW: 0.03, tip: 0.12, eyeR: 0.008, eyeAt: 0.14, limbR: 0.008, neckRise: 0.8, headTilt: -0.4
         });
@@ -270,6 +270,11 @@ export const Feilongus = (() => {
         }
         [rig.armR, rig.armL].forEach((arm, i) => {
             const s = i === 0 ? 1 : -1;
+            if (pose === 'fly') {
+                const { lead, trail } = flightWingEdges(rig, s);
+                S.extra({ type: 'mesh', bone: s > 0 ? 'armR' : 'armL', object: membrane(lead, trail, { col: '#3a3634', col2: '#1e1c1b', rays: 50 }) });
+                return;
+            }
             const leg = s > 0 ? rig.legR : rig.legL;
             const trailing = [add(arm.elbow, [-0.006, -0.01, 0]), add(arm.sh, [-0.04, -0.02, 0.02 * s]), add(leg.hip, [0, 0.006, 0.03 * s])];
             S.extra({ type: 'mesh', object: membrane(arm.wf.slice(1), trailing, { col: '#3a3634', col2: '#1e1c1b', sag: 0.01, sagDir: [0, -0.6, s * 0.5], rays: 50 }) });
@@ -290,17 +295,22 @@ export const Feilongus = (() => {
 })();
 
 export const Dendrorhynchoides = (() => {
-    function build() {
+    function build(stage, { pose } = {}) {
         const L = 0.15;
         const S = new Sculpt();
         // a tiny, fluffy insect-catcher with a short, wide, frog-like head and big eyes
         const rig = pterosaur(S, {
-            humerus: 0.022, forearm: 0.032, meta: 0.022, wingFinger: 0.11, femur: 0.022, tibia: 0.03, footLen: 0.012,
+            pose, humerus: 0.022, forearm: 0.032, meta: 0.022, wingFinger: 0.11, femur: 0.022, tibia: 0.03, footLen: 0.012,
             torso: 0.032, chestR: 0.011, bellyR: 0.012, hipR: 0.008, neck: 0.012, neckR: 0.0075, headNeckR: 0.0075, tail: 0.006,
             head: 0.026, headH: 0.016, headW: 0.03, tip: 0.95, eyeR: 0.0034, eyeAt: 0.36, limbR: 0.0018, neckRise: 0.4, headTilt: -0.05
         });
         [rig.armR, rig.armL].forEach((arm, i) => {
             const s = i === 0 ? 1 : -1;
+            if (pose === 'fly') {
+                const { lead, trail } = flightWingEdges(rig, s);
+                S.extra({ type: 'mesh', bone: s > 0 ? 'armR' : 'armL', object: membrane(lead, trail, { col: '#5a4434', col2: '#2e221a', rays: 30 }) });
+                return;
+            }
             const leg = s > 0 ? rig.legR : rig.legL;
             const trailing = [add(arm.elbow, [-0.002, -0.003, 0]), add(arm.sh, [-0.01, -0.005, 0.004 * s]), add(leg.hip, [0, 0.002, 0.006 * s])];
             S.extra({ type: 'mesh', object: membrane(arm.wf.slice(1), trailing, { col: '#5a4434', col2: '#2e221a', sag: 0.003, sagDir: [0, -0.6, s * 0.5], rays: 30 }) });

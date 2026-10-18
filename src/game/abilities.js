@@ -1,37 +1,37 @@
 // ==================== GROWTH ABILITIES ====================
-// Big Al learns new tricks as he grows. Active abilities sit on the action bar
+// A young Yutyrannus learns new tricks as it grows. Active abilities sit on the action bar
 // (with cooldowns in turns); attack abilities appear as alternative attacks on
 // the encounter cards; passives are always on once unlocked.
 import { TERRAIN_TYPES } from '../data/terrain.js';
 
 export const ABILITIES = {
     hide: {
-        id: 'hide', name: 'Submerge', level: 1, kind: 'action', cooldown: 1, energy: 0,
-        desc: 'Sink into the water until only your eyes show, or freeze in thick cover while you are small. Land hunters lose you easily in deep water; crocodiles and fish do not. Once you are a sub-adult you can only hide in the water.'
+        id: 'hide', name: 'Hide', level: 1, maxLevel: 2, kind: 'action', cooldown: 1, energy: 0,
+        desc: 'Freeze in thick cover: ferns, fallen trunks, horsetails or deep shade. Hunters may walk straight past. In snow your tracks give you away, unless a blizzard is blowing.'
     },
     sniff: {
         id: 'sniff', name: 'Sniff', level: 1, kind: 'action', cooldown: 3, energy: 1, hotkey: 'F',
-        desc: 'Smell the wind and feel the water. Reveals animals, carcasses and blood within 4 areas, even out of sight.'
+        desc: 'Smell the wind. Reveals animals, carcasses and blood within 4 areas, even out of sight.'
     },
     pounce: {
-        id: 'pounce', name: 'Snap', level: 1, kind: 'attack', cooldown: 0,
-        desc: 'A quick sideways snap of the snout. Much easier to catch fish and small, fast prey, but riskier against anything that fights back.'
+        id: 'pounce', name: 'Pounce', level: 1, kind: 'attack', cooldown: 0,
+        desc: 'A leaping strike. Much easier to catch small, fast prey, but riskier against anything that fights back.'
     },
     dash: {
         id: 'dash', name: 'Dash', level: 2, kind: 'toggle', cooldown: 4, energy: 6, hotkey: 'X',
-        desc: 'Your next move is a burst: a lunge on land or a surge of the tail in the water. Nothing can strike you as you go.'
+        desc: 'Your next move is a sprint on your long young legs. Nothing can strike you as you go.'
     },
     ambush: {
-        id: 'ambush', name: 'Water Ambush', level: 3, kind: 'attack', cooldown: 3,
-        desc: 'Strike from the water or from cover. Prey drinking at the edge rarely sees it coming.'
+        id: 'ambush', name: 'Ambush', level: 2, kind: 'attack', cooldown: 3,
+        desc: 'Strike from cover or mist. Prey that has not seen you rarely gets away.'
     },
     roar: {
-        id: 'roar', name: 'Sail Display', level: 3, kind: 'action', cooldown: 5, energy: 4, hotkey: 'R',
-        desc: 'Turn side-on and flush your sail. Drives off smaller predators and skittish animals, and clears scavengers off a carcass.'
+        id: 'roar', name: 'Crest Display', level: 3, kind: 'action', cooldown: 5, energy: 4, hotkey: 'R',
+        desc: 'Fluff up your filaments, flush your red crest and roar. Drives off smaller predators and skittish animals, and clears scavengers off a carcass.'
     },
     hatchet: {
-        id: 'hatchet', name: 'Thumb Claw', level: 4, kind: 'attack', cooldown: 2,
-        desc: 'Rake a big animal with your huge thumb claws and let it bleed. It flees and weakens every turn. Follow the blood.'
+        id: 'hatchet', name: 'Slashing Bite', level: 4, kind: 'attack', cooldown: 2,
+        desc: 'A deep slicing bite into a big animal. It flees and bleeds every turn. Follow the blood.'
     }
 };
 
@@ -45,10 +45,10 @@ export const ATTACK_MODS = {
 
 export const PASSIVES = [
     { id: 'tiny', level: 1, maxLevel: 1, name: 'Small and Quiet', desc: 'Big predators often overlook something as small as you.' },
-    { id: 'fisher', level: 1, name: 'Fish Catcher', desc: 'Your snout is built for fish: they rarely slip away from you.' },
-    { id: 'legs', level: 2, name: 'Paddle Tail', desc: 'Swimming costs 40% less energy.' },
-    { id: 'hide', level: 3, name: 'Thick Hide', desc: 'You take 20% less damage.' },
-    { id: 'apex', level: 4, name: 'River King', desc: 'Smaller predators keep their distance instead of attacking.' }
+    { id: 'down', level: 1, name: 'Warm Down', desc: 'Your fluffy coat keeps the cold out. Cold costs you less energy as you grow.' },
+    { id: 'legs', level: 2, name: 'Long Legs', desc: 'Young tyrannosaurs are lanky and fast. Moving costs less energy.' },
+    { id: 'hide', level: 3, name: 'Thick Coat', desc: 'Long filaments and thick skin: you take 20% less damage.' },
+    { id: 'apex', level: 4, name: 'Feathered Tyrant', desc: 'Smaller predators keep their distance instead of attacking.' }
 ];
 
 export const hasPassive = (state, id) => PASSIVES.some((p) => p.id === id && state.level >= p.level && (!p.maxLevel || state.level <= p.maxLevel));
@@ -60,8 +60,8 @@ export const cooldownLeft = (state, id) => Math.max(0, (state.cooldowns?.[id] ??
 export const abilityReady = (state, id) => abilityUnlocked(state, id) && cooldownLeft(state, id) === 0 &&
     state.energy > (ABILITIES[id].energy || 0);
 
-// Terrain that hides a stalking predator: thick vegetation, and for a spinosaur, water
-const COVER = new Set(['denseforest', 'jungle', 'forest', 'galleryforest', 'deadfall', 'marsh', 'mangrove', 'fernprairie', 'openwoods', 'river', 'lake', 'stream']);
+// Terrain that hides a stalking predator: thick vegetation, deep shade and reeds
+const COVER = new Set(['denseforest', 'oldgrowth', 'forest', 'galleryforest', 'deadfall', 'marsh', 'fernprairie', 'openwoods', 'ginkgogrove', 'boulderfield', 'basalt']);
 export const inCover = (state, misty = false) => {
     const here = state.cells.get(state.player);
     if (!here) return false;

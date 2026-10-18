@@ -7,7 +7,7 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                pixel: ['Cinzel', 'Georgia', 'serif'],
+                pixel: ['Spectral', 'Georgia', 'serif'],
                 sans: ['Figtree', 'system-ui', 'sans-serif']
             },
             colors: {
@@ -15,7 +15,7 @@ export default {
                 amber: { glow: '#f4b740' },
                 health: '#e5584f',
                 food: '#f0a43a',
-                water: '#4fb3e8',
+                water: '#7fb8c4',
                 grow: '#b88cf0'
             }
         },

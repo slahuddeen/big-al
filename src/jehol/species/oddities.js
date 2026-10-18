@@ -3,12 +3,12 @@
 import { Sculpt } from '../sculpt.js';
 import { biped, add, mul, lerp3 } from '../anatomy.js';
 import { C, mix, smooth, scheme } from '../paint.js';
-import { foldedWing, tailFan, ridgeQuills } from '../plumage.js';
+import { foldedWing, spreadWing, tailFan, ridgeQuills } from '../plumage.js';
 import { STYLE } from '../feathers.js';
 import { SMALL, sized } from './theropods.js';
 
 export const Caudipteryx = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 1.0;
         const S = new Sculpt();
         // long legs, a short tail with a fan of feathers, a short beaked head
@@ -34,7 +34,7 @@ export const Caudipteryx = (() => {
 })();
 
 export const Incisivosaurus = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 1.0;
         const S = new Sculpt();
         const rig = biped(S, sized(L, {
@@ -64,7 +64,7 @@ export const Incisivosaurus = (() => {
 })();
 
 export const Beipiaosaurus = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 2.2;
         const S = new Sculpt();
         // a therizinosaur: small head, long neck, pot belly, short tail, huge hand claws
@@ -95,7 +95,7 @@ export const Beipiaosaurus = (() => {
 })();
 
 export const MeiLong = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 0.53;
         const S = new Sculpt();
         // a small troodontid with big eyes and long legs
@@ -123,7 +123,7 @@ export const MeiLong = (() => {
 })();
 
 export const Confuciusornis = (() => {
-    function build() {
+    function build(stage, { pose } = {}) {
         const L = 0.32; // body and tail, without the streamers
         const S = new Sculpt();
         // an early beaked bird: short tail ending in a pygostyle, big wings with a claw
@@ -134,7 +134,7 @@ export const Confuciusornis = (() => {
             neck: 0.17, neckR: 0.04, headNeckR: 0.034, neckRise: 1.15, neckS: 0.8,
             head: 0.17, headH: 0.08, headW: 0.07, snoutTip: 0.35, snoutSquash: 0.6, headTilt: -0.15, jaw: 0.4, eyeR: 0.018, eyeAt: 0.3, eyeUp: 0.2, brow: 0.1,
             tail: 0.12, tailR: 0.03, tailDroop: 0.1, tailSquash: 0.9,
-            humerus: 0.17, forearm: 0.17, hand: 0.15, armR: 0.012, fingers: 3, fingerR: 0.006, handClaw: 0.035, armPose: 'fold'
+            humerus: 0.17, forearm: 0.17, hand: 0.15, armR: 0.012, fingers: 3, fingerR: 0.006, handClaw: 0.035, armPose: 'fold', pose
         }));
         const paint = scheme({
             L, base: '#4e4640', back: '#2e2a28', belly: '#cfc6b8', skin: '#4a4038', beak: '#2a2624', beakFrom: 0.22, fur: 0.012, mottle: 0.2,
@@ -143,8 +143,8 @@ export const Confuciusornis = (() => {
         });
         // spotted wing coverts over dark flight feathers
         const list = [
-            ...foldedWing(rig.armR, { primary: 0.2, primaries: 9, secondaries: 9, col: '#1f1c1b', col2: '#3a3532', coverCol: '#6a5e54' }),
-            ...foldedWing(rig.armL, { primary: 0.2, primaries: 9, secondaries: 9, col: '#1f1c1b', col2: '#3a3532', coverCol: '#6a5e54' })
+            ...(pose === 'fly' ? spreadWing : foldedWing)(rig.armR, { primary: 0.2, primaries: 9, secondaries: 9, col: '#1f1c1b', col2: '#3a3532', coverCol: '#6a5e54' }),
+            ...(pose === 'fly' ? spreadWing : foldedWing)(rig.armL, { primary: 0.2, primaries: 9, secondaries: 9, col: '#1f1c1b', col2: '#3a3532', coverCol: '#6a5e54' })
         ];
         // a pair of long streamer feathers from the tail (thought to belong to males)
         const tip = rig.tail[rig.tail.length - 1];
@@ -158,7 +158,7 @@ export const Confuciusornis = (() => {
 })();
 
 export const Psittacosaurus = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 1.6;
         const S = new Sculpt();
         // a deep, wide head with a parrot beak and a horn on each cheek; long legs, short arms

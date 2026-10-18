@@ -1,8 +1,9 @@
 import { DIETS, SPECIES_FACTS } from './speciesFacts.js';
-// ==================== KEM KEM FAUNA ====================
-// North Africa, about 95 million years ago: a vast river system running north to
-// the Tethys Sea. Far more big predators than big plant-eaters ("Stromer's
-// riddle"), because the rivers were full of fish. Weights are kg for a grown animal.
+// ==================== JEHOL FAUNA ====================
+// The Yixian Formation of Liaoning, north-east China, about 125 million years ago:
+// forested lakes among volcanoes, with cold winters. Ash from the eruptions buried
+// whole communities, preserving feathers, fur and even colour. Weights are kg for a
+// grown animal.
 const sp = (weight, nutrition, danger, aggression, difficulty, behaviorType, description, injury, extra = {}) => ({
     weight, nutrition, danger, aggression, difficulty, behaviorType, description, injury,
     size: extra.size ?? 1, minimumAge: extra.minimumAge ?? 0.05, emoji: '', ...extra
@@ -10,221 +11,158 @@ const sp = (weight, nutrition, danger, aggression, difficulty, behaviorType, des
 
 export const SPECIES_DATA = {
     // ---- tiny ----
-    Dragonfly: sp(0.002, 0.15, 0, 0, 0.6, 'passive', 'Darting over the water: a hatchling\'s first meals', 'buzzes away angrily'),
-    Cricket: sp(0.003, 0.1, 0, 0, 0.4, 'skittish', 'Chirping in the ferns at night', 'hops away frantically'),
-    Centipede: sp(0.008, 0.4, 0, 0, 0.25, 'passive', 'Hunts the leaf litter of the woods', 'tickles you harmlessly'),
-    Scorpion: sp(0.03, 0.8, 8, 0.25, 0.35, 'defensive', 'Desert-edge arachnid with a painful sting', 'stings you with its tail'),
+    Mayfly: sp(0.0008, 0.12, 0, 0, 0.55, 'passive', 'Ephemeropsis: mayflies swarm over the lakes in their millions', 'flutters away'),
+    Lacewing: sp(0.002, 0.2, 0, 0, 0.6, 'skittish', 'A giant lacewing with eyespots on its wings, like a butterfly', 'flashes its eyespots'),
+    Cricket: sp(0.003, 0.15, 0, 0, 0.45, 'skittish', 'Chirping in the ferns at dusk', 'hops away frantically'),
+    Frog: sp(0.04, 0.8, 0, 0, 0.45, 'skittish', 'Liaobatrachus, a little frog of the lake margins', 'croaks loudly'),
+    Salamander: sp(0.03, 0.7, 0, 0, 0.35, 'passive', 'Liaoxitriton, a salamander that hides under wet logs', 'wriggles free'),
 
     // ---- small ----
-    Frog: sp(0.06, 0.8, 0, 0, 0.45, 'skittish', 'Oumtkoutia, a little frog of the pools and shallows', 'croaks loudly'),
-    Lizard: sp(0.12, 2.5, 0.5, 0.1, 0.45, 'skittish', 'Quick lizard basking on the sandbars', 'bites your toe'),
-    Fish: sp(0.25, 2, 0, 0, 0.35, 'passive', 'Small river fish in shining shoals', 'flops around desperately', { aquatic: true }),
-    Lapparentophis: sp(0.8, 1.8, 3, 0.3, 0.6, 'territorial', 'One of the oldest known land snakes', 'strikes with a fanged bite'),
-    Hamadachelys: sp(3, 3, 2, 0.05, 0.2, 'defensive', 'Side-necked river turtle: hard to crack', 'retreats into its shell', { semiAquatic: true }),
-    Leptostomia: sp(1, 4, 1, 0.05, 0.6, 'skittish', 'Small pterosaur that probes the mud with a long thin beak', 'pecks at your eye'),
-    Araripesuchus: sp(8, 9, 12, 0.6, 0.55, 'pack_predator', 'Small long-legged land crocodile. Raids nests in gangs', 'snaps with a mouth full of fangs'),
+    Lycoptera: sp(0.01, 0.5, 0, 0, 0.4, 'passive', 'Small fish in silver shoals, the most common fossil in the lake beds', 'flips out of your jaws', { aquatic: true }),
+    Xianglong: sp(0.015, 0.4, 0, 0, 0.7, 'skittish', 'A gliding lizard that spreads skin wings over its long ribs', 'glides off to another tree'),
+    Eomaia: sp(0.025, 0.6, 0.2, 0.05, 0.6, 'skittish', 'A mouse-sized climbing mammal with dense fur', 'squeaks and bites'),
+    Dendrorhynchoides: sp(0.04, 0.6, 0.2, 0, 0.75, 'skittish', 'A tiny fuzzy pterosaur that snaps insects out of the air', 'flaps in your face'),
+    Confuciusornis: sp(0.2, 1.6, 0.5, 0.05, 0.75, 'skittish', 'A beaked bird of the lakeshore flocks; males trail long tail streamers', 'pecks and claws with its wings'),
+    'Mei long': sp(0.6, 2.5, 1.5, 0.2, 0.55, 'skittish', 'A small, big-eyed troodontid that sleeps tucked up like a bird', 'kicks with a curved claw'),
+    Sinosauropteryx: sp(0.6, 2.5, 2.5, 0.45, 0.6, 'territorial', 'Ginger, ring-tailed hunter of lizards and little mammals', 'bites with needle teeth'),
+    Microraptor: sp(1, 3, 4, 0.55, 0.7, 'aerial_predator', 'A glossy black four-winged raptor that glides down from the trees', 'rakes you with its claws'),
+    Monjurosuchus: sp(0.6, 2.5, 2, 0.35, 0.45, 'ambush_predator', 'A small crocodile-like reptile waiting in the shallows', 'snaps from the water', { semiAquatic: true }),
+    Peipiaosteus: sp(0.6, 3, 0, 0, 0.35, 'passive', 'A smooth relative of sturgeons that noses along the lake bed', 'thrashes in your jaws', { aquatic: true }),
+    Manchurochelys: sp(1.5, 3, 1.5, 0.05, 0.2, 'defensive', 'A pond turtle: hard to crack', 'pulls into its shell', { semiAquatic: true }),
+    Hyphalosaurus: sp(1.2, 4, 1, 0.05, 0.45, 'skittish', 'A swimming reptile with a tiny head on a very long neck', 'whips its neck away', { semiAquatic: true }),
 
     // ---- medium ----
-    Noasaurid: sp(15, 14, 16, 0.65, 0.6, 'pack_predator', 'Small, fast theropod that hunts hatchlings along the banks', 'slashes with hooked claws'),
-    Lungfish: sp(15, 14, 2, 0, 0.3, 'passive', 'Neoceratodus: survives the drought buried in the mud of drying pools', 'thrashes in your jaws', { aquatic: true }),
-    Calamopleurus: sp(12, 12, 3, 0.1, 0.45, 'passive', 'Long, toothy bowfin of the channels', 'bites back', { aquatic: true }),
-    Bawitius: sp(60, 40, 12, 0.15, 0.4, 'defensive', 'Giant armoured bichir, three metres of scales and teeth', 'rakes you with armoured scales', { aquatic: true }),
-    Tribodus: sp(40, 30, 20, 0.35, 0.5, 'territorial', 'River shark with crushing teeth and a spined fin', 'bites and twists away', { aquatic: true }),
-    Afrotapejara: sp(3, 6, 2, 0.05, 0.7, 'skittish', 'Crested fruit-eating pterosaur', 'flaps its crest at you'),
-    Siroccopteryx: sp(8, 10, 8, 0.35, 0.65, 'aerial_predator', 'Fish-catching pterosaur that skims the river', 'jabs with a toothy beak'),
-    'Injured Pterosaur': sp(20, 25, 0.1, 0, 0.05, 'passive', 'A wounded pterosaur that can no longer fly', 'flaps weakly'),
-    Iguanodont: sp(400, 90, 60, 0.05, 0.2, 'herbivore', 'One of the few plant-eaters here, a heavy-bodied iguanodont', 'kicks you with powerful legs'),
+    Sinopterus: sp(1.2, 3.5, 1.5, 0.05, 0.7, 'skittish', 'A crested pterosaur that walks the shore looking for fruit and seeds', 'jabs with its beak'),
+    Changyuraptor: sp(4, 6, 7, 0.6, 0.6, 'ambush_predator', 'A four-winged raptor that drops on prey from the branches', 'slashes with its sickle claws'),
+    Liaoningosaurus: sp(4, 5, 3, 0.1, 0.25, 'defensive', 'A small ankylosaur armoured even on its belly', 'swipes with its spiky flank'),
+    Feilongus: sp(5, 6, 6, 0.3, 0.65, 'aerial_predator', 'A crested pterosaur with an overbite, snatching fish and small animals', 'stabs with its toothy jaws'),
+    Repenomamus: sp(5, 7, 12, 0.6, 0.5, 'rival_predator', 'A badger-sized mammal that eats baby dinosaurs', 'locks its jaws on you'),
+    Incisivosaurus: sp(6, 7, 4, 0.1, 0.55, 'skittish', 'A buck-toothed oviraptorosaur that crops low plants', 'bites with its front teeth'),
+    Caudipteryx: sp(5, 7, 3, 0.1, 0.6, 'herbivore', 'Long-legged and short-tailed, flashing a fan of tail feathers', 'kicks and flaps its wings'),
+    Dilong: sp(12, 12, 16, 0.6, 0.6, 'rival_predator', 'A small, fast tyrannosaur relative: your own family, and no friend', 'bites hard'),
+    Zhenyuanlong: sp(18, 16, 22, 0.7, 0.6, 'pack_predator', 'A big-winged raptor that hunts in small groups', 'slashes you with a sickle claw'),
+    Sinocalliopteryx: sp(20, 18, 28, 0.7, 0.55, 'rival_predator', 'A long-tailed hunter known to eat birds and raptors', 'grabs you with big hands'),
+    Psittacosaurus: sp(25, 22, 15, 0.15, 0.35, 'herbivore', 'A parrot-beaked plant-eater; the young gather in crèches', 'bites with its beak'),
+    Beipiaosaurus: sp(45, 35, 45, 0.3, 0.35, 'dangerous_herbivore', 'A pot-bellied, shaggy plant-eater with long hand claws', 'swipes with hooked claws'),
 
     // ---- large ----
-    Alanqa: sp(40, 30, 30, 0.7, 0.4, 'aerial_predator', 'Tall azhdarchid pterosaur that stalks the mudflats like a stork and swallows hatchlings whole', 'stabs with its spear of a beak'),
-    'Young Spinosaurus': sp(250, 50, 120, 0.25, 0.5, 'rival_predator', 'A spinosaur of your own age: a clutch-mate you could fish with', 'snaps at you'),
-    'River Plesiosaur': sp(150, 60, 120, 0.4, 0.45, 'territorial', 'Small long-necked plesiosaur that swims up the rivers from the sea', 'snaps with interlocking teeth', { aquatic: true }),
-    Mawsonia: sp(350, 160, 60, 0.05, 0.35, 'defensive', 'Coelacanth the size of a crocodile, slow and heavy', 'slaps you with a lobed fin', { aquatic: true }),
-    Laganosuchus: sp(400, 70, 450, 0.6, 0.35, 'ambush_predator', 'Pancake-headed crocodile that lies still with its jaws open', 'snaps its flat jaws shut on you', { semiAquatic: true }),
-    Elosuchus: sp(900, 140, 800, 0.55, 0.35, 'ambush_predator', 'Long-snouted river crocodile, eight metres of fish-catcher', 'drags you under in a death roll', { semiAquatic: true }),
-    Rugops: sp(750, 160, 700, 0.6, 0.4, 'rival_predator', 'Short-faced abelisaur with a wrinkled, horned head. Often steals kills', 'bites with a short, deep snout'),
-    Deltadromeus: sp(1000, 200, 900, 0.75, 0.5, 'rival_predator', 'Lanky, long-legged hunter of the floodplain: fast and relentless', 'slashes with long claws'),
-
-    // ---- huge ----
-    Onchopristis: sp(1200, 240, 900, 0.3, 0.3, 'territorial', 'Giant sawfish relative with a barbed saw longer than you', 'slashes you with its toothed saw', { aquatic: true }),
-    Aegisuchus: sp(3000, 400, 2600, 0.55, 0.3, 'ambush_predator', 'Shieldcroc: a gigantic flat-headed crocodile of the deep channels', 'crushes you in enormous jaws', { semiAquatic: true }),
-    Sauroniops: sp(2500, 420, 2400, 0.8, 0.6, 'rival_predator', 'Carcharodontosaurid with a domed brow, hunting the edges of the floodplain', 'tears at you with blade-like teeth'),
-    Bahariasaurus: sp(4000, 560, 3600, 0.8, 0.55, 'rival_predator', 'Huge, long-legged predator of the delta', 'rakes you with serrated teeth'),
-    Carcharodontosaurus: sp(6500, 800, 6500, 0.9, 0.7, 'apex_predator', 'The shark-toothed lizard: master of the land, and the spinosaur\'s great rival', 'slices you open with shark-like teeth'),
-    Spinosaurus: sp(7000, 750, 6000, 0.6, 0.6, 'rival_predator', 'A grown rival spinosaur defending its stretch of river', 'clamps its crocodile jaws on you', { semiAquatic: true }),
-    Rebbachisaurus: sp(7000, 1100, 2500, 0.12, 0.15, 'giant_herbivore', 'Sail-backed sauropod that crops low plants along the trails', 'swings its tail like a whip'),
-    Aegyptosaurus: sp(15000, 1400, 4500, 0.1, 0.12, 'giant_herbivore', 'Titanosaur that roams the delta in small herds', 'tramples you'),
-    Paralititan: sp(50000, 2000, 9000, 0.08, 0.08, 'giant_herbivore', 'One of the largest animals that ever lived, browsing the mangrove edge', 'crushes you underfoot'),
-
-    // ---- more neighbours: odd body plans of the same time and coast ----
-    Enantiornithine: sp(0.08, 0.6, 0, 0, 0.75, 'skittish', 'A small toothed bird with clawed wings', 'pecks at you'),
-    Pachyrhachis: sp(1.5, 2.5, 2, 0.15, 0.5, 'skittish', 'A sea snake that still has a pair of tiny hind legs', 'bites and wriggles free', { aquatic: true }),
-    Simoliophis: sp(2, 3, 2, 0.15, 0.5, 'skittish', 'A heavy-boned sea snake of the mangrove channels', 'bites and slips away', { aquatic: true }),
-    Dromaeosaur: sp(15, 15, 18, 0.7, 0.65, 'pack_predator', 'A feathered raptor with a sickle claw on each foot, hunting in small groups', 'slashes you with a sickle claw'),
-    Obaichthys: sp(20, 16, 6, 0.2, 0.45, 'passive', 'An armoured gar that hangs still among the reeds, then strikes sideways', 'rasps you with its armoured scales', { aquatic: true }),
-    Kaprosuchus: sp(450, 80, 400, 0.7, 0.4, 'rival_predator', 'BoarCroc: a long-legged land crocodile with tusks', 'gores you with its tusks')
+    'Young Yutyrannus': sp(150, 45, 140, 0.25, 0.5, 'rival_predator', 'A young Yutyrannus of your own age: a nest-mate you could hunt with', 'snaps at you'),
+    Jinzhousaurus: sp(1200, 200, 500, 0.08, 0.25, 'herbivore', 'A large iguanodont that browses the lakeside forests in small herds', 'kicks with heavy legs'),
+    Yutyrannus: sp(1400, 300, 1400, 0.8, 0.6, 'apex_predator', 'A grown Yutyrannus, the feathered tyrant of the Jehol', 'bites with a mouth full of blades'),
+    Dongbeititan: sp(12000, 1200, 3000, 0.08, 0.1, 'giant_herbivore', 'A long-necked giant, rare in these forests', 'tramples you')
 };
 
 // Which animals live in which habitats, and how often they turn up
 export const HABITAT_SPECIES = {
-    // ---- the rivers ----
-    river: {
-        Obaichthys: 0.12,
-        Fish: 0.35, Calamopleurus: 0.2, Lungfish: 0.12, Bawitius: 0.12, Tribodus: 0.1, Mawsonia: 0.12, Onchopristis: 0.08,
-        'River Plesiosaur': 0.06, Elosuchus: 0.12, Laganosuchus: 0.08, Aegisuchus: 0.05, Hamadachelys: 0.12,
-        Dragonfly: 0.15, Siroccopteryx: 0.15, Spinosaurus: 0.05, 'Young Spinosaurus': 0.05
-    },
-    stream: {
-        Obaichthys: 0.08,
-        Fish: 0.35, Calamopleurus: 0.15, Lungfish: 0.15, Bawitius: 0.08, Frog: 0.2, Dragonfly: 0.25, Hamadachelys: 0.15,
-        Laganosuchus: 0.06, Araripesuchus: 0.1, Leptostomia: 0.12, Siroccopteryx: 0.1, Alanqa: 0.05, 'Young Spinosaurus': 0.06, Iguanodont: 0.05
-    },
+    // ---- water ----
     lake: {
-        Obaichthys: 0.12,
-        Fish: 0.35, Calamopleurus: 0.18, Lungfish: 0.15, Bawitius: 0.12, Mawsonia: 0.15, Tribodus: 0.06,
-        Elosuchus: 0.1, Laganosuchus: 0.1, Hamadachelys: 0.15, Dragonfly: 0.15, Frog: 0.12, Siroccopteryx: 0.15, Spinosaurus: 0.04
+        Lycoptera: 0.4, Peipiaosteus: 0.2, Hyphalosaurus: 0.18, Manchurochelys: 0.12, Mayfly: 0.25,
+        Feilongus: 0.15, Confuciusornis: 0.1, Monjurosuchus: 0.08
     },
-    waterhole: {
-        Fish: 0.25, Lungfish: 0.25, Frog: 0.2, Dragonfly: 0.15, Hamadachelys: 0.12, Laganosuchus: 0.08,
-        Leptostomia: 0.12, Alanqa: 0.08, Iguanodont: 0.1, Rugops: 0.05, Deltadromeus: 0.04
-    },
+    river: { Lycoptera: 0.35, Peipiaosteus: 0.15, Hyphalosaurus: 0.12, Mayfly: 0.2, Feilongus: 0.12, Monjurosuchus: 0.06 },
+    stream: { Lycoptera: 0.3, Frog: 0.2, Salamander: 0.18, Mayfly: 0.2, Monjurosuchus: 0.1, Hyphalosaurus: 0.06, Sinopterus: 0.08, Psittacosaurus: 0.06 },
+    waterhole: { Lycoptera: 0.25, Frog: 0.25, Salamander: 0.15, Mayfly: 0.2, Manchurochelys: 0.12, Monjurosuchus: 0.1, Psittacosaurus: 0.08, Sinopterus: 0.08 },
     marsh: {
-        Obaichthys: 0.08, Enantiornithine: 0.1,
-        Frog: 0.3, Dragonfly: 0.25, Fish: 0.2, Lungfish: 0.2, Centipede: 0.1, Hamadachelys: 0.15, Lapparentophis: 0.08,
-        Laganosuchus: 0.12, Araripesuchus: 0.1, Leptostomia: 0.12, Afrotapejara: 0.08, Iguanodont: 0.06
+        Frog: 0.3, Salamander: 0.2, Mayfly: 0.25, Lycoptera: 0.2, Manchurochelys: 0.12, Monjurosuchus: 0.12,
+        Hyphalosaurus: 0.08, Liaoningosaurus: 0.08, Confuciusornis: 0.08, Psittacosaurus: 0.06
     },
-    mangrove: {
-        Simoliophis: 0.12, Pachyrhachis: 0.08, Enantiornithine: 0.12,
-        Fish: 0.3, Tribodus: 0.12, Onchopristis: 0.1, 'River Plesiosaur': 0.1, Mawsonia: 0.08, Hamadachelys: 0.12,
-        Elosuchus: 0.1, Aegisuchus: 0.05, Siroccopteryx: 0.15, Afrotapejara: 0.1, Dragonfly: 0.15, Frog: 0.08,
-        Paralititan: 0.08, Aegyptosaurus: 0.06, Bahariasaurus: 0.05
-    },
-    beach: {
-        Simoliophis: 0.1, Pachyrhachis: 0.08,
-        Leptostomia: 0.2, Alanqa: 0.15, Siroccopteryx: 0.15, 'Injured Pterosaur': 0.06, Hamadachelys: 0.15, Fish: 0.15,
-        Araripesuchus: 0.08, Lizard: 0.1, Bahariasaurus: 0.04, Elosuchus: 0.06
-    },
+    hotspring: { Frog: 0.12, Mayfly: 0.15, Salamander: 0.08, Confuciusornis: 0.06 },
     riverbank: {
-        Kaprosuchus: 0.05, Enantiornithine: 0.1,
-        Lizard: 0.15, Dragonfly: 0.15, Frog: 0.12, Hamadachelys: 0.15, Araripesuchus: 0.12, Leptostomia: 0.15, Alanqa: 0.08,
-        Elosuchus: 0.1, Laganosuchus: 0.08, Noasaurid: 0.08, Iguanodont: 0.06, 'Young Spinosaurus': 0.06, Spinosaurus: 0.04,
-        Rugops: 0.04, Carcharodontosaurus: 0.03
+        Confuciusornis: 0.2, Sinopterus: 0.15, Feilongus: 0.08, Frog: 0.12, Manchurochelys: 0.12, Hyphalosaurus: 0.1,
+        Monjurosuchus: 0.08, Liaoningosaurus: 0.06, Psittacosaurus: 0.12, Sinosauropteryx: 0.08, Mayfly: 0.15, Jinzhousaurus: 0.04
     },
-    dryriverbed: {
-        Lizard: 0.15, Scorpion: 0.15, Cricket: 0.12, Lapparentophis: 0.1, Noasaurid: 0.08, Araripesuchus: 0.08, Rugops: 0.04
-    },
-    floodplain: {
-        Kaprosuchus: 0.05,
-        Dragonfly: 0.2, Frog: 0.15, Cricket: 0.15, Lizard: 0.1, Lungfish: 0.08, Leptostomia: 0.12, Alanqa: 0.12, Iguanodont: 0.12,
-        Noasaurid: 0.08, Deltadromeus: 0.06, Rugops: 0.05, Sauroniops: 0.03, Carcharodontosaurus: 0.03, Aegyptosaurus: 0.05
-    },
-    nest: {
-        Dromaeosaur: 0.06,
-        Dragonfly: 0.25, Cricket: 0.2, Centipede: 0.15, Lizard: 0.12, Frog: 0.12, Araripesuchus: 0.15, Noasaurid: 0.08 // nest raiders
-    },
-
-    // ---- woods and ferns ----
-    galleryforest: {
-        Kaprosuchus: 0.05, Dromaeosaur: 0.06, Enantiornithine: 0.15,
-        Dragonfly: 0.2, Centipede: 0.15, Frog: 0.15, Lizard: 0.12, Lapparentophis: 0.08, Hamadachelys: 0.08, Afrotapejara: 0.15,
-        Noasaurid: 0.08, Araripesuchus: 0.08, Iguanodont: 0.1, Rugops: 0.04, Carcharodontosaurus: 0.03
-    },
-    forest: {
-        Kaprosuchus: 0.05, Dromaeosaur: 0.08, Enantiornithine: 0.12,
-        Centipede: 0.2, Cricket: 0.15, Scorpion: 0.08, Lizard: 0.12, Lapparentophis: 0.1, Afrotapejara: 0.12,
-        Noasaurid: 0.1, Iguanodont: 0.1, Rugops: 0.05, Sauroniops: 0.03, Carcharodontosaurus: 0.03
-    },
-    denseforest: {
-        Dromaeosaur: 0.08,
-        Centipede: 0.2, Cricket: 0.2, Frog: 0.12, Lizard: 0.12, Lapparentophis: 0.1, Noasaurid: 0.06, Iguanodont: 0.06, Afrotapejara: 0.08
-    },
-    jungle: {
-        Dromaeosaur: 0.08, Enantiornithine: 0.1,
-        Dragonfly: 0.18, Centipede: 0.2, Frog: 0.18, Lapparentophis: 0.1, Afrotapejara: 0.15, Noasaurid: 0.06, Iguanodont: 0.08
-    },
-    openwoods: {
-        Kaprosuchus: 0.05, Dromaeosaur: 0.06, Enantiornithine: 0.12,
-        Cricket: 0.15, Lizard: 0.12, Scorpion: 0.06, Afrotapejara: 0.12, Noasaurid: 0.08, Iguanodont: 0.12,
-        Rugops: 0.05, Deltadromeus: 0.05, Rebbachisaurus: 0.06
-    },
-    deadfall: {
-        Centipede: 0.3, Scorpion: 0.12, Lizard: 0.18, Lapparentophis: 0.12, Frog: 0.12, Araripesuchus: 0.08
-    },
+    nest: { Cricket: 0.25, Lacewing: 0.2, Mayfly: 0.2, Frog: 0.12, Salamander: 0.1, Eomaia: 0.08, Sinosauropteryx: 0.06, Repenomamus: 0.04 },
 
     // ---- open country ----
-    plains: {
-        Kaprosuchus: 0.04,
-        Cricket: 0.15, Lizard: 0.12, Scorpion: 0.08, Leptostomia: 0.08, Alanqa: 0.12, Iguanodont: 0.12, Noasaurid: 0.08,
-        Deltadromeus: 0.08, Rugops: 0.05, Sauroniops: 0.04, Carcharodontosaurus: 0.05, Rebbachisaurus: 0.06
+    meadow: {
+        Lacewing: 0.2, Cricket: 0.2, Xianglong: 0.06, Caudipteryx: 0.15, Incisivosaurus: 0.1, Psittacosaurus: 0.15,
+        Sinosauropteryx: 0.08, Dilong: 0.05, Zhenyuanlong: 0.04, Jinzhousaurus: 0.05, Yutyrannus: 0.02
     },
     fernprairie: {
-        Dromaeosaur: 0.05,
-        Cricket: 0.18, Dragonfly: 0.1, Lizard: 0.12, Afrotapejara: 0.1, Alanqa: 0.1, Iguanodont: 0.15, Noasaurid: 0.08,
-        Deltadromeus: 0.06, Carcharodontosaurus: 0.04, Rebbachisaurus: 0.06
+        Cricket: 0.2, Lacewing: 0.12, Psittacosaurus: 0.18, Caudipteryx: 0.1, Incisivosaurus: 0.08, 'Mei long': 0.08,
+        Sinosauropteryx: 0.08, Dilong: 0.06, Sinocalliopteryx: 0.04, Zhenyuanlong: 0.04, Jinzhousaurus: 0.06, Yutyrannus: 0.02
     },
-    savanna: {
-        Cricket: 0.12, Lizard: 0.15, Scorpion: 0.1, Alanqa: 0.1, Iguanodont: 0.1, Deltadromeus: 0.06,
-        Bahariasaurus: 0.04, Carcharodontosaurus: 0.05, Rebbachisaurus: 0.08
-    },
-    scrubland: {
-        Cricket: 0.12, Lizard: 0.15, Scorpion: 0.12, Lapparentophis: 0.1, Noasaurid: 0.1, Rugops: 0.05, Alanqa: 0.06
-    },
-    sauropodgrounds: {
-        Rebbachisaurus: 0.4, Aegyptosaurus: 0.35, Paralititan: 0.25, Iguanodont: 0.1, Alanqa: 0.08,
-        Rugops: 0.06, Deltadromeus: 0.06, Sauroniops: 0.05, Bahariasaurus: 0.05, Carcharodontosaurus: 0.08
-    },
+    floodplain: { Frog: 0.18, Mayfly: 0.15, Cricket: 0.12, Psittacosaurus: 0.15, Caudipteryx: 0.08, Confuciusornis: 0.1, Sinopterus: 0.08, Jinzhousaurus: 0.06, Dilong: 0.04 },
+    scrubland: { Cricket: 0.18, Xianglong: 0.06, Incisivosaurus: 0.12, Caudipteryx: 0.1, Beipiaosaurus: 0.08, Sinosauropteryx: 0.08, 'Mei long': 0.08, Dilong: 0.05, Liaoningosaurus: 0.05 },
+    sauropodgrounds: { Dongbeititan: 0.45, Jinzhousaurus: 0.15, Psittacosaurus: 0.1, Sinocalliopteryx: 0.06, Zhenyuanlong: 0.05, Yutyrannus: 0.06 },
+    ashflat: { Cricket: 0.08, Sinosauropteryx: 0.05, Sinopterus: 0.05, Feilongus: 0.04 },
 
-    // ---- dry uplands ----
-    desert: { Scorpion: 0.15, Lizard: 0.12, Cricket: 0.08, Lapparentophis: 0.1, 'Injured Pterosaur': 0.06, Noasaurid: 0.04 },
-    badlands: { Scorpion: 0.15, Lizard: 0.12, Lapparentophis: 0.08, 'Injured Pterosaur': 0.08, Alanqa: 0.06 },
-    mesa: { Alanqa: 0.12, Afrotapejara: 0.1, Siroccopteryx: 0.08, Lizard: 0.08, Scorpion: 0.08 },
-    rocky: { Lizard: 0.12, Scorpion: 0.12, Lapparentophis: 0.08, Noasaurid: 0.06, Alanqa: 0.08 },
-    boulderfield: { Lizard: 0.15, Scorpion: 0.12, Lapparentophis: 0.1, Afrotapejara: 0.1, Noasaurid: 0.06 },
-    hills: { Lizard: 0.12, Cricket: 0.1, Scorpion: 0.08, Afrotapejara: 0.12, Alanqa: 0.08, Iguanodont: 0.08, Noasaurid: 0.06 },
-    mountains: { Afrotapejara: 0.12, Alanqa: 0.08, Lizard: 0.06 },
-    quicksand: { Cricket: 0.005, Scorpion: 0.003 },
-    sea: {}
+    // ---- woods ----
+    forest: {
+        Cricket: 0.15, Lacewing: 0.12, Salamander: 0.08, Eomaia: 0.12, Xianglong: 0.1, Microraptor: 0.12, Changyuraptor: 0.06,
+        Confuciusornis: 0.1, Dendrorhynchoides: 0.08, 'Mei long': 0.08, Sinosauropteryx: 0.06, Repenomamus: 0.06, Dilong: 0.05,
+        Beipiaosaurus: 0.05, Sinocalliopteryx: 0.04, Yutyrannus: 0.02
+    },
+    oldgrowth: {
+        Salamander: 0.12, Eomaia: 0.12, Xianglong: 0.12, Microraptor: 0.12, Changyuraptor: 0.08, Dendrorhynchoides: 0.08,
+        Repenomamus: 0.07, Beipiaosaurus: 0.06, Sinocalliopteryx: 0.05, Jinzhousaurus: 0.05, Yutyrannus: 0.03
+    },
+    ginkgogrove: {
+        Lacewing: 0.15, Cricket: 0.12, Eomaia: 0.1, Xianglong: 0.1, Microraptor: 0.08, Confuciusornis: 0.12,
+        Sinopterus: 0.1, Incisivosaurus: 0.1, Psittacosaurus: 0.08, Beipiaosaurus: 0.06, Dilong: 0.04
+    },
+    denseforest: {
+        Cricket: 0.18, Salamander: 0.12, Eomaia: 0.12, 'Mei long': 0.1, Repenomamus: 0.08, Sinosauropteryx: 0.08,
+        Changyuraptor: 0.06, Zhenyuanlong: 0.05, Psittacosaurus: 0.08, Liaoningosaurus: 0.05
+    },
+    galleryforest: {
+        Frog: 0.12, Salamander: 0.12, Mayfly: 0.12, Eomaia: 0.08, Xianglong: 0.08, Microraptor: 0.1, Confuciusornis: 0.12,
+        Dendrorhynchoides: 0.1, Monjurosuchus: 0.05, Psittacosaurus: 0.08, Jinzhousaurus: 0.05, Sinocalliopteryx: 0.04, Yutyrannus: 0.02
+    },
+    openwoods: {
+        Lacewing: 0.12, Cricket: 0.12, Xianglong: 0.08, Confuciusornis: 0.1, Caudipteryx: 0.1, Incisivosaurus: 0.08,
+        Psittacosaurus: 0.12, Dilong: 0.06, Zhenyuanlong: 0.05, Jinzhousaurus: 0.06, Yutyrannus: 0.03
+    },
+    deadforest: { Cricket: 0.12, Salamander: 0.06, Xianglong: 0.06, Microraptor: 0.06, Sinosauropteryx: 0.06, Feilongus: 0.04, Repenomamus: 0.04 },
+    deadfall: { Salamander: 0.2, Cricket: 0.15, Eomaia: 0.15, Xianglong: 0.08, Repenomamus: 0.08, 'Mei long': 0.08, Sinosauropteryx: 0.06 },
+
+    // ---- high ground ----
+    hills: { Cricket: 0.12, Lacewing: 0.08, Psittacosaurus: 0.1, Caudipteryx: 0.08, Sinopterus: 0.08, Dilong: 0.05, Zhenyuanlong: 0.05, Yutyrannus: 0.03 },
+    crags: { Sinopterus: 0.15, Feilongus: 0.12, Dendrorhynchoides: 0.08, Xianglong: 0.06, Microraptor: 0.05 },
+    basalt: { Cricket: 0.1, Xianglong: 0.08, Sinopterus: 0.1, Sinosauropteryx: 0.05, Liaoningosaurus: 0.04 },
+    boulderfield: { Cricket: 0.12, Xianglong: 0.08, Eomaia: 0.08, Sinosauropteryx: 0.06, Repenomamus: 0.05, Liaoningosaurus: 0.05 },
+    lavafield: { Cricket: 0.04 },
+    volcanic: {},
+    mountains: {},
+    mudpot: { Cricket: 0.005 }
 };
 
 // Herds, packs, shoals and swarms: how many turn up together [min, max]
 export const GROUP_SIZE = {
-    Dragonfly: [1, 3], Frog: [1, 2], Fish: [2, 4], Cricket: [1, 2], Calamopleurus: [1, 2], Lungfish: [1, 2],
-    Araripesuchus: [2, 4], Noasaurid: [2, 3], Leptostomia: [1, 3], Afrotapejara: [1, 2], Siroccopteryx: [1, 2],
-    Iguanodont: [2, 5], Rebbachisaurus: [2, 4], Aegyptosaurus: [2, 4], Paralititan: [1, 3], Tribodus: [1, 2],
-    Dromaeosaur: [2, 3], Enantiornithine: [1, 3]
+    Mayfly: [2, 4], Lacewing: [1, 2], Cricket: [1, 2], Frog: [1, 2], Lycoptera: [2, 4], Confuciusornis: [2, 4],
+    Sinopterus: [1, 2], Caudipteryx: [2, 4], Psittacosaurus: [2, 5], Zhenyuanlong: [2, 3], Jinzhousaurus: [2, 4],
+    Dongbeititan: [1, 3], Hyphalosaurus: [1, 2], Eomaia: [1, 2]
 };
 
-// Animals that can fly (and so crowd the sky if too many spawn)
-export const FLYERS = new Set(['Leptostomia', 'Afrotapejara', 'Siroccopteryx', 'Alanqa', 'Enantiornithine']);
+// Animals that fly or glide (and so crowd the sky if too many spawn)
+export const FLYERS = new Set(['Confuciusornis', 'Dendrorhynchoides', 'Microraptor', 'Feilongus', 'Sinopterus']);
 
-// Fish and other animals that never leave the water, and those that come and go
+// Fish never leave the water; turtles, choristoderes and a few others come and go
 export const AQUATIC = new Set(Object.keys(SPECIES_DATA).filter((k) => SPECIES_DATA[k].aquatic));
 export const SEMI_AQUATIC = new Set(Object.keys(SPECIES_DATA).filter((k) => SPECIES_DATA[k].semiAquatic));
-export const CROCODILES = new Set(['Laganosuchus', 'Elosuchus', 'Aegisuchus']);
+// lurkers that strike at animals drinking at the edge
+export const CROCODILES = new Set(['Monjurosuchus']);
 
-// Extra toughness: armour, sheer bulk or a shell soak up bites
+// Extra toughness: armour, a shell or sheer bulk soak up bites
 export const TOUGHNESS = {
-    Hamadachelys: 2.5, Bawitius: 1.6, Obaichthys: 1.5, Kaprosuchus: 1.4, Mawsonia: 1.3, Onchopristis: 1.3, Laganosuchus: 1.5, Elosuchus: 1.6, Aegisuchus: 1.8,
-    Rebbachisaurus: 2, Aegyptosaurus: 2.3, Paralititan: 2.6, Carcharodontosaurus: 1.2, Spinosaurus: 1.2, Bahariasaurus: 1.1
+    Manchurochelys: 2.5, Liaoningosaurus: 3, Beipiaosaurus: 1.2, Jinzhousaurus: 1.4, Dongbeititan: 2.4, Yutyrannus: 1.2
 };
 
 // Predators that will run you down across several areas
 export const CHASERS = {
-    Araripesuchus: 0.7, Noasaurid: 0.8, Deltadromeus: 0.75, Rugops: 0.55, Sauroniops: 0.6, Bahariasaurus: 0.6,
-    Carcharodontosaurus: 0.6, Alanqa: 0.5, Dromaeosaur: 0.8, Kaprosuchus: 0.55
+    Sinosauropteryx: 0.6, Repenomamus: 0.55, Dilong: 0.75, Zhenyuanlong: 0.8, Sinocalliopteryx: 0.7, Yutyrannus: 0.6, Changyuraptor: 0.5
 };
 
 // Real body length in metres, used to draw the giants at their true scale
-export const BODY_LENGTH_M = { Rebbachisaurus: 15, Aegyptosaurus: 16, Paralititan: 26 };
+export const BODY_LENGTH_M = { Dongbeititan: 15 };
 
 // When each animal is about: 'day', 'night', 'twilight' (dawn and dusk) or both
 export const ACTIVITY = {
-    Scorpion: 'night', Centipede: 'night', Frog: 'night', Cricket: 'night', Araripesuchus: 'night', Lapparentophis: 'twilight',
-    Laganosuchus: 'night', Elosuchus: 'twilight', Aegisuchus: 'night', Noasaurid: 'twilight', Deltadromeus: 'twilight',
-    Carcharodontosaurus: 'twilight', Sauroniops: 'twilight', Bahariasaurus: 'twilight', Rugops: 'night',
-    Dragonfly: 'day', Lizard: 'day', Leptostomia: 'day', Afrotapejara: 'day', Siroccopteryx: 'day', Alanqa: 'day',
-    Iguanodont: 'day', Rebbachisaurus: 'day', Aegyptosaurus: 'day', Paralititan: 'day', Hamadachelys: 'day',
-    Dromaeosaur: 'twilight', Kaprosuchus: 'night', Enantiornithine: 'day', Obaichthys: 'twilight'
+    Cricket: 'night', Frog: 'night', Salamander: 'night', Eomaia: 'night', Repenomamus: 'night', Dendrorhynchoides: 'twilight',
+    'Mei long': 'twilight', Monjurosuchus: 'twilight', Sinocalliopteryx: 'twilight', Zhenyuanlong: 'twilight', Yutyrannus: 'twilight',
+    Mayfly: 'twilight', Lacewing: 'day', Xianglong: 'day', Confuciusornis: 'day', Sinopterus: 'day', Feilongus: 'day',
+    Microraptor: 'day', Changyuraptor: 'day', Psittacosaurus: 'day', Caudipteryx: 'day', Incisivosaurus: 'day',
+    Jinzhousaurus: 'day', Dongbeititan: 'day', Hyphalosaurus: 'day', Manchurochelys: 'day', Sinosauropteryx: 'day', Dilong: 'day'
 };
 
 // Spawn multiplier for the time of day (phase 0 morning .. 4 before dawn)

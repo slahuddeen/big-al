@@ -6,14 +6,15 @@
 import * as THREE from 'three';
 import { createMaterials, sharedUniforms } from './materials.js';
 import { buildCell, buildOutline, cellSurfaceY, randomPointInCell } from './cells3d.js';
-import { buildCreatureModel, buildBigAl } from './creatures3d.js';
+import { buildCreatureModel } from './creatures3d.js';
+import { gameTemplate, isSculpted, QUALITY } from '../jehol/gameModels.js';
 import { animateModel } from './animation.js';
 import { MeshBuilder, blob, limb, loft, mulberry32, hashString } from './lowpoly.js';
 import { PostFX } from './postfx.js';
 import { createOutlineMaterial, addOutlines, outlineUniforms } from './outline.js';
 import { MistLayer } from './mist.js';
 import { WeatherLayer } from './weather3d.js';
-import { windAt, drynessAt, weatherAt, isDrought, DRIES_UP } from '../game/weather.js';
+import { windAt, drynessAt, weatherAt, isDrought, DRIES_UP, snowAt, eruptionAt } from '../game/weather.js';
 import { buildPoiMesh } from './pois3d.js';
 import { getWorld } from '../world/worldGen.js';
 import { SPECIES_DATA, BODY_LENGTH_M, AQUATIC, SEMI_AQUATIC } from '../data/species.js';
@@ -51,27 +52,27 @@ export const displayLength = (massKg, minLen = 0.14) =>
     Math.max(minLen, Math.min(1.9, 0.15 * Math.pow(Math.max(massKg, 0.001) / 0.002, 0.15)));
 
 const GREY_SKY = new THREE.Color('#b4bcc4');
-const GIANT_SPECIES = new Set(['Rebbachisaurus', 'Aegyptosaurus', 'Paralititan']);
-// where Spino swims, and where it sinks low enough that only the sail shows
-const SWIM_TERRAIN = new Set(['river', 'lake', 'stream', 'mangrove', 'marsh', 'waterhole']);
+const GIANT_SPECIES = new Set(['Dongbeititan']);
+// where the player swims (only the deep water)
+const SWIM_TERRAIN = new Set(['river', 'lake']);
 const DEEP_WATER = new Set(['river', 'lake']);
 
-// Lighting presets per turn of the day/night cycle: hot North African light,
-// with the pale teal skies and creamy horizons of the Age of Reptiles comics
+// Lighting presets per turn of the day/night cycle: soft, cool northern light,
+// like a painting on paper
 const PHASES = [
-    { sun: '#ffe2b8', sunI: 2.4, sunAz: 0.4, sunEl: 0.6, sky: '#e0eee6', ground: '#8a7454', hemiI: 1.35 },
-    { sun: '#fff4dc', sunI: 2.6, sunAz: 1.3, sunEl: 1.05, sky: '#e4f0e8', ground: '#8a7050', hemiI: 1.3 },
-    { sun: '#ff9a5a', sunI: 2.0, sunAz: 2.5, sunEl: 0.4, sky: '#ffcf9a', ground: '#5e3c34', hemiI: 1.0 },
-    { sun: '#8ab0c8', sunI: 0.85, sunAz: 3.6, sunEl: 0.95, sky: '#4e6a7e', ground: '#1e2630', hemiI: 0.75 },
-    { sun: '#b8a0c8', sunI: 0.7, sunAz: 5.0, sunEl: 0.7, sky: '#5e5a7e', ground: '#262030', hemiI: 0.72 }
+    { sun: '#ffe6c8', sunI: 2.2, sunAz: 0.4, sunEl: 0.6, sky: '#e8ece6', ground: '#7a7060', hemiI: 1.35 },
+    { sun: '#fff4e4', sunI: 2.35, sunAz: 1.3, sunEl: 1.05, sky: '#eef0ea', ground: '#7a7262', hemiI: 1.3 },
+    { sun: '#ffb47e', sunI: 1.9, sunAz: 2.5, sunEl: 0.4, sky: '#f0d8bc', ground: '#5a4a44', hemiI: 1.0 },
+    { sun: '#9ab0c8', sunI: 0.85, sunAz: 3.6, sunEl: 0.95, sky: '#5a6a7a', ground: '#262a32', hemiI: 0.8 },
+    { sun: '#c0b0c8', sunI: 0.7, sunAz: 5.0, sunEl: 0.7, sky: '#6a6a80', ground: '#2a2632', hemiI: 0.75 }
 ];
-// Sky gradient behind the diorama
+// Paper washes behind the diorama, by time of day
 const SKIES = [
-    { top: '#86c0bc', horizon: '#f6e6c6', glow: '#ffd8a0', gx: 0.22 },
-    { top: '#7ab8c0', horizon: '#eef2de', glow: '#fff6dc', gx: 0.5 },
-    { top: '#a0606a', horizon: '#f6b47a', glow: '#ffbe70', gx: 0.8 },
-    { top: '#0e1c28', horizon: '#26404e', glow: '#3e6070', gx: 0.5 },
-    { top: '#1c1e36', horizon: '#56506a', glow: '#a0809a', gx: 0.25 }
+    { top: '#d6d0c2', horizon: '#eee6d2', glow: '#f6dab0', gx: 0.22 },
+    { top: '#dad6ca', horizon: '#f0eadb', glow: '#fbf2df', gx: 0.5 },
+    { top: '#c4b29e', horizon: '#ecd0ac', glow: '#f2b484', gx: 0.8 },
+    { top: '#384050', horizon: '#566070', glow: '#76808e', gx: 0.5 },
+    { top: '#484658', horizon: '#76708a', glow: '#a69aa8', gx: 0.25 }
 ];
 export const phaseIndex = (moveNumber) => getTimeOfDay(moveNumber).turnInCycle % PHASES.length;
 
@@ -79,7 +80,7 @@ const GAIT_SPEED = { biped: 0.95, quad: 0.5, sprawl: 0.6, crawl: 0.35, slither: 
 const WATER_LOVERS = new Set([...AQUATIC, ...SEMI_AQUATIC, 'Frog']);
 const GRAZERS = new Set(['herbivore', 'dangerous_herbivore']);
 const HUNTERS = new Set(['pack_predator', 'rival_predator', 'apex_predator', 'ambush_predator', 'territorial']);
-const HIGH_BROWSERS = new Set(['Paralititan', 'Aegyptosaurus']);
+const HIGH_BROWSERS = new Set(['Dongbeititan']);
 
 const roleOf = (species, gait) => {
     const t = SPECIES_DATA[species]?.behaviorType;
@@ -138,6 +139,9 @@ export class WorldRenderer {
         this.postfx = new PostFX(this.renderer, this.scene, this.camera);
 
         this.mats = createMaterials();
+        this.winterSun = new THREE.Color('#dfe8f4');
+        this.ashSun = new THREE.Color('#c88a5a');
+        QUALITY.mobile = this.touchDevice;
         this.mats.outline = createOutlineMaterial();
         this.tileGroup = new THREE.Group();
         this.actorGroup = new THREE.Group();
@@ -364,8 +368,14 @@ export class WorldRenderer {
             tile.water = new THREE.Mesh(data.water, this.mats.water);
             tile.water.receiveShadow = true;
             tile.water.renderOrder = 2;
-            tile.water.visible = !(this.wx?.drought && DRIES_UP.has(tile.terrain));
             tile.group.add(tile.water);
+            if (DRIES_UP.has(tile.terrain)) {
+                // ice for deep winter, on the same surface
+                tile.ice = new THREE.Mesh(data.water, this.mats.ice);
+                tile.ice.renderOrder = 2;
+                tile.group.add(tile.ice);
+            }
+            this.freezeTile(tile, !!this.wx?.drought);
         }
         if (data.lava) {
             tile.lava = new THREE.Mesh(data.lava, this.mats.lava);
@@ -383,6 +393,10 @@ export class WorldRenderer {
     }
 
     clearTileMeshes(tile) {
+        if (tile.ice) {
+            tile.group.remove(tile.ice);
+            tile.ice = null;
+        }
         for (const k of ['ground', 'water', 'lava']) {
             if (tile[k]) {
                 tile.group.remove(tile[k]);
@@ -466,15 +480,21 @@ export class WorldRenderer {
     // ==================== CREATURES ====================
     getTemplate(species) {
         if (!this.templates.has(species)) {
-            const model = buildCreatureModel(species, { mat: this.mats.creature, wingMat: this.mats.wing });
-            addOutlines(model.root, this.mats.outline, (m) => m.material === this.mats.wing);
-            this.templates.set(species, model);
+            // the Jehol animals are sculpted (see src/jehol); the insects and frogs keep the old low-poly builders
+            if (isSculpted(species)) {
+                this.templates.set(species, gameTemplate(species));
+            } else {
+                const model = buildCreatureModel(species, { mat: this.mats.creature, wingMat: this.mats.wing });
+                addOutlines(model.root, this.mats.outline, (m) => m.material === this.mats.wing);
+                this.templates.set(species, model);
+            }
         }
         return this.templates.get(species);
     }
 
     // Clone a template (sharing geometry) and remap its animated parts
     instantiate(template) {
+        if (template.sculpted) return template.instantiate();
         const pathOf = (obj) => {
             const p = [];
             while (obj && obj !== template.root) {
@@ -580,7 +600,7 @@ export class WorldRenderer {
         const rand = v.rand;
         const scale = this.tileScale(hexKey);
         if ((v.gait === 'swim' || WATER_LOVERS.has(v.species)) && tile.pools && tile.pools.length) {
-            // keep clear of the stretch of water Spino is swimming in
+            // keep clear of the stretch of water the player is swimming in
             let pools = tile.pools;
             if (hexKey === this.state?.player && this.player && pools.length > 1) {
                 const px = (this.player.to.x - tile.x) / scale;
@@ -1137,8 +1157,15 @@ export class WorldRenderer {
         }
     }
 
+    // Swap a frozen tile's water for ice (and back)
+    freezeTile(tile, frozen) {
+        if (!tile.water || !tile.ice) return;
+        tile.water.visible = !frozen;
+        tile.ice.visible = frozen;
+    }
+
     // ==================== PLAYER ====================
-    // Where Spino sits in a cell: on open water if the cell has any, otherwise the centre
+    // Where the player sits in a cell: on open water if the cell has any, otherwise the centre
     swimSpot(key, w) {
         const terrain = this.state?.cells.get(key)?.terrain;
         const tile = this.tiles.get(key);
@@ -1152,9 +1179,7 @@ export class WorldRenderer {
         const w = this.world.byKey.get(state.player);
         if (!this.player || this.player.level !== state.level) {
             const old = this.player;
-            const tpl = buildBigAl(state.level, { mat: this.mats.creature, wingMat: this.mats.wing });
-            addOutlines(tpl.root, this.mats.outline, (m) => m.material === this.mats.wing);
-            const model = this.instantiate(tpl);
+            const model = this.instantiate(this.getTemplate(`player:${state.level}`));
             model.seed = 3;
             this.actorGroup.add(model.root);
             this.player = {
@@ -1216,11 +1241,11 @@ export class WorldRenderer {
         (state.pack || []).forEach((m, i) => {
             let c = this.packVis.get(m.id);
             if (!c) {
-                const model = this.instantiate(this.getTemplate('Young Spinosaurus'));
+                const model = this.instantiate(this.getTemplate('Young Yutyrannus'));
                 model.seed = 7 + i;
                 this.actorGroup.add(model.root);
                 const start = this.recruitFrom.get(m.id) || (this.player ? this.player.pos.clone() : new THREE.Vector3());
-                c = { id: m.id, model, pos: start.clone(), yaw: this.player?.yaw ?? 0, phase: 0, mv: 0, len: 0.3, look: 0, data: m, attack: null, species: 'Young Spinosaurus' };
+                c = { id: m.id, model, pos: start.clone(), yaw: this.player?.yaw ?? 0, phase: 0, mv: 0, len: 0.3, look: 0, data: m, attack: null, species: 'Young Yutyrannus' };
                 this.packVis.set(m.id, c);
             }
             c.slot = i;
@@ -1396,7 +1421,7 @@ export class WorldRenderer {
         p.look = approach(p.look, look, dt, 4);
         p.crouch = approach(p.crouch || 0, crouch, dt, 5);
 
-        // in the water Spino swims in the channel itself, not on the bank in the middle of the cell
+        // in the water the player swims in the channel itself, not on the bank in the middle of the cell
         const playerKey = this.state?.player;
         if (playerKey && p.spotKey !== playerKey && this.tiles.get(playerKey)) {
             p.spotKey = playerKey;
@@ -1771,16 +1796,18 @@ export class WorldRenderer {
         this.particles.push({ mesh: s, vel: new THREE.Vector3(0.12, 0.45, 0), life: 1.6, t: 0, gravity: 0, grow: 0.8, baseScale: 0.22, mat: s.material, fade: true, maxOpacity: 1, sprite: true });
     }
 
-    smokePuff(pos) {
-        const mat = new THREE.MeshLambertMaterial({ color: Math.random() > 0.5 ? '#d8d2cc' : '#b8b0aa', emissive: '#3a3330', transparent: true, opacity: 0.5, depthWrite: false });
+    smokePuff(pos, { erupting = 0, steam = false } = {}) {
+        // steam from hot springs is white and quick; an erupting volcano throws up great dark billows
+        const colour = steam ? '#f2f0ec' : erupting > 0.5 ? (Math.random() > 0.5 ? '#3a3634' : '#5a524c') : Math.random() > 0.5 ? '#d8d2cc' : '#b8b0aa';
+        const mat = new THREE.MeshLambertMaterial({ color: colour, emissive: erupting > 0.5 && Math.random() < 0.3 ? '#a03a14' : '#3a3330', transparent: true, opacity: 0.5, depthWrite: false });
         const m = new THREE.Mesh(this.puffGeo, mat);
         m.position.copy(pos);
         m.position.x += (Math.random() - 0.5) * 0.1;
         m.position.z += (Math.random() - 0.5) * 0.1;
-        const baseScale = 0.5 + Math.random() * 0.3;
+        const baseScale = (steam ? 0.22 : 0.5 + Math.random() * 0.3) * (1 + erupting * 1.4);
         m.scale.setScalar(baseScale);
         this.fxGroup.add(m);
-        this.particles.push({ mesh: m, vel: new THREE.Vector3(0.12, 0.4, 0.05), life: 3.2, t: 0, gravity: 0, grow: 2.2, baseScale, mat, fade: true, spin: 0.5, maxOpacity: 0.5 });
+        this.particles.push({ mesh: m, vel: new THREE.Vector3(0.12, steam ? 0.3 : 0.4 + erupting * 1.2, 0.05), life: steam ? 1.6 : 3.2 + erupting * 2, t: 0, gravity: 0, grow: steam ? 1.6 : 2.2 + erupting, baseScale, mat, fade: true, spin: 0.5, maxOpacity: steam ? 0.4 : 0.5 + erupting * 0.3 });
     }
 
     exclaim(v) {
@@ -1843,7 +1870,10 @@ export class WorldRenderer {
             this.smokeTimer = 0;
             for (const tile of this.tiles.values()) {
                 if (!tile.smoke.length || !tile.lit) continue;
-                for (const s of tile.smoke) if (Math.random() < 0.6) this.smokePuff(new THREE.Vector3(tile.x + s.x, s.y + tile.group.position.y, tile.z + s.z));
+                const erupting = tile.terrain === 'volcanic' ? this.wx.erupt || 0 : 0;
+                for (const s of tile.smoke) {
+                    if (Math.random() < 0.6 + erupting * 0.4) this.smokePuff(new THREE.Vector3(tile.x + s.x, s.y + tile.group.position.y, tile.z + s.z), { erupting, steam: tile.terrain === 'hotspring' || tile.terrain === 'mudpot' });
+                }
             }
         }
         // pulse lava
@@ -1865,11 +1895,16 @@ export class WorldRenderer {
         const turn = st.moveNumber;
         const weather = weatherAt(st.worldSeed, turn);
         const wind = windAt(st.worldSeed, turn);
+        const erupt = eruptionAt(st.worldSeed, turn);
         const goal = {
             rain: weather === 'rain' ? 0.75 : weather === 'storm' ? 1 : 0,
             storm: weather === 'storm' ? 1 : 0,
-            cloud: { clear: 0, cloudy: 0.5, rain: 0.8, storm: 1 }[weather],
-            dry: drynessAt(turn)
+            snow: weather === 'snow' ? 0.7 : weather === 'blizzard' ? 1 : 0,
+            cloud: { clear: 0, cloudy: 0.5, rain: 0.8, storm: 1, snow: 0.7, blizzard: 1 }[weather],
+            dry: drynessAt(turn),
+            cover: snowAt(turn),
+            ash: erupt.phase === 'ashfall' ? erupt.strength : erupt.phase === 'rumble' || erupt.phase === 'clearing' ? 0.25 : 0,
+            erupt: erupt.phase === 'none' ? 0 : erupt.phase === 'ashfall' ? 1 : 0.5
         };
         // snap rather than fade on the first frame or after a jump in time (a loaded game)
         if (!W.ready || Math.abs(turn - W.turn) > 1) {
@@ -1881,6 +1916,10 @@ export class WorldRenderer {
         W.storm += (goal.storm - W.storm) * k;
         W.cloud += (goal.cloud - W.cloud) * k;
         W.dry += (goal.dry - W.dry) * damp(dt, 0.4);
+        W.snow = (W.snow ?? 0) + (goal.snow - (W.snow ?? 0)) * k;
+        W.cover = (W.cover ?? 0) + (goal.cover - (W.cover ?? 0)) * damp(dt, 0.3);
+        W.ash = (W.ash ?? 0) + (goal.ash - (W.ash ?? 0)) * damp(dt, 0.5);
+        W.erupt = goal.erupt;
         W.angle = lerpAngle(W.angle, wind.angle, damp(dt, 0.5));
         // gusts: the wind breathes on top of its turn-to-turn strength
         const gust = 1 + Math.sin(this.time * 0.37) * 0.12 + Math.sin(this.time * 1.13 + 1.7) * 0.06;
@@ -1889,19 +1928,18 @@ export class WorldRenderer {
         sharedUniforms.uWind.value.set(dir.x, dir.z, W.strength);
         sharedUniforms.uDry.value = W.dry;
         sharedUniforms.uRain.value = W.rain;
+        sharedUniforms.uSnow.value = W.cover;
 
-        // the small waters dry up in the drought and come back with the rains
-        const drought = isDrought(turn);
-        if (drought !== W.drought) {
-            W.drought = drought;
-            for (const tile of this.tiles.values()) {
-                if (tile.water && DRIES_UP.has(tile.terrain)) tile.water.visible = !drought;
-            }
+        // ponds, streams and marshes freeze over in deep winter
+        const frozen = isDrought(turn);
+        if (frozen !== W.drought) {
+            W.drought = frozen;
+            for (const tile of this.tiles.values()) this.freezeTile(tile, frozen);
         }
 
         const fx = this.weatherFx.update(dt, this.time, {
             centre: this.cam.target, wind: { x: dir.x, z: dir.z, strength: W.strength },
-            rain: W.rain, storm: W.storm, dry: W.dry, zoom: this.cam.zoom
+            rain: W.rain, storm: W.storm, dry: W.dry, zoom: this.cam.zoom, snow: W.snow, ash: W.ash
         });
         W.flash = fx.flash;
         if (fx.thunder) this.cam.shake = Math.max(this.cam.shake, 0.12);
@@ -1932,8 +1970,8 @@ export class WorldRenderer {
         c.el += (target.sunEl - c.el) * k;
         // cloud cover dims the sun and flattens the light; lightning lights everything up
         const W = this.wx;
-        this.sun.color.copy(c.sun);
-        this.sun.intensity = c.sunI * (1 - W.cloud * 0.62) + W.flash * 2.5;
+        this.sun.color.copy(c.sun).lerp(this.winterSun, (W.cover ?? 0) * 0.5).lerp(this.ashSun, (W.ash ?? 0) * 0.8);
+        this.sun.intensity = c.sunI * (1 - W.cloud * 0.62) * (1 - (W.ash ?? 0) * 0.45) + W.flash * 2.5;
         this.hemi.color.copy(c.sky).lerp(GREY_SKY, W.cloud * 0.4);
         this.hemi.groundColor.copy(c.ground);
         this.hemi.intensity = c.hemiI * (1 + W.cloud * 0.12) + W.flash * 1.6;
@@ -1945,7 +1983,7 @@ export class WorldRenderer {
         const horizon = this.skyTmp[1].copy(c.horizon).lerp(this.skyTmp[3].copy(GREY_SKY).multiplyScalar(0.6 + c.hemiI * 0.32), grey);
         const glow = this.skyTmp[2].copy(c.glow).lerp(horizon, W.cloud * 0.85);
         this.postfx.setSky(top, horizon, glow, c.gx);
-        this.postfx.setWeather(W.cloud * 0.55 + W.rain * 0.15, W.flash);
+        this.postfx.setWeather(W.cloud * 0.5 + W.rain * 0.15 + (W.snow ?? 0) * 0.1, W.flash, (W.ash ?? 0) * 0.7);
         const wu = waterUniforms;
         wu.uSunDir.value.copy(this.sun.position).sub(this.sun.target.position).normalize();
         wu.uSunColor.value.copy(c.sun).multiplyScalar(c.sunI * 0.38 * (1 - W.cloud * 0.7));
@@ -1989,7 +2027,7 @@ export class WorldRenderer {
         c.el = c.el + (c.elGoal - c.el) * damp(dt, 6);
         c.zoom = c.zoom + (c.zoomGoal - c.zoom) * damp(dt, 8);
         const halfH = baseHalfH(c.aspect) / c.zoom;
-        // a phone sheet covering the bottom of the screen pushes the view up so Spino stays in sight
+        // a phone sheet covering the bottom of the screen pushes the view up so the player stays in sight
         c.shift = (c.shift ?? 0) + ((this.viewShift ?? 0) - (c.shift ?? 0)) * damp(dt, 8);
         if (Math.abs(c.shift - (this.viewShift ?? 0)) < 1e-4) c.shift = this.viewShift ?? 0;
         if (c.lastZoom !== c.zoom || c.lastAspect !== c.aspect || c.lastShift !== c.shift) {

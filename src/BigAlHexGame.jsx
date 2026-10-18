@@ -30,7 +30,7 @@ const MAX_PATH = 40;
 const isWalkable = (hex, weight) => {
     if (!hex || !hex.discovered) return false;
     const t = TERRAIN_TYPES[hex.terrain];
-    if (!t.passable || hex.terrain === 'quicksand') return false;
+    if (!t.passable || hex.terrain === 'mudpot') return false;
     if (t.minWeight > 0 && weight < t.minWeight) return false;
     return true;
 };
@@ -75,8 +75,10 @@ const BigAlHexGame = () => {
     // ============ WORLD GENERATION ============
     useEffect(() => {
         if (!gameState.mapGenerated) {
-            const seed = Number(new URLSearchParams(window.location.search).get('seed')) || undefined;
-            dispatch({ type: 'GENERATE_WORLD', seed });
+            const q = new URLSearchParams(window.location.search);
+            const seed = Number(q.get('seed')) || undefined;
+            // ?turn=N starts later in the year (for checking winters and eruptions)
+            dispatch({ type: 'GENERATE_WORLD', seed, turn: Number(q.get('turn')) || 0 });
         }
     }, [gameState.mapGenerated]);
 
@@ -262,7 +264,7 @@ const BigAlHexGame = () => {
         return () => clearTimeout(id);
     }, [hold]);
     const area = areaInfo(gameState);
-    // keep Spino in view above the animal sheet
+    // keep the player in view above the animal sheet
     useEffect(() => {
         worldRef.current?.shift(mobile && sheet === 'area' ? 0.26 : 0);
     }, [mobile, sheet]);
@@ -313,7 +315,7 @@ const BigAlHexGame = () => {
                         <div className="flex items-end justify-between gap-2">
                             <div className="flex gap-1.5 pointer-events-auto">
                                 <button type="button" className="btn panel fab" onClick={() => setSheet('map')} aria-label="Map"><Icon name="map" size={16} /></button>
-                                <button type="button" className="btn panel fab" onClick={camera.center} aria-label="Centre on Spino"><Icon name="target" size={16} /></button>
+                                <button type="button" className="btn panel fab" onClick={camera.center} aria-label="Centre on Yutyrannus"><Icon name="target" size={16} /></button>
                             </div>
                             {!gameState.gameOver && area.any && (
                                 <button type="button" className={`btn panel fab pointer-events-auto ${area.danger ? 'danger' : ''}`} onClick={() => setSheet('area')}>

@@ -4,10 +4,10 @@
 import { Sculpt } from '../sculpt.js';
 import { biped } from '../anatomy.js';
 import { C, mix, smooth, fbm } from '../paint.js';
-import { foldedWing, legFeathers, tailFan } from '../plumage.js';
+import { foldedWing, spreadWing, legFeathers, tailFan } from '../plumage.js';
 import { STYLE } from '../feathers.js';
 
-export function build() {
+export function build(stage, { pose } = {}) {
     const L = 0.8;
     const q = {
         femur: 0.068, tibia: 0.094, meta: 0.046, legAng: [0.55, -0.75, 0.38], hipW: 0.016,
@@ -18,7 +18,7 @@ export function build() {
         head: 0.062, headH: 0.027, headW: 0.023, snoutTip: 0.62, snoutSquash: 0.65, headTilt: -0.12, jaw: 0.45,
         eyeR: 0.0068, eyeAt: 0.3, eyeUp: 0.16, brow: 0.2,
         tail: 0.42, tailR: 0.017, tailDroop: 0.02, tailLift: 0.02, tailSquash: 0.75,
-        humerus: 0.068, forearm: 0.062, hand: 0.07, armR: 0.0055, fingers: 3, fingerR: 0.0022, handClaw: 0.009, armPose: 'fold'
+        humerus: 0.068, forearm: 0.062, hand: 0.07, armR: 0.0055, fingers: 3, fingerR: 0.0022, handClaw: 0.009, armPose: 'fold', pose
     };
     const S = new Sculpt();
     const rig = biped(S, q);
@@ -53,10 +53,10 @@ export function build() {
 
     const fc = '#121216', fc2 = '#1d1f26';
     const feathers = [
-        ...foldedWing(rig.armR, { primary: 0.2, col: fc, col2: fc2 }),
-        ...foldedWing(rig.armL, { primary: 0.2, col: fc, col2: fc2 }),
-        ...legFeathers(rig.legR, 1, { length: 0.12, col: fc, col2: fc2 }),
-        ...legFeathers(rig.legL, -1, { length: 0.12, col: fc, col2: fc2 }),
+        ...(pose === 'fly' ? spreadWing : foldedWing)(rig.armR, { primary: 0.2, col: fc, col2: fc2 }),
+        ...(pose === 'fly' ? spreadWing : foldedWing)(rig.armL, { primary: 0.2, col: fc, col2: fc2 }),
+        ...legFeathers(rig.legR, 1, { length: 0.12, col: fc, col2: fc2, flight: pose === 'fly' }),
+        ...legFeathers(rig.legL, -1, { length: 0.12, col: fc, col2: fc2, flight: pose === 'fly' }),
         ...tailFan(rig.tail, { from: 0.62, length: 0.11, spread: 0.55, col: fc, col2: fc2, count: 6 })
     ];
     S.extra({ type: 'feathers', list: feathers, style: { irid: 1, rough: 0.35 } });

@@ -32,7 +32,7 @@ export const getActions = (gameState) => {
         {
             id: 'drink', icon: 'drink', label: 'Drink', unlocked: true,
             reason: !water ? (nearDried ? 'The water here has dried up' : 'No fresh water within reach') : gameState.hydration >= 99 ? 'Not thirsty' : null,
-            desc: raining(gameState) ? 'It is raining: lap water from the puddles anywhere.' : 'Drink your fill from water here or next to you. Watch for crocodiles. In the drought, streams, waterholes and marshes dry up.'
+            desc: raining(gameState) ? 'It is raining: lap water from the puddles anywhere.' : 'Drink your fill from water here or next to you. Watch for crocodiles. In deep winter, streams, ponds and marshes freeze: eat snow instead.'
         },
         (() => {
             const h = ability('hide');

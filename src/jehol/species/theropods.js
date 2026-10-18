@@ -42,7 +42,7 @@ const maskOf = (rig, width) => {
 };
 
 export const Sinosauropteryx = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 1.0;
         const S = new Sculpt();
         const rig = biped(S, sized(L, { ...SMALL, tail: 0.6, humerus: 0.033, forearm: 0.024, hand: 0.04, handClaw: 0.011, head: 0.08 }));
@@ -65,7 +65,7 @@ export const Sinosauropteryx = (() => {
 })();
 
 export const Dilong = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 1.6;
         const S = new Sculpt();
         const rig = biped(S, sized(L, { ...SMALL, femur: 0.1, tibia: 0.12, meta: 0.075, tail: 0.5, head: 0.12, headH: 0.042, headW: 0.03, snoutTip: 0.55, eyeR: 0.0065, neckR: 0.016, humerus: 0.04, forearm: 0.03, hand: 0.04 }));
@@ -90,7 +90,7 @@ export const Dilong = (() => {
 })();
 
 export const Sinocalliopteryx = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 2.4;
         const S = new Sculpt();
         const rig = biped(S, sized(L, { ...SMALL, tail: 0.6, head: 0.1, headH: 0.03, headW: 0.022, snoutTip: 0.4, humerus: 0.04, forearm: 0.03, hand: 0.05, handClaw: 0.011 }));
@@ -114,7 +114,7 @@ export const Sinocalliopteryx = (() => {
 const RAPTOR = { ...SMALL, sickle: true, armPose: 'fold', legAng: [0.55, -0.78, 0.38], meta: 0.055, tibia: 0.11, toeClaw: 0.006 };
 
 export const Zhenyuanlong = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 1.65;
         const S = new Sculpt();
         // short arms for a dromaeosaur, but with large wings
@@ -136,7 +136,7 @@ export const Zhenyuanlong = (() => {
 })();
 
 export const Changyuraptor = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 1.3;
         const S = new Sculpt();
         const rig = biped(S, sized(L, { ...RAPTOR, humerus: 0.085, forearm: 0.075, hand: 0.085, tail: 0.5, head: 0.085, headH: 0.032, snoutTip: 0.55 }));

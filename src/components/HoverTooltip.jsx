@@ -18,7 +18,7 @@ const HoverTooltip = ({ hex, mousePos, creatures, gameState, pathLength }) => {
     const scent = (gameState.scent || []).filter((s) => s.key === hex.key && s.hidden);
     const left = Math.max(8, Math.min(mousePos.x + 16, window.innerWidth - 268));
     const top = Math.max(8, Math.min(mousePos.y + 18, window.innerHeight - 320));
-    const blocked = !terrain.passable || cell.terrain === 'quicksand';
+    const blocked = !terrain.passable || cell.terrain === 'mudpot';
     const thirst = thirstFactor(cell.terrain);
     return (
         <div className="fixed panel p-2.5 w-[260px] pointer-events-none z-[60]" style={{ left, top }}>
@@ -29,7 +29,7 @@ const HoverTooltip = ({ hex, mousePos, creatures, gameState, pathLength }) => {
             </div>
             <div className="text-[12px] text-ink-muted leading-snug mt-1">{terrain.description}</div>
             <div className="flex flex-wrap gap-1 mt-2">
-                {blocked ? <span className="chip" style={{ color: 'var(--bad)' }}>{cell.terrain === 'quicksand' ? 'Deadly' : 'Impassable'}</span>
+                {blocked ? <span className="chip" style={{ color: 'var(--bad)' }}>{cell.terrain === 'mudpot' ? 'Deadly' : 'Impassable'}</span>
                     : <span className="chip"><Icon name="footprint" size={11} />Cost {terrain.energyCost}</span>}
                 <span className="chip"><Icon name="eye" size={11} />{SIGHT[terrain.visibility] || 'Normal'} sight</span>
                 {WATER_SOURCES.has(cell.terrain) && (drinkableAt(gameState, hex.key)

@@ -51,7 +51,7 @@ export function pterosaur(S, p) {
         neckRise: 0.95, headTilt: -0.35,
         ...p
     };
-    const rig = { q };
+    const rig = { q, plan: 'pterosaur', fly: p.pose === 'fly' };
     // forelimb from the shoulder, then lift the shoulder so the hand stands on the ground
     const sides = [1, -1].map((s) => {
         const e = norm([-0.3, 0.3, 0.9 * s]);
@@ -64,7 +64,7 @@ export function pterosaur(S, p) {
     const sh0 = [0, shY, 0];
     // hindlimb: the hip sits lower, so the back slopes down to the tail
     const kd = norm([0.25, -0.7, 0.62]), ad = norm([-0.2, -0.97, 0.08]);
-    const hipY = -(kd[1] * q.femur + ad[1] * q.tibia) + q.limbR;
+    const hipY = q.pose === 'fly' ? shY : -(kd[1] * q.femur + ad[1] * q.tibia) + q.limbR;
     const hip0 = [-q.torso, hipY, 0];
 
     // torso and the short tail
@@ -72,8 +72,32 @@ export function pterosaur(S, p) {
     S.chain(torsoPts, [q.chestR, q.bellyR, q.hipR], { tag: 'body', squash: [0.85, 1], k: q.hipR * 0.6 });
     S.cone(hip0, add(hip0, [-q.tail, -q.tail * 0.3, 0]), q.hipR * 0.5, q.hipR * 0.15, { tag: 'tail', k: q.hipR * 0.3 });
 
+    const fly = q.pose === 'fly';
     sides.forEach(({ s, e, w, m }) => {
         const sh = add(sh0, [0, -q.chestR * 0.2, q.chestR * 0.7 * s]);
+        if (fly) {
+            // wings spread: arm out to the side, the long wing finger sweeping back to the tip
+            const elbow = add(sh, mul(norm([0.25, 0.08, s]), q.humerus));
+            const wrist = add(elbow, mul(norm([0.35, -0.02, s]), q.forearm));
+            const k0 = add(wrist, mul(norm([0.15, 0, s]), q.meta));
+            S.cone(sh, elbow, q.limbR * 2.2, q.limbR * 1.5, { tag: 'arm', k: q.limbR * 1.5 });
+            S.cone(elbow, wrist, q.limbR * 1.5, q.limbR * 1.1, { tag: 'arm', k: q.limbR });
+            S.cone(wrist, k0, q.limbR * 1.1, q.limbR * 0.9, { tag: 'hand', k: q.limbR * 0.6 });
+            [0, 1, 2].forEach((f) => digit(S, wrist, [0.9, -0.1 - f * 0.1, 0.25 * s], [0.008, 0.007], q.limbR * 0.4, { tag: 'hand', claw: 0.006, clawCurve: 1.2 }));
+            const wf = [k0];
+            [[-0.2, 0.38], [-0.45, 0.3], [-0.75, 0.32]].forEach(([bx, f]) => wf.push(add(wf[wf.length - 1], mul(norm([bx, 0, s]), q.wingFinger * f))));
+            S.chain(wf, [q.limbR * 0.7, q.limbR * 0.55, q.limbR * 0.4, q.limbR * 0.2], { tag: 'wingbone', k: q.limbR * 0.3 });
+            rig[s > 0 ? 'armR' : 'armL'] = { sh, elbow, wrist, hand: k0, wf, sgn: s };
+            // hind legs trail under the tail
+            const hp = add(hip0, [0, 0, q.hipR * 0.7 * s]);
+            const knee = add(hp, mul(norm([-0.7, -0.3, 0.3 * s]), q.femur));
+            const ankle = add(knee, mul(norm([-0.95, -0.1, 0.12 * s]), q.tibia));
+            S.cone(hp, knee, q.limbR * 2.2, q.limbR * 1.3, { tag: 'thigh', k: q.limbR * 1.5 });
+            S.cone(knee, ankle, q.limbR * 1.3, q.limbR * 0.8, { tag: 'shin', k: q.limbR });
+            [-0.25, 0, 0.25].forEach((a) => digit(S, ankle, [-Math.cos(a), -0.1, Math.sin(a) * s], [q.footLen * 0.5, q.footLen * 0.4], q.limbR * 0.45, { tag: 'foot', claw: 0.004, clawCurve: 1 }));
+            rig[s > 0 ? 'legR' : 'legL'] = { hip: hp, knee, ankle };
+            return;
+        }
         const elbow = add(sh, mul(e, q.humerus));
         const wrist = add(elbow, mul(w, q.forearm));
         const hand = add(wrist, mul(m, q.meta));
@@ -88,7 +112,7 @@ export function pterosaur(S, p) {
         wf[2] = add(wf[1], mul(norm([-0.97, 0.06, -0.12 * s]), q.wingFinger * 0.3));
         wf[3] = add(wf[2], mul(norm([-0.95, -0.22, -0.08 * s]), q.wingFinger * 0.32));
         S.chain(wf, [q.limbR * 0.7, q.limbR * 0.55, q.limbR * 0.4, q.limbR * 0.2], { tag: 'wingbone', k: q.limbR * 0.3 });
-        rig[s > 0 ? 'armR' : 'armL'] = { sh, elbow, wrist, hand, wf };
+        rig[s > 0 ? 'armR' : 'armL'] = { sh, elbow, wrist, hand, wf, sgn: s };
         // hindlimb
         const hp = add(hip0, [0, 0, q.hipR * 0.7 * s]);
         const knee = add(hp, mul([kd[0], kd[1], kd[2] * s], q.femur));
@@ -100,11 +124,13 @@ export function pterosaur(S, p) {
     });
 
     // neck rising in a gentle curve, and the head
+    const rise = q.pose === 'fly' ? 0.2 : q.neckRise;
     const n0 = add(sh0, [q.chestR * 0.6, q.chestR * 0.4, 0]);
-    const n3 = add(n0, [Math.cos(q.neckRise) * q.neck, Math.sin(q.neckRise) * q.neck, 0]);
+    const n3 = add(n0, [Math.cos(rise) * q.neck, Math.sin(rise) * q.neck, 0]);
     const neckPts = bezier(n3, add(n3, [-q.neck * 0.15, -q.neck * 0.3, 0]), add(n0, [q.neck * 0.3, 0, 0]), n0, 5);
     S.chain(neckPts, ramp(5, (t) => lerp(q.headNeckR, q.neckR, t)), { tag: 'neck', k: q.neckR * 0.5 });
-    const hdir = [Math.cos(q.headTilt), Math.sin(q.headTilt), 0];
+    const tilt = q.pose === 'fly' ? -0.15 : q.headTilt;
+    const hdir = [Math.cos(tilt), Math.sin(tilt), 0];
     rig.head = head(S, add(n3, mul(norm(hdir), -q.headH * 0.2)), hdir, {
         len: q.head, h: q.headH, w: q.headW, tip: q.tip, squash: 0.55, jaw: 0.42, eyeAt: q.eyeAt, eyeUp: 0.18, eyeR: q.eyeR, brow: 0.15, drop: q.beakDrop || 0, gape: q.gape ?? false
     });
@@ -113,6 +139,18 @@ export function pterosaur(S, p) {
     rig.hip = hip0;
     return rig;
 }
+
+// Edges of an open pterosaur wing: the leading edge runs out along the arm and wing
+// finger; the trailing edge runs from the flank by the hips out to the wingtip
+export const flightWingEdges = (rig, side) => {
+    const arm = side > 0 ? rig.armR : rig.armL;
+    const leg = side > 0 ? rig.legR : rig.legL;
+    const tip = arm.wf[arm.wf.length - 1];
+    const lead = [arm.sh, arm.elbow, arm.wrist, ...arm.wf];
+    const mid = lerp3(leg.ankle, tip, 0.5);
+    const trail = [add(rig.sh, [-0.002, 0, 0]), add(leg.hip, [0, 0, 0]), leg.ankle, add(mid, [-0.06 * len(sub(tip, leg.ankle)), 0, 0]), tip];
+    return { lead, trail };
+};
 
 // ---------------------------------------------------------------------------------------
 // Four-legged dinosaur: iguanodonts, sauropods, ankylosaurs
@@ -134,7 +172,7 @@ export function quadruped(S, p) {
         feet: 'hoof3', hands: 'hoof', toeLen: 0.15, toeR: 0.05, claw: 0.06,
         ...p
     };
-    const rig = { q };
+    const rig = { q, plan: 'quadruped' };
     const hipY = chainDrop(q.hindAng, [q.femur, q.tibia, q.meta]) + q.footR * 0.6;
     const shY = chainDrop(q.foreAng, [q.humerus, q.forearm, q.mc]) + q.handR * 0.6;
     const hip = [0, hipY, 0], sh = [q.torso, shY, 0];
@@ -233,7 +271,7 @@ export function mammal(S, p) {
         tail: 0.15, tailR: 0.025, tailDroop: 0.25, headTilt: -0.15,
         ...p
     };
-    const rig = { q };
+    const rig = { q, plan: 'mammal' };
     const legY = (q.upperLeg * 0.85 + q.lowerLeg * 0.95) * 0.95 + q.limbR * 0.5;
     const hip = [0, legY + q.hipR * 0.2, 0], sh = [q.torso, legY + q.chestR * 0.1, 0];
     const mid = add(lerp3(sh, hip, 0.5), [0, q.backHump, 0]);
@@ -260,9 +298,13 @@ export function mammal(S, p) {
     const tEnd = add(t0, [-q.tail * 0.9, -q.tail * q.tailDroop, 0]);
     const tail = bezier(t0, add(t0, [-q.tail * 0.4, 0, 0]), add(tEnd, [q.tail * 0.3, q.tail * 0.1, 0]), tEnd, 6);
     S.chain(tail, ramp(6, (t) => q.tailR * (1 - t * 0.75)), { tag: 'tail', k: q.tailR * 0.5 });
+    rig.tail = tail;
+    rig.hip = hip;
+    rig.sh = sh;
     // neck and head
     const n0 = add(sh, [q.chestR * 0.4, q.chestR * 0.15, 0]);
     const n1 = add(n0, [q.neck, q.neck * 0.25, 0]);
+    rig.neckBase = n0;
     S.cone(n0, n1, q.neckR, q.neckR * 0.85, { tag: 'neck', k: q.neckR * 0.5, flow: [-1, 0, 0] });
     const hd = [Math.cos(q.headTilt), Math.sin(q.headTilt), 0];
     const H = head(S, add(n1, mul(norm(hd), -q.headH * 0.3)), hd, { len: q.head, h: q.headH, w: q.headW, tip: q.tip, squash: q.squash, jaw: 0.5, eyeAt: q.eyeAt, eyeUp: q.eyeUp, eyeR: q.eyeR, brow: 0.2, gape: false });
@@ -284,7 +326,7 @@ export function sprawler(S, p) {
         upper: 0.04, lower: 0.035, limbR: 0.008, footLen: 0.03, webbed: false, rise: 0.3,
         ...p
     };
-    const rig = { q };
+    const rig = { q, plan: 'sprawler' };
     const y = q.lower * 0.9 + q.limbR;
     const hip = [0, y, 0], sh = [q.torso, y + q.chestR * 0.05, 0];
     const torso = bezier(sh, lerp3(sh, hip, 0.33), lerp3(sh, hip, 0.66), hip, 5);
@@ -325,7 +367,7 @@ export function sprawler(S, p) {
 // Turtle: domed shell, plastron, head on a retractable neck, four short legs
 export function turtle(S, p) {
     const q = { shell: 0.25, shellH: 0.07, shellW: 0.2, head: 0.04, neck: 0.04, limb: 0.05, limbR: 0.012, tail: 0.04, eyeR: 0.004, ...p };
-    const rig = { q };
+    const rig = { q, plan: 'turtle' };
     const c = [0, q.limb * 0.6 + q.shellH * 0.45, 0];
     S.ellipsoid(c, [q.shell * 0.5, q.shellH, q.shellW * 0.5], { tag: 'shell', k: 0.005 });
     // the flat plastron underneath and a rim around the carapace
@@ -334,6 +376,8 @@ export function turtle(S, p) {
     rig.shell = c;
     const nb = add(c, [q.shell * 0.42, -q.shellH * 0.2, 0]);
     const n1 = add(nb, [q.neck, q.neck * 0.4, 0]);
+    rig.neckBase = nb;
+    rig.neckTop = n1;
     S.cone(nb, n1, q.head * 0.32, q.head * 0.28, { tag: 'neck', k: q.head * 0.15, flow: [-1, 0, 0] });
     rig.head = head(S, n1, [1, -0.15, 0], { len: q.head, h: q.head * 0.55, w: q.head * 0.6, tip: 0.8, squash: 0.75, jaw: 0.5, eyeAt: 0.4, eyeUp: 0.2, eyeR: q.eyeR, brow: 0.2, gape: true, tag: 'beakhead', jawTag: 'beakjaw' });
     [1, -1].forEach((s) => {
@@ -353,7 +397,7 @@ export function turtle(S, p) {
 // species turns them into membranes)
 export function fish(S, p) {
     const q = { len: 0.1, depth: 0.025, width: 0.012, headLen: 0.025, snout: 0, eyeR: 0.003, tailFork: 0.6, tailH: 0.025, ...p };
-    const rig = { q };
+    const rig = { q, plan: 'fish' };
     const y = q.depth;
     const pts = ramp(8, (t) => [q.len * (0.5 - t), y + Math.sin(t * Math.PI) * q.depth * 0.05, 0]);
     const rad = ramp(8, (t) => q.depth * 0.5 * Math.pow(Math.sin(Math.min(1, t * 1.15 + 0.08) * Math.PI), 0.7) + q.depth * 0.05);

@@ -1,7 +1,7 @@
 // ==================== ENHANCED CREATURE BEHAVIOR SYSTEM ====================
 import { neighborsOf, distanceToPlayer } from '../world/cellGraph.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
-import { SPECIES_DATA } from '../data/species.js'; // FIXED: Moved to top
+import { SPECIES_DATA, SEMI_AQUATIC } from '../data/species.js'; // FIXED: Moved to top
 
 // Behavior execution frequency
 export const BEHAVIOR_TICK_CHANCE = 0.7; // 70% chance per turn to execute behavior
@@ -113,7 +113,9 @@ const handleAmbushPredator = (creature, currentHex, gameState, playerDistance, d
 
     // Stay near water or preferred terrain
     if (Math.random() < 0.8) {
-        return stayNearPreferredTerrain(creature, currentHex, gameState, ['river', 'stream', 'marsh', 'waterhole', 'lake', 'mangrove']);
+        // water lurkers keep to the shallows; tree-droppers keep to the woods
+        const haunts = SEMI_AQUATIC.has(creature.species) ? ['river', 'stream', 'marsh', 'waterhole', 'lake', 'riverbank'] : ['forest', 'oldgrowth', 'galleryforest', 'ginkgogrove', 'openwoods'];
+        return stayNearPreferredTerrain(creature, currentHex, gameState, haunts);
     }
 
     return { action: 'wait' }; // Ambush predators often wait
@@ -176,7 +178,7 @@ const handleHerbivore = (creature, currentHex, gameState, playerDistance, dispat
 
     // Herbivore behaviors: graze, migrate to better food. Sauropods head for their routes and water.
     if (isGiant && Math.random() < 0.5) {
-        return stayNearPreferredTerrain(creature, currentHex, gameState, ['sauropodgrounds', 'waterhole', 'floodplain', 'fernprairie', 'mangrove']);
+        return stayNearPreferredTerrain(creature, currentHex, gameState, ['sauropodgrounds', 'waterhole', 'floodplain', 'fernprairie', 'meadow']);
     }
     if (Math.random() < 0.4) {
         return migrateToFood(creature, currentHex, gameState);
@@ -453,7 +455,7 @@ const huntFromAbove = (creature, currentHex, gameState) => {
 const sizeOf = (c) => (SPECIES_DATA[c.species]?.weight ?? 1) * (c.size ?? 1);
 const passableKey = (gameState, key) => {
     const hex = gameState.cells.get(key);
-    return hex && TERRAIN_TYPES[hex.terrain].passable && hex.terrain !== 'quicksand';
+    return hex && TERRAIN_TYPES[hex.terrain].passable && hex.terrain !== 'mudpot';
 };
 const isPredator = (c) => ['pack_predator', 'rival_predator', 'apex_predator', 'ambush_predator', 'aerial_predator', 'territorial'].includes(SPECIES_DATA[c.species]?.behaviorType);
 

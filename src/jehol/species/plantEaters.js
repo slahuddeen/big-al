@@ -5,7 +5,7 @@ import { add, mul, lerp } from '../anatomy.js';
 import { C, mix, smooth, scheme, fbm } from '../paint.js';
 
 export const Jinzhousaurus = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 7;
         const S = new Sculpt();
         const rig = quadruped(S, {
@@ -37,7 +37,7 @@ export const Jinzhousaurus = (() => {
 })();
 
 export const Dongbeititan = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 15;
         const S = new Sculpt();
         const rig = quadruped(S, {
@@ -66,7 +66,7 @@ export const Dongbeititan = (() => {
 })();
 
 export const Liaoningosaurus = (() => {
-    function build() {
+    function build(stage, opts = {}) {
         const L = 0.34;
         const S = new Sculpt();
         const rig = quadruped(S, {

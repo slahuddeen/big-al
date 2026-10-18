@@ -49,7 +49,7 @@ export const boltChance = (state, creature, style = 'normal') => {
     let p = escapeChance(creature.species, sd, creature.size, state.weight, state.level) * m.bolt;
     const agility = calculateAgilityRatio(state.weight, sd, false) * m.catch * (creature.wounded ? 0.6 : 1);
     if (agility > 1) p += Math.min(0.4, (agility - 1) * 0.2); // too quick for you
-    if (AQUATIC.has(creature.species)) p *= 0.45; // a spinosaur's snout is made for fish
+    if (AQUATIC.has(creature.species)) p *= 1.1; // fish are slippery for a land hunter
     return Math.max(0, Math.min(0.75, p));
 };
 

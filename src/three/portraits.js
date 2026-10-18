@@ -3,7 +3,8 @@
 // tooltips can show the same creature you see in the world.
 import * as THREE from 'three';
 import { createMaterials } from './materials.js';
-import { buildCreatureModel, buildBigAl } from './creatures3d.js';
+import { buildCreatureModel } from './creatures3d.js';
+import { gameTemplate, isSculpted } from '../jehol/gameModels.js';
 import { animateModel } from './animation.js';
 
 const cache = new Map();
@@ -16,6 +17,7 @@ const init = () => {
         renderer.setPixelRatio(1);
         renderer.setSize(240, 180, false);
         renderer.setClearColor(0x000000, 0);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
         const scene = new THREE.Scene();
         scene.add(new THREE.HemisphereLight('#e8f4ff', '#6b5a3a', 1.5));
         const sun = new THREE.DirectionalLight('#fff4e0', 2.2);
@@ -39,7 +41,9 @@ export const getPortrait = (species, level = 1) => {
         return null;
     }
     const mctx = { mat: c.mats.creature, wingMat: c.mats.wing };
-    const model = species === 'Big Al' ? buildBigAl(level, mctx) : buildCreatureModel(species, mctx);
+    // 'Big Al' is the player: a Yutyrannus at its current growth stage
+    const sculpted = species === 'Big Al' || isSculpted(species);
+    const model = sculpted ? gameTemplate(species === 'Big Al' ? `player:${level}` : species).instantiate() : buildCreatureModel(species, mctx);
     model.seed = 1;
     animateModel(model, 0.6, { phase: 0, moving: 0, jaw: model.gait === 'biped' ? 0.35 : 0 });
     if (model.gait === 'fly' || model.gait === 'flutter') model.root.position.y = 0.2;
@@ -65,7 +69,8 @@ export const getPortrait = (species, level = 1) => {
     c.renderer.render(c.scene, c.camera);
     const url = c.renderer.domElement.toDataURL('image/png');
     c.scene.remove(model.root);
-    model.root.traverse((o) => o.isMesh && o.geometry.dispose());
+    // sculpted models share their geometry with the world's templates
+    if (!sculpted) model.root.traverse((o) => o.isMesh && o.geometry.dispose());
     cache.set(key, url);
     return url;
 };

@@ -5,11 +5,13 @@ import CreaturePortrait from './CreaturePortrait.jsx';
 import Icon from './Icon.jsx';
 
 const CAUSES = {
-    starved: 'You collapsed from hunger. Even on a river full of fish, a predator that cannot hunt does not last long.',
-    drowned: 'The current was too strong. A hatchling belongs in the shallows until it has grown.',
-    sank: 'The sinking mud pulled you down. Struggling only made it worse.',
+    starved: 'You collapsed from hunger. A predator that cannot hunt does not last long, and winter makes every meal harder to find.',
+    drowned: 'The cold current was too strong. A hatchling should keep to the streams and the lakeshore until it has grown.',
+    sank: 'The boiling mud took you. Nothing that steps into it comes out.',
     injuries: 'Your wounds were too much. Sleeping somewhere safe might have saved you.',
-    dehydrated: 'You died of thirst. Never stray far from the river.',
+    dehydrated: 'You died of thirst. When the ponds freeze, eat snow or find the lakes and hot springs.',
+    cold: 'The winter cold drained the last of your strength. Your feathers help, but a young animal needs food, shelter and the warm pools to get through.',
+    gas: 'Gas from the eruption poured into the low ground and killed everything there. This is how many Jehol animals died, and why their fossils are so perfect: you may be found in 125 million years.',
     combat: 'Something bigger and fiercer got the better of you.'
 };
 
@@ -32,7 +34,7 @@ const DeathScreen = ({ gameState, dispatch }) => {
                     <CreaturePortrait species="Big Al" level={gameState.level} size={110} height={78} dead />
                 </div>
                 <h2 className="panel-title text-[34px] leading-tight mt-2" style={{ color: '#f2a198' }}>
-                    {gameState.level === 1 ? "The Hatchling's End" : 'Spino has fallen'}
+                    {gameState.level === 1 ? "The Hatchling's End" : 'Yutyrannus has fallen'}
                 </h2>
                 <p className="italic text-ink mt-2">"{gameState.currentThought}"</p>
                 <p className="text-ink-muted text-[14px] mt-2 leading-relaxed">{CAUSES[gameState.deathReason] || CAUSES.combat}</p>

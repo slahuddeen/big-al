@@ -38,7 +38,7 @@ function digit(S, base, dir, lengths, radius, { tag = 'toe', down = 0, claw = 0.
     const radii = pts.map((_, i) => radius * (1 - (i / pts.length) * 0.45));
     S.chain(pts, radii, { tag, k: k ?? radius * 0.5, squash: [0.9, 0.85], side: splay });
     const tip = pts[pts.length - 1];
-    S.extra({ type: 'claw', at: add(tip, mul(d, -radius * 0.3)), dir: d, up: [0, 1, 0], length: claw, radius: radius * 0.85, curve: clawCurve });
+    S.extra({ type: 'claw', at: add(tip, mul(d, -radius * 0.3)), dir: d, up: [0, 1, 0], length: claw, radius: radius * 0.85, curve: clawCurve, tag });
     return { pts, tip, dir: d };
 }
 
@@ -57,13 +57,14 @@ export function biped(S, p) {
         beak: 0, crest: null, lean: 0,
         ...p
     };
-    const rig = { q };
+    const rig = { q, plan: 'biped' };
 
-    // legs: hip joint, knee, ankle and the ball of the foot from three bone lengths and angles
-    const [a1, a2, a3] = q.legAng;
+    // legs: hip joint, knee, ankle and the ball of the foot from three bone lengths and angles.
+    // In flight they trail back under the tail.
+    const [a1, a2, a3] = q.pose === 'fly' ? [-0.75, -1.3, -1.5] : q.legAng;
     const v1 = dirAngle(a1), v2 = dirAngle(a2), v3 = dirAngle(a3);
     const drop = -(v1[1] * q.femur + v2[1] * q.tibia + v3[1] * q.meta);
-    const hipY = drop + q.toeR * 0.9;
+    const hipY = q.pose === 'fly' ? q.femur + q.tibia * 0.5 : drop + q.toeR * 0.9;
     rig.hipY = hipY;
     const leg = (sgn) => {
         const hip = [0, hipY, q.hipW * sgn];
@@ -87,7 +88,7 @@ export function biped(S, p) {
             const l = q.toeLen * (isMid ? 1 : 0.8);
             // dromaeosaurs and troodontids hold the inner (second) toe up off the ground
             const raised = q.sickle && t === 0;
-            const dir = norm([Math.cos(spread), raised ? 0.5 : -0.12, Math.sin(spread) * sgn]);
+            const dir = q.pose === 'fly' ? norm([-Math.cos(spread), -0.3, Math.sin(spread) * sgn]) : norm([Math.cos(spread), raised ? 0.5 : -0.12, Math.sin(spread) * sgn]);
             const segs = raised ? [l * 0.35, l * 0.3] : [l * 0.38, l * 0.32, l * 0.3];
             toes.push(digit(S, add(ball, [0, 0, f * q.metaR * 0.8 * sgn]), dir, segs, q.toeR * (isMid ? 1 : 0.92), {
                 tag: 'toe', down: raised ? -0.2 : 0.6, claw: raised ? q.toeClaw * 2.4 : q.toeClaw, clawCurve: raised ? 1.6 : 0.6, k: q.toeR * 0.6
@@ -186,20 +187,21 @@ export function biped(S, p) {
     // arms. 'reach' holds them forward and down like a predator; 'fold' tucks them like a
     // bird's wing: upper arm back along the body, forearm forward, hand back again
     const arm = (sgn) => {
-        const fold = q.armPose === 'fold';
-        const sh = add(chest, [q.chestR * 0.15, q.chestR * (fold ? 0.05 : -0.3), q.chestR * 0.62 * sgn]);
-        const e = fold ? norm([-0.85, -0.3, 0.2 * sgn]) : norm([-0.5, -q.armDrop, q.armSpread * sgn]);
+        const spread = q.pose === 'fly';
+        const fold = q.armPose === 'fold' && !spread;
+        const sh = add(chest, [q.chestR * 0.15, q.chestR * (fold || spread ? 0.05 : -0.3), q.chestR * 0.62 * sgn]);
+        const e = spread ? norm([-0.15, 0.08, sgn]) : fold ? norm([-0.85, -0.3, 0.2 * sgn]) : norm([-0.5, -q.armDrop, q.armSpread * sgn]);
         const elbow = add(sh, mul(e, q.humerus));
-        const fdir = fold ? norm([0.9, 0.22, 0.1 * sgn]) : norm([0.75, -0.35, 0.05 * sgn]);
+        const fdir = spread ? norm([0.25, 0, sgn]) : fold ? norm([0.9, 0.22, 0.1 * sgn]) : norm([0.75, -0.35, 0.05 * sgn]);
         const wrist = add(elbow, mul(fdir, q.forearm));
         S.cone(sh, elbow, q.armR * 1.35, q.armR, { tag: 'arm', k: q.armR * 0.8 });
         S.cone(elbow, wrist, q.armR, q.armR * 0.75, { tag: 'arm', k: q.armR * 0.5 });
-        const hdir = fold ? norm([-0.95, -0.02, 0.18 * sgn]) : norm([0.55, -0.6, 0.1 * sgn]);
+        const hdir = spread ? norm([0.05, 0, sgn]) : fold ? norm([-0.95, -0.02, 0.18 * sgn]) : norm([0.55, -0.6, 0.1 * sgn]);
         const fingers = [];
         for (let f = 0; f < q.fingers; f++) {
             const ff = q.fingers === 1 ? 0 : f / (q.fingers - 1) - 0.5;
             const l = q.hand * (f === 1 ? 1 : f === 0 ? 0.62 : 0.85);
-            const fd = fold ? add(hdir, [0, -0.15 - ff * 0.2, 0.25 * sgn]) : add(hdir, [0, ff * 0.25, ff * 0.2 * sgn]);
+            const fd = spread ? add(hdir, [0.3 - ff * 0.3, -0.1, 0]) : fold ? add(hdir, [0, -0.15 - ff * 0.2, 0.25 * sgn]) : add(hdir, [0, ff * 0.25, ff * 0.2 * sgn]);
             fingers.push(digit(S, add(wrist, [0, -ff * q.armR * 0.6, ff * q.armR * 1.2 * sgn * 0.4]), fd, [l * 0.5, l * 0.5], q.fingerR, {
                 tag: 'hand', down: fold ? 0.1 : 0.5, claw: q.handClaw * (f === 0 ? 1.15 : 1), clawCurve: 1.1, splay: [0, 0, 1]
             }));
