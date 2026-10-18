@@ -1,0 +1,110 @@
+/* Layout: an index of animals down the left like a scroll's colophon; the model fills the
+   rest, with the view controls top right and the label card bottom left. On a phone the
+   model sits on top and the index scrolls underneath. */
+:root {
+    --paper: #e8e3d6;
+    --panel: #f1ede3;
+    --ink: #1e1c1a;
+    --ink-soft: #5d5850;
+    --line: rgba(30, 28, 26, 0.16);
+    --celadon: #5f8273;
+    --celadon-wash: rgba(95, 130, 115, 0.16);
+    --seal: #b0332b;
+    --seal-ink: #f6efe3;
+    --display: 'Spectral', 'Iowan Old Style', Georgia, serif;
+    --body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    --brush: 'Zhi Mang Xing', 'Kaiti SC', 'STKaiti', serif;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --paper: #161514;
+        --panel: #1f1d1b;
+        --ink: #ebe5d8;
+        --ink-soft: #a59e92;
+        --line: rgba(235, 229, 216, 0.14);
+        --celadon: #8fb3a2;
+        --celadon-wash: rgba(143, 179, 162, 0.16);
+        --seal: #c4453a;
+        --seal-ink: #f6efe3;
+        color-scheme: dark;
+    }
+}
+:root[data-theme="dark"] {
+    --paper: #161514;
+    --panel: #1f1d1b;
+    --ink: #ebe5d8;
+    --ink-soft: #a59e92;
+    --line: rgba(235, 229, 216, 0.14);
+    --celadon: #8fb3a2;
+    --celadon-wash: rgba(143, 179, 162, 0.16);
+    --seal: #c4453a;
+    --seal-ink: #f6efe3;
+    color-scheme: dark;
+}
+
+html, body { height: 100%; margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--paper); color: var(--ink); font: 14px/1.5 var(--body); overflow: hidden; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--celadon); outline-offset: 2px; }
+
+.lab { display: grid; grid-template-columns: 272px 1fr; height: 100%; }
+
+/* index */
+.index { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: var(--panel); }
+.brand { display: flex; gap: 12px; align-items: center; padding: 18px 18px 14px max(18px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+.seal { display: grid; place-items: center; width: 42px; height: 42px; flex: none; background: var(--seal); color: var(--seal-ink); font: 21px/1 var(--brush); border-radius: 4px; writing-mode: vertical-rl; letter-spacing: -2px; }
+.brand h1 { margin: 0; font: 600 18px/1.15 var(--display); text-wrap: balance; }
+.brand p { margin: 2px 0 0; color: var(--ink-soft); font-size: 12px; }
+.list { overflow-y: auto; padding: 8px 0 24px; flex: 1; min-height: 0; }
+.list h3 { margin: 14px 18px 4px max(18px, env(safe-area-inset-left, 0px)); font: 500 11px/1.4 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+.list button { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; padding: 6px 18px 6px max(18px, env(safe-area-inset-left, 0px)); border: 0; background: none; text-align: left; cursor: pointer; }
+.list button .nm { font: 400 15px/1.3 var(--display); }
+.list button .sz { font: 12px var(--mono); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.list button:hover { background: var(--celadon-wash); }
+.list button[aria-current="true"] { background: var(--celadon-wash); box-shadow: inset 3px 0 0 var(--seal); }
+.list button[aria-current="true"] .nm { font-style: italic; }
+
+/* model view */
+.stage { position: relative; min-width: 0; min-height: 0; }
+.view, .view canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.controls { position: absolute; top: max(14px, env(safe-area-inset-top, 0px)); right: max(14px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--panel); }
+.seg button, .tog { padding: 6px 12px; border: 0; background: var(--panel); cursor: pointer; font-size: 13px; }
+.tog { border: 1px solid var(--line); border-radius: 999px; }
+.seg button[aria-pressed="true"], .tog[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.card { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); width: min(380px, calc(100% - 32px)); padding: 14px 16px 12px; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); border-radius: 6px; backdrop-filter: blur(6px); }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.card h2 { margin: 0; font: italic 400 26px/1.1 var(--display); text-wrap: balance; }
+.len { font: 500 13px var(--mono); color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.group { margin: 2px 0 8px; color: var(--ink-soft); font-size: 13px; }
+.note { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; max-width: 62ch; }
+.colour { margin: 8px 0 0; font-size: 12px; color: var(--ink-soft); }
+.colour b { font-weight: 600; color: var(--ink); }
+.stages { display: flex; gap: 6px; flex-wrap: wrap; }
+.stages:empty { display: none; }
+.stages button { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: none; cursor: pointer; font-size: 12.5px; }
+.stages button[aria-pressed="true"] { background: var(--seal); border-color: var(--seal); color: var(--seal-ink); }
+
+.hint { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(14px, env(safe-area-inset-bottom, 0px)); margin: 0; font-size: 12px; color: var(--ink-soft); }
+.loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; font: 13px var(--body); }
+.brush { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--ink); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .brush { animation: none; } }
+
+@media (max-width: 760px) {
+    .lab { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+    .stage { order: 0; }
+    .index { order: 1; max-height: 34vh; border-right: 0; border-top: 1px solid var(--line); }
+    .brand { padding-block: 10px; }
+    .brand h1 { font-size: 16px; }
+    .seal { width: 34px; height: 34px; font-size: 17px; }
+    .card { width: auto; right: max(16px, env(safe-area-inset-right, 0px)); bottom: 10px; padding: 10px 12px; }
+    .card h2 { font-size: 21px; }
+    .note { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .hint { display: none; }
+    .controls { top: 10px; right: 10px; left: 10px; justify-content: flex-start; }
+    .seg button, .tog { padding: 5px 10px; font-size: 12.5px; }
+}
