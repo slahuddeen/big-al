@@ -40,3 +40,7 @@ coverage/
 build/
 out/
 /.vs
+
+# Local experiments and extra build output
+dist-lab/
+scratch/

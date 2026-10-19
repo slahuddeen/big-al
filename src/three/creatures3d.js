@@ -7,6 +7,30 @@ import * as THREE from 'three';
 import { MeshBuilder, loft, blob, cone, limb, slab, mulberry32, hashString, shade, mix, vary } from './lowpoly.js';
 
 // ---------- small helpers ----------
+// How creatures are drawn. The map games use the defaults; the close-up roaming view (src/roam)
+// asks for finer lofts and real eyes instead of the big cartoon ones.
+export const CREATURE_STYLE = { detail: 1, eyes: 'cartoon' };
+
+// loft with more rings and sides when the style asks for detail; stripes keep their spacing
+const subdivide = (secs) => {
+    const out = [];
+    const mid = (a, b) => {
+        const l = (x, y) => (x === undefined || y === undefined ? x : x + (y - x) * 0.5);
+        const pa = a.p.toArray ? a.p.toArray() : a.p;
+        const pb = b.p.toArray ? b.p.toArray() : b.p;
+        return { ...a, p: [l(pa[0], pb[0]), l(pa[1], pb[1]), l(pa[2], pb[2])], r: l(a.r, b.r), rw: l(a.rw ?? a.r, b.rw ?? b.r), rh: l(a.rh ?? a.r, b.rh ?? b.r), yOff: l(a.yOff ?? 0, b.yOff ?? 0) };
+    };
+    for (let i = 0; i < secs.length - 1; i++) out.push(secs[i], mid(secs[i], secs[i + 1]));
+    out.push(secs[secs.length - 1]);
+    return out;
+};
+const loftC = (mb, secs, opts = {}) => {
+    const d = CREATURE_STYLE.detail;
+    if (d <= 1) return loft(mb, secs, opts);
+    const stripes = opts.stripes ? { ...opts.stripes, every: opts.stripes.every * 2, offset: opts.stripes.offset * 2 } : null;
+    return loft(mb, subdivide(secs), { ...opts, stripes, sides: Math.round((opts.sides ?? 6) * d), jitter: (opts.jitter ?? 0) * 0.6 });
+};
+
 const group = (parent, x = 0, y = 0, z = 0) => {
     const g = new THREE.Group();
     g.position.set(x, y, z);
@@ -49,6 +73,20 @@ const resample = (keys, n) => {
 };
 
 const eyes = (mb, x, y, zHalf, r, iris = '#f2c230', pupil = '#141414') => {
+    if (CREATURE_STYLE.eyes === 'real') {
+        // a reptile's eye: small, set into a dark socket under a bony brow, a gold iris with a
+        // slit pupil and a single glint
+        const e = r * 0.55;
+        for (const s of [-1, 1]) {
+            blob(mb, [x, y, s * zHalf * 0.98], e * 1.35, '#1c1714', { detail: 1, jitter: 0.05, scale: [1.35, 0.9, 0.45], faceVary: 0 });
+            blob(mb, [x + e * 0.1, y, s * (zHalf + e * 0.12)], e, iris, { detail: 1, jitter: 0, scale: [1.15, 1, 0.4], faceVary: 0.02 });
+            blob(mb, [x + e * 0.12, y, s * (zHalf + e * 0.42)], e * 0.62, pupil, { detail: 1, jitter: 0, scale: [0.32, 1.25, 0.2], faceVary: 0 });
+            blob(mb, [x + e * 0.4, y + e * 0.42, s * (zHalf + e * 0.48)], e * 0.13, '#ffffff', { detail: 0, jitter: 0, faceVary: 0 });
+            // the brow ridge shading the eye
+            blob(mb, [x - e * 0.1, y + e * 1.05, s * zHalf * 0.92], e * 1.25, shade(iris, 0.35), { detail: 0, jitter: 0.1, scale: [1.6, 0.42, 0.75], faceVary: 0.03 });
+        }
+        return;
+    }
     for (const s of [-1, 1]) {
         blob(mb, [x, y, s * zHalf], r, iris, { detail: 1, jitter: 0, faceVary: 0 });
         blob(mb, [x + r * 0.25, y + r * 0.1, s * (zHalf + r * 0.55)], r * 0.6, pupil, { detail: 1, jitter: 0, faceVary: 0 });
@@ -224,12 +262,12 @@ export const buildBiped = (spec, ctx) => {
         { p: [L, H + 0.012 + p.chestDrop, 0], rw: p.neckR * 1.35, rh: p.neckR * 1.45 }
     ];
     const torso = resample(torsoKeys, 9);
-    loft(tb, torso, { sides: 7, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand });
+    loftC(tb, torso, { sides: 7, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand });
     if (p.spots) {
         for (let i = 0; i < 10; i++) {
             const s = torso[1 + Math.floor(rand() * 6)];
             const side = rand() > 0.5 ? 1 : -1;
-            blob(tb, [s.p[0] + (rand() - 0.5) * 0.03, s.p[1] + s.rh * (0.2 + rand() * 0.5), side * s.rw * 0.85], p.bodyR * 0.16, p.spots, { jitter: 0.3, rand, scale: [1, 0.7, 0.4] });
+            blob(tb, [s.p[0] + (rand() - 0.5) * 0.03, s.p[1] + s.rh * (0.2 + rand() * 0.5), side * s.rw * 0.85], p.bodyR * (p.spotSize ?? 0.16), p.spots, { jitter: 0.3, rand, scale: [1, 0.7, 0.4] });
         }
     }
     if (p.backRidge) {
@@ -275,7 +313,7 @@ export const buildBiped = (spec, ctx) => {
         { p: [0, 0, 0], rw: p.bodyR * 0.72 * BW * p.tailBase, rh: p.bodyH * 0.72 * Math.max(1, TD * 0.85) },
         { p: [-T * 0.5, -0.025 + p.tailLift, 0], rw: p.tailR * 0.5 / Math.sqrt(TD), rh: p.tailR * 0.6 * TD }
     ], 5);
-    loft(t1, tail1Keys, { sides: 6, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand, capStart: false, capEnd: false });
+    loftC(t1, tail1Keys, { sides: 6, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand, capStart: false, capEnd: false });
     if (p.osteoderms) {
         tail1Keys.forEach((s, i) => {
             if (i > 3) return;
@@ -295,7 +333,7 @@ export const buildBiped = (spec, ctx) => {
         { p: [0.004, 0, 0], rw: p.tailR * 0.5 / Math.sqrt(TD), rh: p.tailR * 0.6 * TD },
         { p: [-T * 0.5, -0.012 + p.tailLift * 0.6, 0], rw: 0.006, rh: 0.006 * TD }
     ], 5);
-    loft(t2, tail2Keys, { sides: 6, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand, capStart: false, tipEnd: 0.012 });
+    loftC(t2, tail2Keys, { sides: 6, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand, capStart: false, tipEnd: 0.012 });
     if (p.tailFin) tailFins(t2, tail2Keys, p.tailFin, (t) => 1.6 - t * 0.9, rand);
     if (p.bristles) {
         // the crest carries on to a long brush at the tail tip
@@ -321,7 +359,7 @@ export const buildBiped = (spec, ctx) => {
     const ny = Math.sin(p.neckUp) * p.neckLen;
     // S-curved necks bow down then rise (allosaurs, coelurosaurs)
     const sOff = p.neckS * p.neckLen * 0.28;
-    loft(nb, [
+    loftC(nb, [
         { p: [-0.02, -0.004, 0], rw: p.neckR * 1.35, rh: p.neckR * 1.45 },
         { p: [nx * 0.35 + sOff * 0.4, ny * 0.35 - sOff, 0], rw: p.neckR * 1.15, rh: p.neckR * 1.3 },
         { p: [nx * 0.7, ny * 0.7 + sOff * 0.2, 0], rw: p.neckR * 1.02, rh: p.neckR * 1.15 },
@@ -362,7 +400,7 @@ export const buildBiped = (spec, ctx) => {
     const [sw0, sw1] = p.skullWidth;
     if (p.spinoSkull) {
         // long, low snout; a notch in the upper jaw behind the expanded rosette at the tip
-        loft(hb, [
+        loftC(hb, [
             { p: [-hl * 0.1, -hh * 0.05, 0], rw: hw * 0.8 * sw0, rh: hh * 0.72 * sk0 },
             { p: [hl * 0.16, hh * 0.05, 0], rw: hw * sw0, rh: hh * sk0 },
             { p: [hl * 0.42, -hh * 0.05, 0], rw: hw * 0.62, rh: hh * 0.6, color: p.midSnout ?? undefined },
@@ -386,7 +424,7 @@ export const buildBiped = (spec, ctx) => {
                 cone(hb, [x, -hh * 0.36 - i * hh * 0.02, sd * hw * 0.42], [x, -hh * 0.36 - i * hh * 0.02 - hh * 0.16 * p.teethSize, sd * hw * 0.43], hh * 0.03, '#f2ecd8', { sides: 3 });
             }
         }
-    } else loft(hb, [
+    } else loftC(hb, [
         { p: [-hl * 0.1, -hh * 0.05, 0], rw: hw * 0.8 * sw0, rh: hh * 0.72 * sk0 },
         { p: [hl * 0.18, hh * 0.04, 0], rw: hw * sw0, rh: hh * sk0 },
         { p: [hl * 0.52, -hh * 0.04 + (sk1 - 0.78) * hh * 0.3, 0], rw: hw * (0.5 + p.snout * 0.5) * sw1 / 0.75, rh: hh * sk1, color: p.midSnout ?? undefined },
@@ -425,7 +463,7 @@ export const buildBiped = (spec, ctx) => {
 
     const jaw = group(head, hl * 0.02, -hh * 0.42, 0);
     const jb = new MeshBuilder();
-    loft(jb, [
+    loftC(jb, [
         { p: [0, 0, 0], rw: hw * 0.72, rh: hh * 0.24 },
         { p: [hl * 0.55, -hh * 0.04, 0], rw: hw * 0.55, rh: hh * 0.2 },
         { p: [hl * 0.82, 0, 0], rw: hw * p.snout * 0.8, rh: hh * 0.15, color: p.beak ?? C.belly }
@@ -450,7 +488,7 @@ export const buildBiped = (spec, ctx) => {
         const knee = [p.thighR * (1.2 + p.crouch * 2), -legH * (0.45 - p.crouch * 0.08), s * 0.004];
         const ankle = [-p.thighR * (0.9 + p.crouch * 1.5), -legH * 0.82, s * 0.006];
         const pad = [-p.thighR * 0.3, -legH + 0.012, s * 0.008];
-        loft(lb, [
+        loftC(lb, [
             { p: [0, 0.02, 0], rw: p.thighR * 0.75, rh: p.thighR * 1.15 },
             { p: [p.thighR * 0.6, -legH * 0.18, 0], rw: p.thighR * 0.85, rh: p.thighR * 1.1 },
             { p: knee, r: p.thighR * 0.55 },
@@ -486,7 +524,7 @@ export const buildBiped = (spec, ctx) => {
         const A = p.armLen;
         const elbow = p.handsDown ? [A * 0.05, -A * 0.48, s * 0.014] : [A * 0.15, -A * 0.5, s * 0.01];
         const hand = p.handsDown ? [A * 0.12, -A * 0.96, s * 0.016] : [A * 0.55, -A * 0.72, s * 0.012];
-        loft(ab, [{ p: [0, 0, 0], r: p.armR * 1.3 }, { p: elbow, r: p.armR }, { p: hand, r: p.armR * 0.8 }], { sides: 5, color: C.arm ?? C.body, jitter: p.fluff * 0.5, rand });
+        loftC(ab, [{ p: [0, 0, 0], r: p.armR * 1.3 }, { p: elbow, r: p.armR }, { p: hand, r: p.armR * 0.8 }], { sides: 5, color: C.arm ?? C.body, jitter: p.fluff * 0.5, rand });
         if (p.thumbSpike) cone(ab, hand, [hand[0] + A * 0.04, hand[1] + A * 0.1, hand[2] + s * A * 0.12], p.armR * 0.6, p.thumbSpike, { sides: 5 });
         if (p.handsDown) {
             // hoof-like middle fingers bearing weight, as in Iguanodon
@@ -538,7 +576,7 @@ export const buildQuadruped = (spec, ctx) => {
         { p: [L * 0.88, ySh + p.arch * 0.3, 0], rw: p.bodyR * 0.88, rh: p.bodyH * 0.95 },
         { p: [L + 0.04, ySh + 0.01, 0], rw: p.neckR0 * 1.25, rh: p.neckR0 * 1.3 }
     ], 9);
-    loft(tb, torso, { sides: 8, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: 0.08, rand });
+    loftC(tb, torso, { sides: 8, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: 0.08, rand });
     if (p.spots) {
         for (let i = 0; i < 14; i++) {
             const s = torso[1 + Math.floor(rand() * 6)];
@@ -602,7 +640,7 @@ export const buildQuadruped = (spec, ctx) => {
         seg.rotation.z = i === 0 ? p.tailDroop : p.tailCurl;
         const r1 = i === p.tailSegs - 1 ? 0.004 : r0 * 0.62;
         const mb = new MeshBuilder();
-        loft(mb, resample([{ p: [0.004, 0, 0], r: r0 }, { p: [-segLen, 0, 0], r: r1 }], 4), {
+        loftC(mb, resample([{ p: [0.004, 0, 0], r: r0 }, { p: [-segLen, 0, 0], r: r1 }], 4), {
             sides: 7, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, rand, capStart: false, capEnd: i === p.tailSegs - 1, tipEnd: 0.01
         });
         if (p.plates && i === 0 && !p.plates.noTail) {
@@ -634,7 +672,7 @@ export const buildQuadruped = (spec, ctx) => {
         totalAngle += seg.rotation.z;
         const nr1 = nr - (p.neckR0 - p.neckR1) / p.neckSegs;
         const mb = new MeshBuilder();
-        loft(mb, resample([{ p: [-0.01, 0, 0], r: nr }, { p: [nLen + 0.004, 0, 0], r: nr1 }], 3), {
+        loftC(mb, resample([{ p: [-0.01, 0, 0], r: nr }, { p: [nLen + 0.004, 0, 0], r: nr1 }], 3), {
             sides: 7, color: C.neck ?? C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, rand, capStart: false, capEnd: false
         });
         if (p.plates && !p.plates.noNeck) backPlate(mb, nLen * 0.5, nr * 0.85, i, p.plates.size * 0.45);
@@ -651,21 +689,21 @@ export const buildQuadruped = (spec, ctx) => {
     const hw = p.headW;
     const C_head = C.head ?? C.body;
     if (p.headShape === 'brachio') {
-        loft(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.3, hh * 0.1, 0], rw: hw, rh: hh }, { p: [hl * 0.95, -hh * 0.2, 0], rw: hw * 0.7, rh: hh * 0.5 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.06 });
+        loftC(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.3, hh * 0.1, 0], rw: hw, rh: hh }, { p: [hl * 0.95, -hh * 0.2, 0], rw: hw * 0.7, rh: hh * 0.5 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.06 });
         blob(hb, [hl * 0.35, hh * 0.85, 0], hh * 0.55, C.crest ?? shade(C_head, 0.9), { scale: [1, 0.9, 0.7], jitter: 0.2, rand });
     } else if (p.headShape === 'camara') {
-        loft(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.35, hh * 0.15, 0], rw: hw, rh: hh * 1.1 }, { p: [hl * 0.95, -hh * 0.1, 0], rw: hw * 0.85, rh: hh * 0.75 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.04 });
+        loftC(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.35, hh * 0.15, 0], rw: hw, rh: hh * 1.1 }, { p: [hl * 0.95, -hh * 0.1, 0], rw: hw * 0.85, rh: hh * 0.75 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.04 });
     } else if (p.headShape === 'rebbach') {
         // broad, square-ended muzzle for cropping low plants
-        loft(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.35, hh * 0.05, 0], rw: hw, rh: hh }, { p: [hl * 0.8, -hh * 0.2, 0], rw: hw * 1.05, rh: hh * 0.55 }, { p: [hl * 1.0, -hh * 0.25, 0], rw: hw * 1.15, rh: hh * 0.45 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.02 });
+        loftC(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.35, hh * 0.05, 0], rw: hw, rh: hh }, { p: [hl * 0.8, -hh * 0.2, 0], rw: hw * 1.05, rh: hh * 0.55 }, { p: [hl * 1.0, -hh * 0.25, 0], rw: hw * 1.15, rh: hh * 0.45 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.02 });
     } else if (p.headShape === 'titan') {
         // titanosaur: short, broad snout with a raised nasal arch
-        loft(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.3, hh * 0.15, 0], rw: hw, rh: hh * 1.05 }, { p: [hl * 0.95, -hh * 0.18, 0], rw: hw * 0.9, rh: hh * 0.55 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.04 });
+        loftC(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.3, hh * 0.15, 0], rw: hw, rh: hh * 1.05 }, { p: [hl * 0.95, -hh * 0.18, 0], rw: hw * 0.9, rh: hh * 0.55 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.04 });
         blob(hb, [hl * 0.4, hh * 0.7, 0], hh * 0.4, C.crest ?? shade(C_head, 0.92), { scale: [1.2, 0.8, 0.8], jitter: 0.2, rand });
     } else if (p.headShape === 'stego') {
-        loft(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.35, hh * 0.05, 0], rw: hw, rh: hh }, { p: [hl * 0.95, -hh * 0.25, 0], rw: hw * 0.5, rh: hh * 0.45, color: C.beak ?? '#3a3028' }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.08 });
+        loftC(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.35, hh * 0.05, 0], rw: hw, rh: hh }, { p: [hl * 0.95, -hh * 0.25, 0], rw: hw * 0.5, rh: hh * 0.45, color: C.beak ?? '#3a3028' }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.08 });
     } else {
-        loft(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.3, hh * 0.08, 0], rw: hw, rh: hh }, { p: [hl * 1.0, -hh * 0.15, 0], rw: hw * 0.75, rh: hh * 0.45 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.05 });
+        loftC(hb, [{ p: [-hl * 0.1, 0, 0], r: nr * 1.05 }, { p: [hl * 0.3, hh * 0.08, 0], rw: hw, rh: hh }, { p: [hl * 1.0, -hh * 0.15, 0], rw: hw * 0.75, rh: hh * 0.45 }], { sides: 6, color: C_head, bellyColor: C.belly, tipEnd: hl * 0.05 });
     }
     eyes(hb, hl * 0.3, hh * 0.45, hw * 0.75, hh * 0.22, C.eye ?? '#e8b830');
     addMesh(head, hb, ctx);
@@ -684,7 +722,7 @@ export const buildQuadruped = (spec, ctx) => {
             const H = ld.y;
             const R = p.legR * (ld.front ? 0.9 : 1.1);
             const bend = ld.front ? -0.02 : 0.03;
-            loft(lb, [
+            loftC(lb, [
                 { p: [0, p.bodyH * 0.25, 0], rw: R * 1.1, rh: R * 1.6 },
                 { p: [bend * 0.5, -H * 0.15, 0], r: R * 1.05 },
                 { p: [bend, -H * 0.55, 0], r: R * 0.85 },
@@ -736,7 +774,7 @@ export const buildSprawler = (spec, ctx) => {
         { p: [L * 0.75, Y + 0.002, 0], rw: p.bodyR * 0.95, rh: p.bodyH * 0.95 },
         { p: [L, Y + 0.004, 0], rw: p.bodyR * 0.7, rh: p.bodyH * 0.75 }
     ], 7);
-    loft(tb, torso, { sides: 7, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand });
+    loftC(tb, torso, { sides: 7, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand });
     if (p.crest) torso.forEach((s, i) => cone(tb, [s.p[0], s.p[1] + s.rh * 0.9, 0], [s.p[0] - 0.01, s.p[1] + s.rh * 0.9 + p.crest.h, 0], p.crest.h * 0.35, p.crest.color, { sides: 4, rand }));
     if (p.scutes) torso.forEach((s) => {
         for (const side of [-1, 1]) blob(tb, [s.p[0], s.p[1] + s.rh * 0.85, side * s.rw * 0.35], s.rh * 0.22, p.scutes, { jitter: 0.2, rand, scale: [1.2, 0.6, 1] });
@@ -754,7 +792,7 @@ export const buildSprawler = (spec, ctx) => {
         const r1 = i === 2 ? 0.004 : r0 * 0.65;
         const mb = new MeshBuilder();
         const tailKeys = resample([{ p: [0.004, 0, 0], rw: r0, rh: r0 * 0.85 }, { p: [-segLen, 0, 0], rw: r1, rh: r1 * 0.85 }], 3);
-        loft(mb, tailKeys, { sides: 6, color: C.tail ?? C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand, capStart: false, capEnd: i === 2, tipEnd: 0.01 });
+        loftC(mb, tailKeys, { sides: 6, color: C.tail ?? C.body, bellyColor: C.belly, ridgeColor: C.back, stripes, jitter: p.fluff, rand, capStart: false, capEnd: i === 2, tipEnd: 0.01 });
         if (p.crest && i < 2) tailKeys.forEach((s) => cone(mb, [s.p[0], s.rh * 0.8, 0], [s.p[0] - 0.01, s.rh * 0.8 + p.crest.h * 0.8, 0], p.crest.h * 0.3, p.crest.color, { sides: 4, rand }));
         if (p.scutes && i < 2) tailKeys.forEach((s) => {
             for (const side of [-1, 1]) cone(mb, [s.p[0], s.rh * 0.7, side * s.rw * 0.3], [s.p[0] - 0.01, s.rh * 0.7 + s.rh * 0.6, side * s.rw * 0.3], s.rh * 0.25, p.scutes, { sides: 4, rand });
@@ -774,7 +812,7 @@ export const buildSprawler = (spec, ctx) => {
     const hl = p.headLen;
     const hh = p.headH;
     const hw = p.headW;
-    loft(hb, [
+    loftC(hb, [
         { p: [-0.01, 0, 0], rw: p.bodyR * 0.72, rh: p.bodyH * 0.75 },
         { p: [hl * 0.3, hh * 0.1, 0], rw: hw, rh: hh },
         { p: [hl * 0.95, -hh * 0.15, 0], rw: hw * p.snout, rh: hh * 0.5, color: C.snout ?? C.head ?? C.body }
@@ -805,12 +843,12 @@ export const buildSprawler = (spec, ctx) => {
             const lb = new MeshBuilder();
             const hipY = Y - p.bodyH * 0.2;
             if (p.upright) {
-                loft(lb, [{ p: [0, 0.01, 0], r: p.legR * 1.4 }, { p: [lp.front ? -0.006 : 0.01, -hipY * 0.5, s * 0.004], r: p.legR }, { p: [0.004, -hipY + 0.006, s * 0.006], r: p.legR * 0.8, color: C.feet ?? shade(C.body, 0.8) }], { sides: 5, color: C.body, rand, jitter: p.fluff });
+                loftC(lb, [{ p: [0, 0.01, 0], r: p.legR * 1.4 }, { p: [lp.front ? -0.006 : 0.01, -hipY * 0.5, s * 0.004], r: p.legR }, { p: [0.004, -hipY + 0.006, s * 0.006], r: p.legR * 0.8, color: C.feet ?? shade(C.body, 0.8) }], { sides: 5, color: C.body, rand, jitter: p.fluff });
                 limb(lb, [0.004, -hipY + 0.006, s * 0.006], [0.03, -hipY + 0.004, s * 0.008], p.legR * 0.8, p.legR * 0.5, C.feet ?? C.nose ?? shade(C.body, 0.8), { sides: 4 });
             } else {
                 const knee = [lp.front ? 0.01 : -0.01, -hipY * 0.15, s * p.sprawl];
                 const foot = [lp.front ? 0.02 : -0.005, -hipY + 0.005, s * p.sprawl * 1.25];
-                loft(lb, [{ p: [0, 0, 0], r: p.legR * 1.3 }, { p: knee, r: p.legR }, { p: foot, r: p.legR * 0.8 }], { sides: 5, color: C.body, rand });
+                loftC(lb, [{ p: [0, 0, 0], r: p.legR * 1.3 }, { p: knee, r: p.legR }, { p: foot, r: p.legR * 0.8 }], { sides: 5, color: C.body, rand });
                 for (const a of [-0.6, -0.2, 0.2, 0.6]) {
                     const len = p.legR * 2.2;
                     const dir = lp.front ? 0 : -0.3;
@@ -845,7 +883,7 @@ export const buildPterosaur = (spec, ctx) => {
     const L = p.bodyLen;
 
     const tb = new MeshBuilder();
-    loft(tb, resample([
+    loftC(tb, resample([
         { p: [-0.02, Y, 0], rw: p.bodyR * 0.7, rh: p.bodyR * 0.7 },
         { p: [L * 0.45, Y + 0.004, 0], rw: p.bodyR, rh: p.bodyR * 1.05 },
         { p: [L, Y + 0.008, 0], rw: p.bodyR * 0.75, rh: p.bodyR * 0.8 }
@@ -856,7 +894,7 @@ export const buildPterosaur = (spec, ctx) => {
     if (p.tailLen > 0.02) {
         const tail = group(body, -0.02, Y, 0);
         const mb = new MeshBuilder();
-        loft(mb, [{ p: [0.004, 0, 0], r: p.bodyR * 0.35 }, { p: [-p.tailLen, 0, 0], r: 0.004 }], { sides: 4, color: C.body, capStart: false, tipEnd: 0.01 });
+        loftC(mb, [{ p: [0.004, 0, 0], r: p.bodyR * 0.35 }, { p: [-p.tailLen, 0, 0], r: 0.004 }], { sides: 4, color: C.body, capStart: false, tipEnd: 0.01 });
         if (p.tailVane) slab(mb, [[-p.tailLen * 0.85, 0, 0], [-p.tailLen * 0.95, 0.03, 0], [-p.tailLen * 1.08, 0.0, 0], [-p.tailLen * 0.95, -0.02, 0]], 0.006, p.tailVane);
         addMesh(tail, mb, ctx);
         parts.tail.push(tail);
@@ -867,7 +905,7 @@ export const buildPterosaur = (spec, ctx) => {
     const nb = new MeshBuilder();
     const nx = Math.cos(p.neckUp) * p.neckLen;
     const ny = Math.sin(p.neckUp) * p.neckLen;
-    loft(nb, [{ p: [-0.01, 0, 0], r: p.bodyR * 0.6 }, { p: [nx, ny, 0], r: p.bodyR * 0.42 }], { sides: 6, color: C.neck ?? C.body, bellyColor: C.belly, jitter: p.fluff, rand, capStart: false, capEnd: false });
+    loftC(nb, [{ p: [-0.01, 0, 0], r: p.bodyR * 0.6 }, { p: [nx, ny, 0], r: p.bodyR * 0.42 }], { sides: 6, color: C.neck ?? C.body, bellyColor: C.belly, jitter: p.fluff, rand, capStart: false, capEnd: false });
     addMesh(neck, nb, ctx);
     parts.neck.push(neck);
     const head = group(neck, nx, ny, 0);
@@ -882,7 +920,7 @@ export const buildPterosaur = (spec, ctx) => {
         blob(hb, [hl * 0.55, -hh * 0.25, 0], hh * 0.7, C.face ?? C.head ?? C.body, { detail: 1, jitter: 0.15, rand, scale: [0.8, 0.55, 1.3] });
         eyes(hb, hl * 0.45, hh * 0.25, hh * 0.72, hh * 0.34, C.eyeRing ?? '#d89a30', '#0e0e0e');
     } else {
-        loft(hb, [
+        loftC(hb, [
             { p: [-hl * 0.05, 0, 0], rw: hw, rh: hh * 1.1 },
             { p: [hl * 0.25, 0, 0], rw: hw * 0.85, rh: hh },
             { p: [hl * 0.95, -hh * 0.2, 0], rw: hw * 0.25, rh: hh * 0.3, color: C.beak ?? C.head ?? C.body }
@@ -945,7 +983,7 @@ const buildWalkingPterosaur = (p, model, ctx) => {
     const tilt = 0.35;
     const front = [L * Math.cos(tilt), Y + L * Math.sin(tilt), 0];
     const tb = new MeshBuilder();
-    loft(tb, [
+    loftC(tb, [
         { p: [-0.02, Y, 0], rw: p.bodyR * 0.7, rh: p.bodyR * 0.75 },
         { p: [front[0] * 0.45, Y + front[1] * 0.0 + (front[1] - Y) * 0.45, 0], rw: p.bodyR, rh: p.bodyR * 1.05 },
         { p: front, rw: p.bodyR * 0.75, rh: p.bodyR * 0.8 }
@@ -956,7 +994,7 @@ const buildWalkingPterosaur = (p, model, ctx) => {
     const nb = new MeshBuilder();
     const nx = Math.cos(p.neckUp) * p.neckLen;
     const ny = Math.sin(p.neckUp) * p.neckLen;
-    loft(nb, [{ p: [-0.01, 0, 0], r: p.bodyR * 0.55 }, { p: [nx * 0.5, ny * 0.5, 0], r: p.bodyR * 0.36 }, { p: [nx, ny, 0], r: p.bodyR * 0.32 }], { sides: 6, color: C.neck ?? C.body, bellyColor: C.belly, jitter: p.fluff, rand, capStart: false, capEnd: false });
+    loftC(nb, [{ p: [-0.01, 0, 0], r: p.bodyR * 0.55 }, { p: [nx * 0.5, ny * 0.5, 0], r: p.bodyR * 0.36 }, { p: [nx, ny, 0], r: p.bodyR * 0.32 }], { sides: 6, color: C.neck ?? C.body, bellyColor: C.belly, jitter: p.fluff, rand, capStart: false, capEnd: false });
     addMesh(neck, nb, ctx);
     parts.neck.push(neck);
     const head = group(neck, nx, ny, 0);
@@ -965,7 +1003,7 @@ const buildWalkingPterosaur = (p, model, ctx) => {
     const hl = p.headLen;
     const hh = p.headH;
     const hw = p.headW;
-    loft(hb, [
+    loftC(hb, [
         { p: [-hl * 0.12, 0, 0], rw: hw, rh: hh * 1.1 },
         { p: [hl * 0.2, 0, 0], rw: hw * 0.8, rh: hh },
         { p: [hl * 1.0, -hh * 0.1, 0], rw: hw * 0.08, rh: hh * 0.08, color: C.beak ?? C.head ?? C.body }
@@ -1008,7 +1046,7 @@ export const buildDragonfly = (spec, ctx) => {
     const Y = 0.1;
     const mb = new MeshBuilder();
     blob(mb, [0.0, Y, 0], 0.035, C.thorax, { detail: 1, jitter: 0.2, rand, scale: [1.3, 1, 1] });
-    loft(mb, resample([{ p: [-0.03, Y, 0], r: 0.016 }, { p: [-0.4, Y + 0.01, 0], r: 0.008 }], 10), { sides: 5, color: C.abdomen, stripes: { every: 2, offset: 1, color: C.band }, tipEnd: 0.01 });
+    loftC(mb, resample([{ p: [-0.03, Y, 0], r: 0.016 }, { p: [-0.4, Y + 0.01, 0], r: 0.008 }], 10), { sides: 5, color: C.abdomen, stripes: { every: 2, offset: 1, color: C.band }, tipEnd: 0.01 });
     eyes(mb, 0.045, Y + 0.012, 0.02, 0.022, C.eye, '#1a2a10');
     for (const s of [-1, 1]) for (let i = 0; i < 3; i++) limb(mb, [0.01 - i * 0.012, Y - 0.02, s * 0.01], [0.02 - i * 0.02, Y - 0.06, s * 0.04], 0.003, 0.002, '#1a1a1a', { sides: 3 });
     addMesh(body, mb, ctx);
@@ -1036,7 +1074,7 @@ export const buildCentipede = (spec, ctx) => {
         const seg = group(parent, i === 0 ? 0 : -segL, i === 0 ? 0.025 : 0, 0);
         const mb = new MeshBuilder();
         const r = 0.03 * (i === 0 ? 1.05 : 1 - i * 0.02);
-        loft(mb, [{ p: [0.01, 0, 0], rw: r * 1.2, rh: r * 0.7 }, { p: [-segL + 0.006, 0, 0], rw: r * 1.1, rh: r * 0.65 }], { sides: 6, color: i % 2 ? C.body : C.alt, bellyColor: shade(C.body, 1.2) });
+        loftC(mb, [{ p: [0.01, 0, 0], rw: r * 1.2, rh: r * 0.7 }, { p: [-segL + 0.006, 0, 0], rw: r * 1.1, rh: r * 0.65 }], { sides: 6, color: i % 2 ? C.body : C.alt, bellyColor: shade(C.body, 1.2) });
         for (const s of [-1, 1]) {
             const knee = [-segL * 0.45, 0.012, s * (r + 0.045)];
             limb(mb, [-segL * 0.5, -0.002, s * r], knee, 0.008, 0.006, C.legs, { sides: 4 });
@@ -1071,7 +1109,7 @@ export const buildScorpion = (spec, ctx) => {
     const { body, parts } = model;
     const Y = 0.04;
     const mb = new MeshBuilder();
-    loft(mb, resample([{ p: [0.1, Y, 0], rw: 0.04, rh: 0.02 }, { p: [0.02, Y + 0.004, 0], rw: 0.055, rh: 0.026 }, { p: [-0.12, Y + 0.006, 0], rw: 0.05, rh: 0.024 }], 7), { sides: 6, color: C.body, stripes: { every: 2, offset: 1, color: shade(C.body, 0.8) } });
+    loftC(mb, resample([{ p: [0.1, Y, 0], rw: 0.04, rh: 0.02 }, { p: [0.02, Y + 0.004, 0], rw: 0.055, rh: 0.026 }, { p: [-0.12, Y + 0.006, 0], rw: 0.05, rh: 0.024 }], 7), { sides: 6, color: C.body, stripes: { every: 2, offset: 1, color: shade(C.body, 0.8) } });
     eyes(mb, 0.09, Y + 0.02, 0.006, 0.006, '#111');
     for (const s of [-1, 1]) {
         for (let i = 0; i < 4; i++) {
@@ -1100,7 +1138,7 @@ export const buildScorpion = (spec, ctx) => {
         const seg = i === 0 ? parent : group(parent, -0.045, 0, 0);
         seg.rotation.z = i === 0 ? -0.6 : -0.55;
         const tmb = new MeshBuilder();
-        loft(tmb, [{ p: [0.005, 0, 0], r: 0.018 - i * 0.002 }, { p: [-0.045, 0, 0], r: 0.016 - i * 0.002 }], { sides: 5, color: C.tail });
+        loftC(tmb, [{ p: [0.005, 0, 0], r: 0.018 - i * 0.002 }, { p: [-0.045, 0, 0], r: 0.016 - i * 0.002 }], { sides: 5, color: C.tail });
         if (i === n - 1) {
             blob(tmb, [-0.06, 0, 0], 0.02, C.sting, { jitter: 0.1, rand, scale: [1.3, 0.9, 0.9] });
             cone(tmb, [-0.07, -0.004, 0], [-0.07, -0.05, 0], 0.007, '#1a1010', { sides: 4 });
@@ -1119,7 +1157,7 @@ export const buildCricket = (spec, ctx) => {
     const { body, parts } = model;
     const Y = 0.07;
     const mb = new MeshBuilder();
-    loft(mb, resample([{ p: [0.1, Y + 0.01, 0], rw: 0.03, rh: 0.035 }, { p: [0.03, Y + 0.01, 0], rw: 0.04, rh: 0.04 }, { p: [-0.18, Y + 0.0, 0], rw: 0.035, rh: 0.03 }], 6), { sides: 6, color: C.body, bellyColor: C.belly, stripes: { every: 2, offset: 1, color: shade(C.body, 0.85) }, tipEnd: 0.02 });
+    loftC(mb, resample([{ p: [0.1, Y + 0.01, 0], rw: 0.03, rh: 0.035 }, { p: [0.03, Y + 0.01, 0], rw: 0.04, rh: 0.04 }, { p: [-0.18, Y + 0.0, 0], rw: 0.035, rh: 0.03 }], 6), { sides: 6, color: C.body, bellyColor: C.belly, stripes: { every: 2, offset: 1, color: shade(C.body, 0.85) }, tipEnd: 0.02 });
     blob(mb, [0.12, Y + 0.01, 0], 0.035, C.head, { jitter: 0.1, rand, scale: [1, 1.1, 0.9] });
     eyes(mb, 0.14, Y + 0.025, 0.026, 0.01, '#1a1a1a', '#000');
     for (const s of [-1, 1]) {
@@ -1171,7 +1209,7 @@ export const buildTurtle = (spec, ctx) => {
     const neck = group(body, 0.17, 0.07, 0);
     const head = group(neck, 0, 0, 0);
     const hb = new MeshBuilder();
-    loft(hb, [{ p: [-0.03, 0, 0], r: 0.03 }, { p: [0.06, 0.01, 0], r: 0.035 }, { p: [0.11, 0.0, 0], r: 0.022 }], { sides: 6, color: C.skin, tipEnd: 0.012 });
+    loftC(hb, [{ p: [-0.03, 0, 0], r: 0.03 }, { p: [0.06, 0.01, 0], r: 0.035 }, { p: [0.11, 0.0, 0], r: 0.022 }], { sides: 6, color: C.skin, tipEnd: 0.012 });
     eyes(hb, 0.08, 0.02, 0.025, 0.008, '#111', '#000');
     addMesh(head, hb, ctx);
     parts.neck.push(neck);
@@ -1201,7 +1239,7 @@ export const buildSnake = (spec, ctx) => {
         const mb = new MeshBuilder();
         const r0 = 0.026 * (i < 2 ? 1 : 1 - (i - 2) * 0.12);
         const r1 = i === n - 1 ? 0.004 : 0.026 * (1 - (i - 1) * 0.12 * (i > 1 ? 1 : 0));
-        loft(mb, resample([{ p: [0.006, 0, 0], rw: r0, rh: r0 * 0.8 }, { p: [-segL, 0, 0], rw: Math.max(0.004, r1), rh: Math.max(0.004, r1) * 0.8 }], 3), {
+        loftC(mb, resample([{ p: [0.006, 0, 0], rw: r0, rh: r0 * 0.8 }, { p: [-segL, 0, 0], rw: Math.max(0.004, r1), rh: Math.max(0.004, r1) * 0.8 }], 3), {
             sides: 6, color: C.body, bellyColor: C.belly, stripes: { every: 2, offset: i % 2, color: C.band }, capStart: i === 0, capEnd: i === n - 1, tipEnd: 0.02
         });
         if (i === 0) {
@@ -1242,7 +1280,7 @@ export const buildFish = (spec, ctx) => {
         { p: [tailX, Y, 0], rw: W * 0.4, rh: D * 0.4 * flat }
     ];
     const secs = resample(keys, 7);
-    loft(mb, secs, { sides: 7, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes: p.bands ? { every: 2, offset: 1, color: p.bands } : null, tipStart: L * 0.06 });
+    loftC(mb, secs, { sides: 7, color: C.body, bellyColor: C.belly, ridgeColor: C.back, stripes: p.bands ? { every: 2, offset: 1, color: p.bands } : null, tipStart: L * 0.06 });
     if (p.spots) {
         for (let i = 0; i < 12; i++) {
             const sc = secs[1 + Math.floor(rand() * 5)];
@@ -1305,7 +1343,7 @@ export const buildFish = (spec, ctx) => {
     if (p.tail === 'shark') slab(tb, [[0.01, 0, 0], [-L * 0.2, T * 1.2, 0], [-L * 0.12, 0, 0], [-L * 0.08, -T * 0.5, 0]], 0.007, C.fin);
     else if (p.tail === 'round' || p.tail === 'eel') {
         const tl = p.tail === 'eel' ? L * 0.32 : L * 0.2;
-        loft(tb, [{ p: [0.004, 0, 0], rw: W * 0.4, rh: D * 0.4 * flat }, { p: [-tl, 0, 0], rw: 0.004, rh: 0.004 }], { sides: 5, color: C.body, bellyColor: C.belly, capStart: false, tipEnd: 0.01 });
+        loftC(tb, [{ p: [0.004, 0, 0], rw: W * 0.4, rh: D * 0.4 * flat }, { p: [-tl, 0, 0], rw: 0.004, rh: 0.004 }], { sides: 5, color: C.body, bellyColor: C.belly, capStart: false, tipEnd: 0.01 });
         slab(tb, [[0.004, T * 0.35, 0], [-tl * 1.05, T * 0.1, 0], [-tl * 1.05, -T * 0.1, 0], [0.004, -T * 0.35, 0]], 0.005, C.fin);
     } else if (p.tail === 'diphycercal') {
         // coelacanth: a three-lobed tail with a little middle lobe
@@ -1332,7 +1370,7 @@ export const buildPlesiosaur = (spec, ctx) => {
         { p: [0.06, Y + 0.006, 0], rw: 0.08, rh: 0.045 },
         { p: [0.13, Y + 0.004, 0], rw: 0.04, rh: 0.03 }
     ], 7);
-    loft(mb, secs, { sides: 8, color: C.body, bellyColor: C.belly, ridgeColor: C.back, rand, jitter: 0.05 });
+    loftC(mb, secs, { sides: 8, color: C.body, bellyColor: C.belly, ridgeColor: C.back, rand, jitter: 0.05 });
     if (C.spots) for (let i = 0; i < 12; i++) {
         const sc = secs[1 + Math.floor(rand() * 5)];
         blob(mb, [sc.p[0], sc.p[1] + sc.rh * 0.7, (rand() - 0.5) * sc.rw * 1.4], 0.012, C.spots, { jitter: 0.2, rand, scale: [1.2, 0.4, 1] });
@@ -1340,12 +1378,12 @@ export const buildPlesiosaur = (spec, ctx) => {
     addMesh(body, mb, ctx);
     const neck = group(body, 0.13, Y + 0.004, 0);
     const nb = new MeshBuilder();
-    loft(nb, [{ p: [-0.01, 0, 0], r: 0.03 }, { p: [0.1, 0.02, 0], r: 0.02 }, { p: [0.2, 0.05, 0], r: 0.016 }], { sides: 6, color: C.neck ?? C.body, bellyColor: C.belly, capStart: false, capEnd: false });
+    loftC(nb, [{ p: [-0.01, 0, 0], r: 0.03 }, { p: [0.1, 0.02, 0], r: 0.02 }, { p: [0.2, 0.05, 0], r: 0.016 }], { sides: 6, color: C.neck ?? C.body, bellyColor: C.belly, capStart: false, capEnd: false });
     addMesh(neck, nb, ctx);
     parts.neck.push(neck);
     const head = group(neck, 0.2, 0.05, 0);
     const hb = new MeshBuilder();
-    loft(hb, [{ p: [-0.01, 0, 0], rw: 0.02, rh: 0.016 }, { p: [0.04, 0, 0], rw: 0.018, rh: 0.014 }, { p: [0.075, -0.004, 0], rw: 0.007, rh: 0.007 }], { sides: 6, color: C.head ?? C.body, bellyColor: C.belly, tipEnd: 0.006 });
+    loftC(hb, [{ p: [-0.01, 0, 0], rw: 0.02, rh: 0.016 }, { p: [0.04, 0, 0], rw: 0.018, rh: 0.014 }, { p: [0.075, -0.004, 0], rw: 0.007, rh: 0.007 }], { sides: 6, color: C.head ?? C.body, bellyColor: C.belly, tipEnd: 0.006 });
     eyes(hb, 0.012, 0.008, 0.016, 0.006, C.eye ?? '#f0d040');
     teethRow(hb, 0.03, 0.07, -0.008, 0.01, 0.006, 4);
     addMesh(head, hb, ctx);
@@ -1477,7 +1515,8 @@ export const buildSpino = (level, ctx, colors = SPINO_COLORS, extra = {}) => {
         sail: { h: lerp(0.05, 0.32), color: C.sail ?? C.back, streak: C.streak ?? '#d4302c', thick: lerp(0.01, 0.014) },
         tailFin: { h: lerp(0.35, 1.0), color: C.fin ?? C.back },
         stripes: !!C.stripes, stripeEvery: 3,
-        colors: { ...C, stripe: C.stripe }
+        colors: { ...C, stripe: C.stripe },
+        ...(extra.spec || {})
     }, ctx);
 };
 

@@ -1264,3 +1264,6 @@ export const randomPointInCell = (localPoly, rand, minR = 0.3, margin = 0.15) =>
 };
 
 export { mix };
+// the plant and clutter builders, for the real-scale roaming world (src/roam)
+export const FLORA = { trunk, conifer, araucaria, ginkgo, umbrellaTree, cycad, fern, tuft, horsetails, bush, rock, log, deadTree, treeFern, mangroveTree, galleryTree, bones };
+export { STYLE, PATCHES };

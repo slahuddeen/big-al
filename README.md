@@ -1,3 +1,21 @@
+# Spino: Roam (experiment)
+
+A real-time, third-person version of Spino. You play a sub-adult Spinosaurus, 9.5 m long and 2.5 tonnes, in the Kem Kem world at its real size, drawn in the Spino game's comic style.
+
+Play it here: https://slahuddeen.github.io/big-al/spino-roam/
+
+* **Controls:** W A S D move relative to the camera, Shift sprints (and swims faster in deep water), the mouse looks around (click the game to capture the mouse, Esc to release it), the wheel zooms, and a left click bites. Bite a kill again to feed.
+* **The world:** the same Voronoi world generator as Spino, at 20 m per map unit, so each cell is about 45 m across and the basin about 2 × 1.8 km. Cells keep their biomes and terrace levels; the steps between levels become slopes you can walk. Rivers are carved as channels deep enough to swim, with rapids where they drop a terrace, and the sea and lakes fill their basins.
+* **Plants at real scale:** conifers and monkey-puzzle relatives 22 to 38 m tall, gallery trees by the rivers, tree ferns, cycads, fern brakes, horsetails, mangroves, boulders and fallen logs, scattered per biome. They are the map game's low-poly plant builders scaled up and drawn as instanced meshes, swaying in the wind.
+* **Animals at real scale:** the Spino game's animals, sized from their weight (or their recorded length for the giants). Plant-eaters graze and bolt, big predators warn you, then stalk and bite, fish and crocodiles keep to the water, and pterosaurs circle overhead. Each spawns in the habitats the map game uses.
+* **A day lasts ten minutes:** sunrise, a sun that crosses the sky, an orange sunset, then stars and moonlight until dawn. Fog takes the horizon's colour.
+* **Comic look:** ink outlines on the animals, ink edges found on inverse depth so the ground doesn't fill with lines, flat tone bands, pen hatching in shadow and a warm paper tint.
+* **Spino up close:** finer bodies and real reptile eyes (a gold iris with a slit pupil under a brow ridge) for every animal, and extra detail and pale skin flecks on the player.
+
+Code: `src/roam/` (world sampling, terrain chunks and plants, water, sky, comic pass, player, wildlife, HUD). Add `?seed=77` for another world. In the console, `roam.warp(10)` runs the world ten seconds forward.
+
+The turn-based Spino game is on `claude/spino-kemkem`.
+
 Play it here: https://slahuddeen.github.io/big-al/spino/
 
 # Spino

@@ -40,6 +40,9 @@ const addSway = (material, key) => {
                 '#include <begin_vertex>',
                 `#include <begin_vertex>
                 vec4 swWorld = modelMatrix * vec4(transformed, 1.0);
+                #ifdef USE_INSTANCING
+                swWorld = modelMatrix * instanceMatrix * vec4(transformed, 1.0);
+                #endif
                 float strength = uWind.z;
                 // gusts travel downwind across the land
                 float along = dot(swWorld.xz, uWind.xy);
