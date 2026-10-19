@@ -20,7 +20,8 @@ const skyMaterial = () => new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
     uniforms: {
         uTop: { value: col('#4f9ede') }, uHorizon: { value: col('#cfe6f2') },
-        uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: col('#fff0d8') }, uNight: { value: 0 }
+        uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: col('#fff0d8') }, uNight: { value: 0 },
+        uTime: { value: 0 }, uCloudLit: { value: col('#ffffff') }, uCloudShade: { value: col('#b8c8dc') }
     },
     vertexShader: /* glsl */`
         varying vec3 vDir;
@@ -30,10 +31,17 @@ const skyMaterial = () => new THREE.ShaderMaterial({
             gl_Position = p.xyww; // always at the far plane
         }`,
     fragmentShader: /* glsl */`
-        uniform vec3 uTop, uHorizon, uSunDir, uSunCol;
-        uniform float uNight;
+        uniform vec3 uTop, uHorizon, uSunDir, uSunCol, uCloudLit, uCloudShade;
+        uniform float uNight, uTime;
         varying vec3 vDir;
         float hash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+        float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float n2(vec2 p) {
+            vec2 i = floor(p), f = fract(p);
+            vec2 u = f * f * (3.0 - 2.0 * f);
+            return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), u.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), u.x), u.y);
+        }
+        float fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 3; i++) { v += n2(p) * a; p = p * 2.03 + 7.1; a *= 0.5; } return v; }
         void main() {
             vec3 d = normalize(vDir);
             float h = clamp(d.y, -0.2, 1.0);
@@ -45,6 +53,19 @@ const skyMaterial = () => new THREE.ShaderMaterial({
             float m = dot(d, -uSunDir);
             c = mix(c, vec3(0.93, 0.93, 0.86), smoothstep(0.9993, 0.9996, m) * uNight);
             c += vec3(0.4, 0.5, 0.7) * pow(max(m, 0.0), 60.0) * 0.25 * uNight;
+            // clouds: flat-bottomed comic heaps on a plane overhead, drifting with the wind
+            if (d.y > 0.0) {
+                vec2 cp = d.xz / (d.y + 0.12) * 1.6 + vec2(uTime * 0.012, uTime * 0.004);
+                float shape = fbm(cp * 0.8) - 0.5;
+                float under = fbm((cp + vec2(0.05, 0.12)) * 0.8) - 0.5;
+                float body = step(0.0, shape);
+                float lit = step(0.035, shape) * step(under, shape + 0.015);
+                vec3 cc = mix(uCloudShade, uCloudLit, lit);
+                float fadeH = smoothstep(0.0, 0.12, d.y);
+                c = mix(c, cc, body * fadeH * 0.95);
+                // an ink rim where the cloud meets the sky
+                c = mix(c, uCloudShade * 0.7, step(0.0, shape) * (1.0 - step(0.008, shape)) * fadeH * 0.6);
+            }
             // stars
             vec3 q = floor(d * 260.0);
             float st = step(0.9965, hash(q)) * smoothstep(0.02, 0.2, d.y);
@@ -105,6 +126,11 @@ export class Sky {
         u.uSunDir.value.copy(this.sunDir);
         u.uSunCol.value.copy(A.sun).lerp(B.sun, k);
         u.uNight.value = night;
+        u.uTime.value = this.time;
+        // clouds catch the sunset and go slate blue at night
+        const glow = Math.max(0, 1 - Math.abs(e - 0.02) / 0.18);
+        u.uCloudLit.value.setRGB(1, 1, 1).lerp(col('#ffb488'), glow * 0.8).lerp(col('#4a5a7a'), night);
+        u.uCloudShade.value.setRGB(0.74, 0.8, 0.88).lerp(col('#c47a6a'), glow * 0.6).lerp(col('#22304a'), night);
         this.dome.position.copy(camera.position);
         // light comes from the sun by day and from the moon by night
         const lightDir = e > -0.05 ? this.sunDir : this.sunDir.clone().negate();
@@ -116,8 +142,8 @@ export class Sky {
         this.hemi.groundColor.copy(A.ambGround).lerp(B.ambGround, k);
         this.hemi.intensity = A.amb + (B.amb - A.amb) * k;
         this.scene.fog.color.copy(this.horizon);
-        this.scene.fog.near = 160 + (1 - night) * 80;
-        this.scene.fog.far = 520 + (1 - night) * 480;
+        this.scene.fog.near = 160 + (1 - night) * 140;
+        this.scene.fog.far = 560 + (1 - night) * 640;
         this.night = night;
     }
 

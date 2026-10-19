@@ -4,15 +4,40 @@ A real-time, third-person version of Spino. You play a sub-adult Spinosaurus, 9.
 
 Play it here: https://slahuddeen.github.io/big-al/spino-roam/
 
-* **Controls:** W A S D move relative to the camera, Shift sprints (and swims faster in deep water), the mouse looks around (click the game to capture the mouse, Esc to release it), the wheel zooms, and a left click bites. Bite a kill again to feed.
-* **The world:** the same Voronoi world generator as Spino, at 20 m per map unit, so each cell is about 45 m across and the basin about 2 × 1.8 km. Cells keep their biomes and terrace levels; the steps between levels become slopes you can walk. Rivers are carved as channels deep enough to swim, with rapids where they drop a terrace, and the sea and lakes fill their basins.
-* **Plants at real scale:** conifers and monkey-puzzle relatives 22 to 38 m tall, gallery trees by the rivers, tree ferns, cycads, fern brakes, horsetails, mangroves, boulders and fallen logs, scattered per biome. They are the map game's low-poly plant builders scaled up and drawn as instanced meshes, swaying in the wind.
-* **Animals at real scale:** the Spino game's animals, sized from their weight (or their recorded length for the giants). Plant-eaters graze and bolt, big predators warn you, then stalk and bite, fish and crocodiles keep to the water, and pterosaurs circle overhead. Each spawns in the habitats the map game uses.
-* **A day lasts ten minutes:** sunrise, a sun that crosses the sky, an orange sunset, then stars and moonlight until dawn. Fog takes the horizon's colour.
-* **Comic look:** ink outlines on the animals, ink edges found on inverse depth so the ground doesn't fill with lines, flat tone bands, pen hatching in shadow and a warm paper tint.
+* **Controls:** W A S D move relative to the camera, Shift sprints (and swims faster in deep water), the mouse looks around (click the game to capture the mouse, Esc to release it), the wheel zooms.
+* **Abilities, from the Spino game:**
+    * **Bite (left click):** in the water it snaps up fish. Bite a kill to feed.
+    * **Thumb Claw (Q or right click):** a lighter wound that keeps bleeding and leaves a blood trail.
+    * **Dash (Space):** a lunge on land or a tail surge in the water. Nothing can hurt you during it.
+    * **Submerge (C, in deep water):** only your eyes and sail show. Land hunters lose you, and a bite from below is an ambush that does 2.5 times the damage and stuns. Breath runs out after about 25 seconds.
+    * **Sniff (F):** marks herds, hunters, kills and bleeding animals within 260 m.
+    * **Sail Display (R):** smaller animals scatter and scavengers leave a kill, but a big hunter may take it as a challenge.
+    * **Drink (hold E):** at the water's edge.
+    * **Rest (hold Z):** heal while the day runs twelve times faster. Not possible with hunters about.
+    * **Needs:** hunger and thirst fall all the time.
+* **The world:** the same Voronoi world generator as Spino, at 20 m per map unit, so each cell is about 45 m across and the basin about 2 × 1.8 km. Cells keep their biomes and terrace levels; the steps between levels become slopes you can walk. Rivers are carved as channels deep enough to swim, with rapids where they drop a terrace, and the sea and lakes fill their basins. About 300 ponds and pools lie in the marshes, waterholes, floodplains, woods and grassland. Each is a lobed basin with lily pads, reeds and sedge round its shore. Near the player the ground is drawn every 2 m with fine relief, further off every 4 and then 8 m.
+* **Plants at real scale:**
+    * **Trees:** giant emergent conifers up to 60 m, broadleaf giants hung with vines in the gallery forests, conifers and monkey-puzzle relatives, ginkgos, tree ferns and cycads.
+    * **Undergrowth:** ferns with real leaflets, sedges, early flowering herbs in six colours, horsetails, termite mounds and weathered sauropod bones.
+    * **Variety:** every plant is tinted a little differently, yellower in dry country and deeper in the wet.
+    * **Ground:** a shader paints soil and grass mottling, pebbles, tiny flowers, grass strokes and rock strata on steep slopes.
+* **Animals at real scale:** the Spino game's animals, sized from their weight (or their recorded length for the giants).
+    * **Herds:** plant-eaters move in herds that stay together, graze, wander down to the water to drink, and bolt together.
+    * **Predators:** big predators warn you, then stalk and bite.
+    * **Scavengers:** smaller hunters gather at a kill, and pterosaurs circle low over it.
+    * **Water life:** crocodiles, turtles and big fish live in the rivers and ponds.
+* **Small life:**
+    * **Fish:** schools turn in the ponds and channels and sometimes leap.
+    * **Overhead:** flocks of little pterosaurs and birds wheel in the sky.
+    * **At night:** fireflies come out.
+    * **Water:** splashes and ripples spread from anything moving through it.
+* **A day lasts ten minutes:** sunrise, a sun that crosses the sky, an orange sunset, then stars and moonlight until dawn. Flat comic clouds drift over and catch the sunset. Fog takes the horizon's colour.
+* **Comic look:**
+    * **Ink lines:** one pixel wide and solid, found on inverse depth so the ground doesn't fill with lines. Thin ink outlines go round the animals.
+    * **Colour:** flat tone bands, pen hatching in the deepest shadow, extra vibrance on dull colours and a warm paper tint.
 * **Spino up close:** finer bodies and real reptile eyes (a gold iris with a slit pupil under a brow ridge) for every animal, and extra detail and pale skin flecks on the player.
 
-Code: `src/roam/` (world sampling, terrain chunks and plants, water, sky, comic pass, player, wildlife, HUD). Add `?seed=77` for another world. In the console, `roam.warp(10)` runs the world ten seconds forward.
+Code: `src/roam/` (world sampling and ponds, terrain chunks, plants and the ground shader, water, sky, comic pass, player and abilities, wildlife, small life, HUD). Add `?seed=77` for another world. In the console, `roam.warp(10)` runs the world ten seconds forward.
 
 The turn-based Spino game is on `claude/spino-kemkem`.
 

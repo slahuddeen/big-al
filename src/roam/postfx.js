@@ -16,8 +16,10 @@ const ComicShader = {
         uFar: { value: 4000 },
         uResolution: { value: new THREE.Vector2(1, 1) },
         uPixelRatio: { value: 1 },
-        uSaturation: { value: 1.0 },
-        uContrast: { value: 1.05 },
+        uSaturation: { value: 1.12 },
+        uVibrance: { value: 0.35 },
+        uContrast: { value: 1.08 },
+        uInk: { value: new THREE.Color('#1c130d') },
         uVignette: { value: 0.22 },
         uHurt: { value: 0 },
         uUnder: { value: 0 }
@@ -28,7 +30,8 @@ const ComicShader = {
     fragmentShader: /* glsl */`
         uniform sampler2D tDiffuse;
         uniform sampler2D tDepth;
-        uniform float uNear, uFar, uPixelRatio, uSaturation, uContrast, uVignette, uHurt, uUnder;
+        uniform float uNear, uFar, uPixelRatio, uSaturation, uContrast, uVignette, uHurt, uUnder, uVibrance;
+        uniform vec3 uInk;
         uniform vec2 uResolution;
         varying vec2 vUv;
 
@@ -43,36 +46,35 @@ const ComicShader = {
         void main() {
             vec2 px = 1.0 / uResolution;
             vec3 col = texture2D(tDiffuse, vUv).rgb;
-            vec2 o = px * uPixelRatio * 1.7;
+            // one-pixel lines, decided crisply: a line is either there in solid ink or not at all
+            vec2 o = px * uPixelRatio;
             float z = viewZ(vUv);
             // inverse depth is linear across flat surfaces on screen, so only real breaks show
             float w = 1.0 / z;
             float wl = 1.0 / viewZ(vUv - vec2(o.x, 0.0)), wr = 1.0 / viewZ(vUv + vec2(o.x, 0.0));
             float wu = 1.0 / viewZ(vUv + vec2(0.0, o.y)), wd = 1.0 / viewZ(vUv - vec2(0.0, o.y));
-            float jump = max(abs(wl + wr - 2.0 * w), abs(wu + wd - 2.0 * w)) / w;
-            float depthEdge = smoothstep(0.02, 0.08, jump);
-            vec3 cl = texture2D(tDiffuse, vUv - vec2(o.x, 0.0)).rgb, cr = texture2D(tDiffuse, vUv + vec2(o.x, 0.0)).rgb;
-            vec3 cu = texture2D(tDiffuse, vUv + vec2(0.0, o.y)).rgb, cd = texture2D(tDiffuse, vUv - vec2(0.0, o.y)).rgb;
-            float g = length(cr - cl) + length(cu - cd);
-            float colourEdge = smoothstep(0.24, 0.52, g) * 0.5;
-            // lines thin out with distance and vanish into the haze
+            // only the nearer side of a break is inked, so a line is one pixel wide
+            float jump = max(2.0 * w - wl - wr, 2.0 * w - wu - wd) / w;
+            // further away only the bigger breaks get a line, so the distance doesn't fill with ink
+            float th = mix(0.05, 0.16, smoothstep(60.0, 500.0, z));
+            float ink = step(th, jump) * (z > uFar * 0.9 ? 0.0 : 1.0) * (1.0 - step(650.0, z));
             float near = 1.0 - smoothstep(140.0, 700.0, z);
-            float ink = max(depthEdge, colourEdge * near) * mix(0.35, 1.0, near) * (z > uFar * 0.9 ? 0.0 : 1.0);
 
             // flat tone bands
             float l = max(lumOf(col), 1e-4);
             float lp = sqrt(l);
             float lq = (floor(lp * 6.0) + smoothstep(0.3, 0.7, fract(lp * 6.0))) / 6.0;
             col *= mix(1.0, (lq * lq) / l, 0.5);
-            // pen hatching in real shadow, close up
+            // pen hatching in the deepest shadow, close up
             vec2 fc = gl_FragCoord.xy / uPixelRatio;
-            float h1 = smoothstep(0.7, 0.92, abs(fract((fc.x + fc.y) / 5.0) - 0.5) * 2.0);
-            float h2 = smoothstep(0.7, 0.92, abs(fract((fc.x - fc.y) / 5.0) - 0.5) * 2.0);
-            float dark = 1.0 - smoothstep(0.02, 0.08, l);
-            col *= 1.0 - (h1 * smoothstep(0.0, 0.5, dark) + h2 * smoothstep(0.6, 1.0, dark)) * 0.42 * near;
-            // warm paper, then the ink
-            col = mix(col, col * vec3(1.04, 1.0, 0.9), 0.5);
-            col = mix(col, vec3(0.07, 0.055, 0.045), ink * 0.88);
+            float h1 = step(0.86, abs(fract((fc.x + fc.y) / 4.0) - 0.5) * 2.0);
+            float dark = 1.0 - smoothstep(0.015, 0.05, l);
+            col *= 1.0 - h1 * dark * 0.3 * near;
+            // vibrance: lift the duller colours more than the already bright ones
+            float mx = max(col.r, max(col.g, col.b)), mn = min(col.r, min(col.g, col.b));
+            col = sat(col, 1.0 + uVibrance * (1.0 - (mx - mn) / max(mx, 1e-3)));
+            col = mix(col, col * vec3(1.03, 1.0, 0.93), 0.5);
+            col = mix(col, uInk, ink);
 
             col = max((col - 0.18) * uContrast + 0.18, 0.0);
             col = max(sat(col, uSaturation), 0.0);

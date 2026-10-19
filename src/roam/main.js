@@ -14,6 +14,7 @@ import { ComicFX } from './postfx.js';
 import { Player } from './player.js';
 import { Fauna } from './fauna.js';
 import { Hud } from './hud.js';
+import { Ambient } from './ambient.js';
 import { TERRAIN_TYPES } from '../data/terrain.js';
 
 // animals are seen close up here: finer bodies and real eyes
@@ -35,7 +36,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.5, 3500);
 const mats = createMaterials();
 const ctx = { mat: mats.creature, wingMat: mats.wing, outline: createOutlineMaterial() };
-outlineUniforms.uWidth.value = 2.2;
+outlineUniforms.uWidth.value = 1.2;
 
 const hud = new Hud(document.getElementById('hud'));
 const world = new RoamWorld(seed);
@@ -43,8 +44,14 @@ const terrain = new Terrain(world, scene, mats);
 const water = new Water(world, scene);
 const sky = new Sky(scene, 0.3);
 const fx = new ComicFX(renderer, scene, camera);
-let player = new Player(world, terrain, scene, ctx);
-const fauna = new Fauna(world, scene, ctx, hud);
+const ambient = new Ambient(world, scene, water);
+const player = new Player(world, terrain, scene, ctx);
+player.fx = { water, ambient };
+player.onEvent = (e) => {
+    if (e === 'breath') hud.say('Out of breath, you come up for air.');
+    if (e === 'rest-threat') hud.say('Too dangerous to rest: something is hunting you.');
+};
+const fauna = new Fauna(world, scene, ctx, hud, water, ambient);
 
 const resize = () => {
     renderer.setSize(innerWidth, innerHeight);
@@ -57,8 +64,13 @@ addEventListener('resize', resize);
 resize();
 
 // ---------- input ----------
-const input = { keys: {}, dx: 0, dy: 0, wheel: 0, locked: false };
-addEventListener('keydown', (e) => { input.keys[e.code] = true; });
+const input = { keys: {}, dx: 0, dy: 0, wheel: 0, locked: false, queue: [] };
+const ACTION_KEYS = { Space: 'dash', KeyQ: 'claw', KeyF: 'sniff', KeyR: 'display', KeyC: 'submerge' };
+addEventListener('keydown', (e) => {
+    if (e.code === 'Space') e.preventDefault();
+    if (!e.repeat && ACTION_KEYS[e.code]) input.queue.push(ACTION_KEYS[e.code]);
+    input.keys[e.code] = true;
+});
 addEventListener('keyup', (e) => { input.keys[e.code] = false; });
 addEventListener('blur', () => { input.keys = {}; });
 const canvas = renderer.domElement;
@@ -71,13 +83,61 @@ addEventListener('mousemove', (e) => {
 });
 canvas.addEventListener('mousedown', (e) => {
     if (!started) return;
+    const wasLocked = input.locked;
     if (!input.locked && canvas.requestPointerLock) { canvas.requestPointerLock(); }
-    if (e.button === 0) input.biteQueued = true;
-    if (e.button === 2) input.drag = true;
+    if (e.button === 0) input.queue.push('bite');
+    // with the mouse captured the right button rakes; without it, it drags the view
+    if (e.button === 2) { if (wasLocked) input.queue.push('claw'); else input.drag = true; }
 });
 addEventListener('mouseup', (e) => { if (e.button === 2) input.drag = false; });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 addEventListener('wheel', (e) => { input.wheel += e.deltaY; }, { passive: true });
+
+// ---------- abilities ----------
+const act = (id) => {
+    if (id === 'submerge') {
+        const r = player.toggleSubmerge();
+        if (r === 'shallow') hud.say(player.swimming ? 'You need to catch your breath first.' : 'The water is too shallow to hide in.');
+        if (r === 'down') hud.say('You sink until only your eyes and sail show.');
+        return;
+    }
+    if (!player.use(id)) return;
+    if (id === 'bite') {
+        // a bite from under the water is an ambush; a bite at the end of a dash hits harder
+        const mult = player.submerged ? 2.5 : player.dashT > 0 ? 1.5 : 1;
+        const r = fauna.strike(player, 'bite', mult);
+        if (player.submerged) player.submerged = false;
+        if (r && r.eat) hud.say(`You eat. +${Math.round(r.eat)} hunger`);
+        else if (r && r.ambush && !r.c.dead) hud.say(`Ambush! The ${r.c.species} never saw you coming.`);
+        else if (r && r.hit && !r.c.dead) hud.say(`You bite the ${r.c.species}.`);
+        else if (!r) {
+            const h = player.headPos();
+            const f = ambient.fishNear(h.x, h.y, h.z, player.reach * 0.9, true);
+            if (f) {
+                player.eat(5);
+                ambient.splash(f.x, player.waterY ?? f.y, f.z, 14, 0.9);
+                water.ripple(f.x, f.z, time, 1.4);
+                hud.say('You snap up a fish. +5 hunger');
+            } else if (player.inWater) {
+                ambient.splash(h.x, player.waterY ?? h.y, h.z, 10, 0.8);
+                water.ripple(h.x, h.z, time, 1.2);
+            }
+        }
+    }
+    if (id === 'claw') {
+        const r = fauna.strike(player, 'claw', player.dashT > 0 ? 1.3 : 1);
+        if (r && r.hit && r.c.dead) hud.say(`Your claws bring down the ${r.c.species}.`);
+        else if (!r) hud.say('Your claws rake the air.');
+    }
+    if (id === 'dash' && player.swimming) ambient.splash(player.pos.x, player.waterY, player.pos.z, 20, 1.2);
+    if (id === 'sniff') hud.say('You taste the air. Scents drift in…');
+    if (id === 'display') {
+        const r = fauna.display(player);
+        if (r.angered) hud.say(`The ${r.angered.species} takes it as a challenge!`);
+        else if (r.fled) hud.say(r.fled > 1 ? `Your sail sends ${r.fled} animals running.` : 'Your sail sends an animal running.');
+        else hud.say('You flush your sail. Nothing here is impressed.');
+    }
+};
 
 let started = false;
 const start = () => {
@@ -111,21 +171,19 @@ const frame = () => {
         hud.ready(start);
     }
     if (started && !loading) {
-        player.update(dt, time, input);
-        if (input.biteQueued) {
-            input.biteQueued = false;
-            if (player.bite()) {
-                const r = fauna.bite(player);
-                if (r && r.eat) hud.say(`You eat. +${Math.round(r.eat)} hunger`);
-                else if (r && r.hit && !r.c.dead) hud.say(`You bite the ${r.c.species}.`);
-            }
-        }
+        const threat = fauna.list.some((c) => !c.dead && c.predator && c.data.weight > 300 && (c.state === 'attack' || c.pos.distanceTo(player.pos) < 45));
+        player.update(dt, time, input, threat);
+        for (const id of input.queue) act(id);
+        input.queue.length = 0;
         fauna.update(dt, time, player, sky.isNight ? 3 : sky.dayFraction < 0.32 ? 0 : sky.dayFraction > 0.7 ? 2 : 1);
-        sky.update(dt, player.pos, camera);
+        // resting lets the day run on quickly
+        sky.update(dt * (player.resting ? 12 : 1), player.pos, camera);
         if (player.dead && !player.deathShown) {
             player.deathShown = true;
             document.exitPointerLock?.();
-            const why = player.lastHurtBy === 'hunger' ? 'You starved. Spinosaurus needed a lot of fish.' : `The ${player.lastHurtBy} got the better of you.`;
+            const why = player.lastHurtBy === 'hunger' ? 'You starved. Spinosaurus needed a lot of fish.'
+                : player.lastHurtBy === 'thirst' ? 'You died of thirst, in a land of rivers.'
+                    : `The ${player.lastHurtBy} got the better of you.`;
             hud.dead(why, () => location.reload());
         }
     } else {
@@ -134,12 +192,13 @@ const frame = () => {
     }
     player.updateCamera(camera, dt, input);
     input.dx = 0; input.dy = 0; input.wheel = 0;
-    water.update(time);
+    water.update(time, 1 - sky.night);
+    ambient.update(dt, time, player, sky.night || 0);
 
     const target = fauna.looking(camera) || null;
     const cell = world.cellAt(player.pos.x, player.pos.z);
     const under = camera.position.y < (world.surface(camera.position.x, camera.position.z).water ?? -99) ? 1 : 0;
-    hud.update(player, sky, target, cell ? (TERRAIN_TYPES[cell.terrain]?.name ?? '') + (player.swimming ? ' · swimming' : '') : '');
+    hud.update(player, sky, target, cell ? (TERRAIN_TYPES[cell.terrain]?.name ?? '') + (player.swimming ? ' · swimming' : '') : '', fauna, camera);
     fx.render(dt, { hurt: player.hurtT, under });
     requestAnimationFrame(frame);
 };
@@ -152,10 +211,13 @@ const warp = (secs, keys = {}) => {
         time += 1 / 30;
         terrain.update(player.pos.x, player.pos.z, 1, time);
         player.update(1 / 30, time, input);
+        for (const id of input.queue) act(id);
+        input.queue.length = 0;
         fauna.update(1 / 30, time, player, 1);
+        ambient.update(1 / 30, time, player, 0);
         sky.update(1 / 30, player.pos, camera);
     }
     input.keys = k;
     terrain.rebuildFlora(player.pos.x, player.pos.z);
 };
-window.roam = { world, terrain, player: () => player, fauna, sky, camera, start, input, renderer, warp };
+window.roam = { world, terrain, player: () => player, fauna, ambient, water, sky, camera, start, input, renderer, warp, act };
