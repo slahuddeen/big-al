@@ -16,11 +16,28 @@ Play it here: https://slahuddeen.github.io/big-al/spino-roam/
     * **Rest (hold Z):** heal while the day runs twelve times faster. Not possible with hunters about.
     * **Needs:** hunger and thirst fall all the time.
 * **The world:** the same Voronoi world generator as Spino, at 20 m per map unit, so each cell is about 45 m across and the basin about 2 × 1.8 km. Cells keep their biomes and terrace levels; the steps between levels become slopes you can walk. Rivers are carved as channels deep enough to swim, with rapids where they drop a terrace, and the sea and lakes fill their basins. About 300 ponds and pools lie in the marshes, waterholes, floodplains, woods and grassland. Each is a lobed basin with lily pads, reeds and sedge round its shore. Near the player the ground is drawn every 2 m with fine relief, further off every 4 and then 8 m.
-* **Plants at real scale:**
-    * **Trees:** giant emergent conifers up to 60 m, broadleaf giants hung with vines in the gallery forests, conifers and monkey-puzzle relatives, ginkgos, tree ferns and cycads.
-    * **Undergrowth:** ferns with real leaflets, sedges, early flowering herbs in six colours, horsetails, termite mounds and weathered sauropod bones.
-    * **Variety:** every plant is tinted a little differently, yellower in dry country and deeper in the wet.
-    * **Ground:** a shader paints soil and grass mottling, pebbles, tiny flowers, grass strokes and rock strata on steep slopes.
+* **Forests in layers:** forests are built like real ones, with several layers in turn:
+    * **Emergent giants:** conifers up to 60 m, and broadleaf giants with buttress roots.
+    * **Canopy:** a closed canopy of conifers, moss-hung conifers and broadleaf trees with lianas.
+    * **Sub-canopy:** ginkgos.
+    * **Understory:** tree ferns, fern clumps, cycads and dense thickets.
+    * **Forest floor:** ferns, shaded and strewn with fallen leaves.
+
+    Each forest type has its own mix:
+    * **Gallery forests:** moss curtains and vines.
+    * **Weichselia brakes:** a low sea of fern.
+    * **Tree-fern thickets:** tree ferns of every height.
+    * **Mangroves:** stilt roots.
+    * **Marshes:** reeds and dead snags.
+
+    Beyond about 230 m a forest is drawn as a blanket of lumpy crowns, so distant woods read as solid walls. Elsewhere there are sedges, early flowering herbs, horsetails, reeds, lily pads, termite mounds and weathered sauropod bones. Every plant is tinted a little differently, yellower in dry country and darker under the canopy.
+* **Ground cover:** within about 55 m of Spino a clump grows every couple of metres, rebuilt as you move:
+    * **Open country:** grass and sedge.
+    * **Forest floor:** fern sprigs.
+    * **Wet ground:** horsetails.
+    * **Bare rock:** pebbles.
+* **Ground:** a shader paints soil and grass mottling, pebbles, tiny flowers, grass strokes, wind ripples in sand, sun-cracked mud round waterholes, leaf litter on forest floors, and rock strata on steep slopes.
+* **Pen strokes, after Ricardo Delgado's Age of Reptiles:** scalloped marks over the leaves, broken lines down the bark, and wrinkle lines and scale stipple on every animal's hide. All of them are thicker on the shaded side.
 * **Animals at real scale:** the Spino game's animals, sized from their weight (or their recorded length for the giants).
     * **Herds:** plant-eaters move in herds that stay together, graze, wander down to the water to drink, and bolt together.
     * **Predators:** big predators warn you, then stalk and bite.
@@ -31,13 +48,22 @@ Play it here: https://slahuddeen.github.io/big-al/spino-roam/
     * **Overhead:** flocks of little pterosaurs and birds wheel in the sky.
     * **At night:** fireflies come out.
     * **Water:** splashes and ripples spread from anything moving through it.
-* **A day lasts ten minutes:** sunrise, a sun that crosses the sky, an orange sunset, then stars and moonlight until dawn. Flat comic clouds drift over and catch the sunset. Fog takes the horizon's colour.
+* **A day lasts ten minutes:** sunrise, a sun that crosses the sky, an orange sunset, then stars and moonlight until dawn. Flat comic clouds drift over and catch the sunset.
+* **Atmosphere:** the comic pass rebuilds each pixel's position from the depth buffer and adds distance haze and height fog. The far land fades in a few soft steps, like the paler planes of a printed landscape, and the haze glows towards the sun. Mist lies thick in the valleys at dawn, thins through the day and gathers again at dusk and at night. Banks of mist drift over the rivers and ponds.
+* **Soundscape:** everything is synthesised with WebAudio, nothing is loaded:
+    * **Beds:** wind, leaf rustle and river water, rising and falling with where you are.
+    * **Insects:** a cicada chorus by day and crickets at night.
+    * **Animal voices:** frogs near water, birds and pterosaurs, and calls from the real animals nearby, panned to where they stand: sauropod hoots, iguanodont honks, the growls of big hunters, crocodile bellows.
+    * **Spino:** footfalls, splashes, bites, the claw and the roar of the sail display.
+    * **Underwater:** sound is muffled while you are submerged.
+    * **Mute:** M turns the sound off.
+* **Quality:** add `?q=low` to the address for half the plants and a smaller patch of ground cover.
 * **Comic look:**
     * **Ink lines:** one pixel wide and solid, found on inverse depth so the ground doesn't fill with lines. Thin ink outlines go round the animals.
     * **Colour:** flat tone bands, pen hatching in the deepest shadow, extra vibrance on dull colours and a warm paper tint.
 * **Spino up close:** finer bodies and real reptile eyes (a gold iris with a slit pupil under a brow ridge) for every animal, and extra detail and pale skin flecks on the player.
 
-Code: `src/roam/` (world sampling and ponds, terrain chunks, plants and the ground shader, water, sky, comic pass, player and abilities, wildlife, small life, HUD). Add `?seed=77` for another world. In the console, `roam.warp(10)` runs the world ten seconds forward.
+Code: `src/roam/` (world sampling and ponds, terrain chunks, forest layers and the canopy blanket, plants, ground cover, ground and stroke shaders, water and mist, sky and atmosphere, comic pass, player and abilities, wildlife, small life, soundscape, HUD). Add `?seed=77` for another world. In the console, `roam.warp(10)` runs the world ten seconds forward.
 
 The turn-based Spino game is on `claude/spino-kemkem`.
 

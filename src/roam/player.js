@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { buildSpino, CREATURE_STYLE } from '../three/creatures3d.js';
 import { addOutlines } from '../three/outline.js';
 import { animateModel } from '../three/animation.js';
+import { addCreatureInk } from './materials.js';
 
 const WALK = 5.5, SPRINT = 11, SWIM = 8, SWIM_SPRINT = 13, DASH = 24, DASH_SWIM = 21;
 const DEEP = 2.6; // water deeper than this is swum, not waded
@@ -36,7 +37,7 @@ export class Player {
         CREATURE_STYLE.detail = d;
         addOutlines(this.model.root, ctx.outline, (m) => m.material === ctx.wingMat);
         // its own copy of the material, so the sail can flush and a wound can flash
-        this.mat = ctx.mat.clone();
+        this.mat = addCreatureInk(ctx.mat.clone());
         this.model.root.traverse((o) => { if (o.isMesh && o.material === ctx.mat) o.material = this.mat; });
         this.model.seed = 7;
         this.len = 9.5;
@@ -195,6 +196,7 @@ export class Player {
         if (this.fx) {
             if (this.swimming && !wasSwimming && this.speed > 2) {
                 this.fx.ambient.splash(this.pos.x, s.water, this.pos.z, 28, 1.4);
+                this.fx.sound?.event('splash', { size: 1.4 });
                 this.fx.water.ripple(this.pos.x, this.pos.z, time, 2);
             }
             if (this.inWater) {
@@ -233,7 +235,11 @@ export class Player {
         const drain = this.resting ? 2.2 : 1;
         this.hunger = Math.max(0, this.hunger - dt * (0.3 + (canSprint ? 0.3 : 0)) * drain);
         this.thirst = Math.max(0, this.thirst - dt * (0.26 + (canSprint ? 0.3 : 0)) * drain);
-        if (this.drinking) this.thirst = Math.min(100, this.thirst + dt * 14);
+        if (this.drinking) {
+            this.thirst = Math.min(100, this.thirst + dt * 14);
+            this.lapT = (this.lapT || 0) - dt;
+            if (this.lapT <= 0) { this.lapT = 0.45; this.fx?.sound?.event('drink'); this.fx?.water.ripple(head.x, head.z, time, 0.5); }
+        }
         if (this.submerged) {
             this.breath -= dt * 4;
             if (this.breath <= 0) { this.breath = 0; this.submerged = false; this.onEvent?.('breath'); }

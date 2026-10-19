@@ -197,3 +197,116 @@ export const giantBroadleaf = (mb, rand) => {
         }
     });
 };
+
+// beard moss: thin tapering strands hanging from a point
+const mossStrand = (mb, x, y, z, len, rand, color = '#a8b47a') => {
+    const w = 0.012 + rand() * 0.01;
+    const sway = (rand() - 0.5) * 0.03;
+    const c = vary(color, rand, 0.12);
+    mb.tri([x - w, y, z], [x + w, y, z], [x + sway, y - len, z + sway * 0.5], c, [0, 0, 1], true);
+    mb.tri([x, y, z - w], [x, y, z + w], [x + sway, y - len, z + sway * 0.5], shade(c, 0.9), [1, 0, 0], true);
+};
+
+// a riverside conifer draped in moss: tiers of drooping boughs, curtains hanging from each
+export const mossConifer = (mb, rand) => {
+    const bark = '#5e3e24';
+    loft(mb, [{ p: [0, -0.01, 0], r: 0.04 }, { p: [0, 0.08, 0], r: 0.026 }, { p: [0, 0.6, 0], r: 0.016 }, { p: [0, 1, 0], r: 0.006 }],
+        { sides: 6, color: bark, ridgeColor: shade(bark, 1.18), rand, jitter: 0.12 });
+    swaying(mb, 1, () => {
+        const greens = ['#2c5e30', '#33693a', '#3a7440', '#2a5630'];
+        const tiers = 5;
+        for (let t = 0; t < tiers; t++) {
+            const y = 0.3 + (t / tiers) * 0.62;
+            const r = 0.24 * (1 - t / tiers) + 0.06;
+            const k = 3 + Math.floor(rand() * 2);
+            for (let j = 0; j < k; j++) {
+                const a = (j / k) * Math.PI * 2 + rand() * 0.8 + t * 1.3;
+                const ex = Math.cos(a) * r, ez = Math.sin(a) * r;
+                const g = greens[(t + j) % 4];
+                limb(mb, [0, y + 0.02, 0], [ex, y - 0.03, ez], 0.008, 0.004, bark, { sides: 3 });
+                blob(mb, [ex * 0.8, y - 0.01, ez * 0.8], r * 0.55, g, { scale: [1.3, 0.55, 1.3], jitter: 0.35, rand, colorFn: (ly) => (ly > 0.2 ? shade(g, 1.2) : shade(g, 0.85)) });
+                for (let m = 0; m < 3; m++) {
+                    const f = 0.5 + rand() * 0.5;
+                    mossStrand(mb, ex * f, y - 0.02, ez * f, 0.06 + rand() * 0.12, rand);
+                }
+            }
+        }
+        blob(mb, [0, 0.98, 0], 0.045, greens[1], { scale: [1, 1.6, 1], jitter: 0.3, rand });
+    });
+};
+
+// a canopy broadleaf of the gallery forests: a forked trunk, three or four rounded crowns,
+// lianas looping down and moss on the limbs
+export const canopyBroadleaf = (mb, rand) => {
+    const bark = '#6e5236';
+    const fork = [(rand() - 0.5) * 0.06, 0.5, (rand() - 0.5) * 0.06];
+    loft(mb, [{ p: [0, -0.01, 0], r: 0.05 }, { p: [0, 0.07, 0], r: 0.03 }, { p: fork, r: 0.024 }], { sides: 6, color: bark, ridgeColor: shade(bark, 1.15), rand, jitter: 0.15 });
+    for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + rand();
+        limb(mb, [0, 0.07, 0], [Math.cos(a) * 0.07, -0.005, Math.sin(a) * 0.07], 0.016, 0.005, shade(bark, 0.9), { sides: 3 });
+    }
+    const n = 3 + Math.floor(rand() * 2);
+    const ends = [];
+    for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + rand() * 0.8;
+        const e = [fork[0] + Math.cos(a) * 0.2, 0.72 + rand() * 0.12, fork[2] + Math.sin(a) * 0.2];
+        limb(mb, fork, e, 0.016, 0.008, bark, { sides: 4 });
+        ends.push(e);
+    }
+    swaying(mb, 1, () => {
+        const greens = ['#3f8a36', '#4a9a3c', '#357a30', '#56a642'];
+        ends.forEach((e, i) => {
+            const g = greens[i % 4];
+            blob(mb, [e[0], e[1] + 0.06, e[2]], 0.16 + rand() * 0.05, g, { scale: [1.25, 0.62, 1.25], jitter: 0.4, rand, colorFn: (ly) => (ly > 0.3 ? shade(g, 1.15) : ly < -0.3 ? shade(g, 0.75) : g) });
+            for (let m = 0; m < 4; m++) mossStrand(mb, e[0] + (rand() - 0.5) * 0.2, e[1] - 0.02, e[2] + (rand() - 0.5) * 0.2, 0.08 + rand() * 0.14, rand, '#9aac6a');
+        });
+        blob(mb, [fork[0], 0.95, fork[2]], 0.17, greens[3], { scale: [1.2, 0.5, 1.2], jitter: 0.4, rand });
+        // lianas: loops from crown to crown and down towards the ground
+        for (let i = 0; i < 3; i++) {
+            const e = ends[i % ends.length];
+            const lx = e[0] * 1.2 + (rand() - 0.5) * 0.1, lz = e[2] * 1.2 + (rand() - 0.5) * 0.1;
+            limb(mb, [e[0], e[1], e[2]], [lx, e[1] - 0.25 - rand() * 0.3, lz], 0.004, 0.003, '#4a5a2a', { sides: 3 });
+        }
+    });
+};
+
+// a tall fern-palm (Weichselia-like) clump: several stems, each crowned with fronds
+export const fernClump = (mb, rand) => {
+    const n = 3 + Math.floor(rand() * 3);
+    for (let i = 0; i < n; i++) {
+        const a = rand() * Math.PI * 2, r = rand() * 0.25;
+        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        const h = 0.45 + rand() * 0.45;
+        limb(mb, [x, 0, z], [x + (rand() - 0.5) * 0.1, h, z + (rand() - 0.5) * 0.1], 0.025, 0.015, '#4a3a22', { sides: 4 });
+        swaying(mb, 1, () => {
+            const fr = 6;
+            for (let k = 0; k < fr; k++) {
+                const fa = (k / fr) * Math.PI * 2 + rand() * 0.4;
+                const len = 0.35 + rand() * 0.15;
+                const c = vary('#3e8a30', rand, 0.12);
+                const dx = Math.cos(fa), dz = Math.sin(fa);
+                const p0 = [x, h, z], p1 = [x + dx * len * 0.5, h + 0.08, z + dz * len * 0.5], p2 = [x + dx * len, h - 0.12, z + dz * len];
+                const w = 0.06;
+                mb.quad(p0, [p1[0] - dz * w, p1[1], p1[2] + dx * w], p2, [p1[0] + dz * w, p1[1], p1[2] - dx * w], c, [0, 1, 0], true);
+            }
+        });
+    }
+};
+
+// a thicket: a mound of rounded shrub masses, the mid-storey wall of a forest
+export const thicket = (mb, rand) => {
+    const greens = ['#3a7a32', '#46883a', '#2f6a2e', '#52923e'];
+    swaying(mb, 1.4, () => {
+        const n = 4 + Math.floor(rand() * 3);
+        for (let i = 0; i < n; i++) {
+            const a = rand() * Math.PI * 2, r = rand() * 0.35;
+            const g = greens[i % 4];
+            const y = 0.25 + rand() * 0.45;
+            blob(mb, [Math.cos(a) * r, y, Math.sin(a) * r], 0.28 + rand() * 0.14, g, { scale: [1.15, 0.9, 1.15], jitter: 0.45, rand, colorFn: (ly) => (ly > 0.3 ? shade(g, 1.15) : ly < -0.3 ? shade(g, 0.72) : g) });
+        }
+    });
+    for (let i = 0; i < 3; i++) {
+        const a = rand() * Math.PI * 2;
+        limb(mb, [Math.cos(a) * 0.1, 0, Math.sin(a) * 0.1], [Math.cos(a) * 0.15, 0.3, Math.sin(a) * 0.15], 0.02, 0.01, '#4a3a24', { sides: 3 });
+    }
+};

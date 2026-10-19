@@ -68,6 +68,39 @@ const waterMaterial = () => {
     return mat;
 };
 
+const mistMaterial = () => new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    uniforms: { uTime: { value: 0 }, uMist: { value: 0.3 }, uCol: { value: new THREE.Color('#eef4f4') }, uLayer: { value: 0 } },
+    vertexShader: /* glsl */`
+        attribute vec2 aFlow;
+        varying vec2 vFlow;
+        varying vec3 vW;
+        void main() {
+            vFlow = aFlow;
+            vec4 w = modelMatrix * vec4(position, 1.0);
+            vW = w.xyz;
+            gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+    fragmentShader: /* glsl */`
+        uniform float uTime, uMist, uLayer;
+        uniform vec3 uCol;
+        varying vec2 vFlow;
+        varying vec3 vW;
+        float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float n(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+            return mix(mix(h(i), h(i + vec2(1.0, 0.0)), u.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), u.x), u.y); }
+        void main() {
+            vec2 p = vW.xz * (0.035 - uLayer * 0.012) + vec2(uTime * 0.018, uTime * 0.007) * (1.0 + uLayer);
+            float v = n(p) * 0.6 + n(p * 2.3 + 4.1) * 0.3 + n(p * 5.1) * 0.1;
+            // flat banks of mist with soft edges, thinning towards the shore
+            float a = smoothstep(0.4 + uLayer * 0.08, 0.62, v) * smoothstep(0.0, 0.35, vFlow.y + 0.15);
+            float d = length(vW - cameraPosition);
+            a *= uMist * (0.55 - uLayer * 0.2) * smoothstep(3.0, 25.0, d);
+            if (a < 0.01) discard;
+            gl_FragColor = vec4(uCol, a);
+        }`
+});
+
 export class Water {
     constructor(world, scene) {
         this.mat = waterMaterial();
@@ -169,6 +202,17 @@ export class Water {
         m.frustumCulled = false;
         scene.add(m);
         this.meshes = [m];
+        // mist: two drifting sheets over all the water, thick at dawn and in the night
+        this.mistMat = mistMaterial();
+        this.mists = [1.3, 3.6].map((h, i) => {
+            const mm = new THREE.Mesh(all, this.mistMat.clone());
+            mm.material.uniforms = { ...this.mistMat.uniforms, uLayer: { value: i } };
+            mm.position.y = h;
+            mm.renderOrder = 2 + i;
+            mm.frustumCulled = false;
+            scene.add(mm);
+            return mm;
+        });
     }
 
     // a ring spreading out from (x, z); strength 0..2 sets its size
@@ -178,8 +222,11 @@ export class Water {
         r[this.ripI].set(x, z, time, strength);
     }
 
-    update(time, sun = 1) {
+    update(time, sun = 1, mist = 0.3, mistCol = null) {
         this.mat.userData.uTime.value = time;
         this.mat.userData.uSun.value = sun;
+        this.mistMat.uniforms.uTime.value = time;
+        this.mistMat.uniforms.uMist.value = mist;
+        if (mistCol) this.mistMat.uniforms.uCol.value.copy(mistCol);
     }
 }

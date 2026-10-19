@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { buildCreatureModel } from '../three/creatures3d.js';
 import { addOutlines } from '../three/outline.js';
 import { animateModel } from '../three/animation.js';
+import { addCreatureInk } from './materials.js';
 import { SPECIES_DATA, HABITAT_SPECIES, GROUP_SIZE, FLYERS, AQUATIC, SEMI_AQUATIC, TOUGHNESS, BODY_LENGTH_M, activityFactor } from '../data/species.js';
 
 const MIN_WEIGHT = 8; // anything smaller is too small to notice at this scale (water life aside)
@@ -43,7 +44,7 @@ const instantiate = (species, ctx) => {
     const root = t.root.clone(true);
     const resolve = (obj) => (obj ? pathOf(obj).reduce((o, i) => o.children[i], root) : null);
     const P = t.parts;
-    const mat = ctx.mat.clone();
+    const mat = addCreatureInk(ctx.mat.clone());
     root.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.material === ctx.mat) o.material = mat; } });
     return {
         root, mat, gait: t.gait, flapSpeed: t.flapSpeed, height: t.height,

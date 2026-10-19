@@ -70,6 +70,8 @@ const skyMaterial = () => new THREE.ShaderMaterial({
             vec3 q = floor(d * 260.0);
             float st = step(0.9965, hash(q)) * smoothstep(0.02, 0.2, d.y);
             c += vec3(0.85, 0.9, 1.0) * st * uNight * (0.6 + 0.4 * hash(q + 3.1));
+            // a band of haze just over the horizon, where the far land fades into it
+            c = mix(c, uHorizon, (1.0 - smoothstep(0.0, 0.16, d.y)) * 0.55);
             // below the horizon: the haze colour
             c = mix(c, uHorizon, smoothstep(0.02, -0.12, d.y));
             gl_FragColor = vec4(c, 1.0);
@@ -86,7 +88,7 @@ export class Sky {
         this.sun = new THREE.DirectionalLight('#fff0d8', 2.4);
         this.sun.castShadow = true;
         this.sun.shadow.mapSize.set(2048, 2048);
-        const S = 70;
+        const S = 95;
         Object.assign(this.sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 10, far: 600 });
         this.sun.shadow.bias = -0.0006;
         this.sun.shadow.normalBias = 0.6;
@@ -94,8 +96,10 @@ export class Sky {
         scene.add(this.sun.target);
         this.hemi = new THREE.HemisphereLight('#dcefff', '#806e4a', 1.0);
         scene.add(this.hemi);
-        scene.fog = new THREE.Fog('#cfe6f2', 200, 950);
+        // the haze is drawn by the comic pass from the depth buffer, so no scene fog
+        scene.fog = null;
         this.scene = scene;
+        this.atmosphere = { haze: new THREE.Color(), sunCol: new THREE.Color(), sunDir: new THREE.Vector3(), density: 1 / 1400, hDensity: 0.004, hBase: 10, glow: 1, mist: 0.3 };
         this.top = new THREE.Color();
         this.horizon = new THREE.Color();
         this.sunDir = new THREE.Vector3();
@@ -136,14 +140,29 @@ export class Sky {
         const lightDir = e > -0.05 ? this.sunDir : this.sunDir.clone().negate();
         this.sun.color.copy(A.sun).lerp(B.sun, k);
         this.sun.intensity = A.sunI + (B.sunI - A.sunI) * k;
-        this.sun.position.copy(focus).addScaledVector(lightDir, 300);
-        this.sun.target.position.copy(focus);
+        // the shadow box sits ahead of the camera, where the eye is, so its edge stays out of sight
+        camera.getWorldDirection(this.fwd || (this.fwd = new THREE.Vector3()));
+        const f = (this.focus || (this.focus = new THREE.Vector3())).copy(focus);
+        f.x += this.fwd.x * 55; f.z += this.fwd.z * 55;
+        this.sun.position.copy(f).addScaledVector(lightDir, 300);
+        this.sun.target.position.copy(f);
         this.hemi.color.copy(A.ambSky).lerp(B.ambSky, k);
         this.hemi.groundColor.copy(A.ambGround).lerp(B.ambGround, k);
         this.hemi.intensity = A.amb + (B.amb - A.amb) * k;
-        this.scene.fog.color.copy(this.horizon);
-        this.scene.fog.near = 160 + (1 - night) * 140;
-        this.scene.fog.far = 560 + (1 - night) * 640;
+        // atmosphere: haze in the horizon's colour; mist lies thick in the valleys at dawn,
+        // thins through the day and gathers again at dusk and through the night
+        const t2 = this.dayFraction;
+        const dawn = Math.max(0, 1 - Math.abs(t2 - 0.27) / 0.08);
+        const dusk = Math.max(0, 1 - Math.abs(t2 - 0.77) / 0.07);
+        const At = this.atmosphere;
+        At.haze.copy(this.horizon).lerp(col('#eef0ea'), (1 - night) * (0.25 + dawn * 0.3));
+        At.sunCol.copy(u.uSunCol.value);
+        At.sunDir.copy(this.sunDir);
+        At.density = 1 / (1600 - night * 700 - dawn * 400);
+        At.hDensity = 0.0015 + dawn * 0.0055 + dusk * 0.002 + night * 0.003;
+        At.hBase = (this.seaLevel ?? 2.4) + 10 + dawn * 6;
+        At.glow = 1 - night;
+        At.mist = Math.min(1, 0.22 + dawn * 0.8 + dusk * 0.3 + night * 0.4);
         this.night = night;
     }
 

@@ -9,14 +9,35 @@
 import * as THREE from 'three';
 import { MeshBuilder, mulberry32 } from '../three/lowpoly.js';
 import { FLORA, STYLE, PATCHES } from '../three/cells3d.js';
-import { leafyFern, flowers, sedge, reeds, lilyPads, giantConifer, giantBroadleaf } from './plants.js';
-import { createGroundMaterial } from './materials.js';
+import { leafyFern, flowers, sedge, reeds, lilyPads, giantConifer, giantBroadleaf, mossConifer, canopyBroadleaf, fernClump, thicket } from './plants.js';
+import { createGroundMaterial, createFoliageMaterial, createCanopyMaterial } from './materials.js';
 
+// ?q=low halves the plants for slower machines
+const LOW = typeof location !== 'undefined' && new URLSearchParams(location.search).get('q') === 'low';
 export const CHUNK = 128;
 const STEP = 4; // world samples
 const VIEW = 720; // how far chunks are kept
 const NEAR_KINDS = 200; // small plants are only drawn this close
 const LOD_NEAR = 230, LOD_FAR = 470;
+const CANOPY_NEAR = 230; // beyond this, forest trees give way to the canopy blanket
+const CSTEP = 8; // canopy blanket spacing
+
+// forests seen from afar: a blanket of crowns at the canopy's height (metres above the ground)
+const CANOPY = { forest: 27, galleryforest: 29, denseforest: 6, jungle: 11, mangrove: 9 };
+const CANOPY_GREENS = {
+    forest: ['#2c5a2a', '#346632', '#3c7236', '#2a5230', '#46783a'],
+    galleryforest: ['#356e30', '#3f7c36', '#4a8a3c', '#2e6030', '#5a8e40'],
+    denseforest: ['#3c7a30', '#468a36', '#52963c', '#386e2e', '#5c9a44'],
+    jungle: ['#3a7a34', '#44883a', '#4e9440', '#346a30', '#62a048'],
+    mangrove: ['#3e6a3a', '#48743e', '#526e40', '#3a5e36', '#5e7a46']
+};
+// ground kinds for the ground shader: 1 sand, 2 mud, 3 forest floor, 4 bare rock
+const KIND = {
+    beach: 1, sea: 1, riverbank: 1, nest: 1, stream: 1, desert: 1, lake: 1,
+    waterhole: 2, dryriverbed: 2, quicksand: 2, sauropodgrounds: 2,
+    forest: 3, galleryforest: 3, denseforest: 3, jungle: 3, mangrove: 3, deadfall: 3,
+    rocky: 4, boulderfield: 4, mountains: 4, badlands: 4, mesa: 4
+};
 
 // ---------- plant prototypes (built one unit tall, scaled per instance) ----------
 // h: height range in metres; trunk: trunk radius as a fraction of the height (collisions);
@@ -26,9 +47,13 @@ const PROTOS = {
     darkConifer: { build: (mb, r) => FLORA.conifer(mb, 0, 0, 0, 1, r, { dark: true }), h: [24, 36], trunk: 0.028, far: true },
     araucaria: { build: (mb, r) => FLORA.araucaria(mb, 0, 0, 0, 1, r), h: [26, 38], trunk: 0.022, far: true },
     giantConifer: { build: (mb, r) => giantConifer(mb, r), h: [44, 60], trunk: 0.03, far: true },
-    giantBroadleaf: { build: (mb, r) => giantBroadleaf(mb, r), h: [26, 38], trunk: 0.045, far: true },
+    giantBroadleaf: { wide: 1.3, build: (mb, r) => giantBroadleaf(mb, r), h: [26, 38], trunk: 0.045, far: true },
+    mossConifer: { build: (mb, r) => mossConifer(mb, r), h: [24, 36], trunk: 0.026, far: true },
+    canopyBroadleaf: { wide: 1.35, build: (mb, r) => canopyBroadleaf(mb, r), h: [18, 28], trunk: 0.05, far: true },
+    fernClump: { build: (mb, r) => fernClump(mb, r), h: [4, 7], range: 200 },
+    thicket: { build: (mb, r) => thicket(mb, r), h: [4, 8], far: true },
     ginkgo: { build: (mb, r) => FLORA.ginkgo(mb, 0, 0, 0, 1, r), h: [12, 20], trunk: 0.04, far: true },
-    gallery: { build: (mb, r) => FLORA.galleryTree(mb, 0, 0, 0, 1, r, [(r() - 0.5) * 0.3, (r() - 0.5) * 0.3]), h: [20, 30], trunk: 0.05, far: true },
+    gallery: { wide: 1.3, build: (mb, r) => FLORA.galleryTree(mb, 0, 0, 0, 1, r, [(r() - 0.5) * 0.3, (r() - 0.5) * 0.3]), h: [20, 30], trunk: 0.05, far: true },
     umbrella: { build: (mb, r) => FLORA.umbrellaTree(mb, 0, 0, 0, 1, r), h: [9, 14], trunk: 0.04, far: true },
     mangrove: { build: (mb, r) => FLORA.mangroveTree(mb, 0, 0, 0, 1, r), h: [8, 12], trunk: 0.03, far: true },
     dead: { build: (mb, r) => FLORA.deadTree(mb, 0, 0, 0, 1, r), h: [10, 16], trunk: 0.04, far: true },
@@ -53,36 +78,39 @@ const PROTOS = {
 const VARIANTS = 3;
 
 // plants per hectare in each biome
+// Forests are built in layers, as in a real one: emergent giants over a closed canopy,
+// a sub-canopy of small trees, an understory of tree ferns, cycads and shrubs, then ferns
+// and litter on the floor.
 const DENSITY = {
-    forest: { conifer: 30, araucaria: 7, giantConifer: 2.5, ginkgo: 4, fern: 260, sedge: 40, flowers: 25, treeFern: 8, log: 3, rock: 2 },
-    galleryforest: { gallery: 22, giantBroadleaf: 4, darkConifer: 8, ginkgo: 3, fern: 200, horsetails: 40, treeFern: 10, sedge: 50, log: 2 },
-    denseforest: { bigFern: 800, fern: 380, darkConifer: 5, giantConifer: 4, treeFern: 18 },
-    jungle: { treeFern: 110, cycad: 30, ginkgo: 6, giantBroadleaf: 3, fern: 480, bigFern: 100, flowers: 30 },
-    openwoods: { conifer: 8, ginkgo: 5, cycad: 14, fern: 200, tuft: 100, sedge: 60, flowers: 70, termite: 1 },
-    deadfall: { log: 22, dead: 8, fern: 160, conifer: 4, sedge: 40 },
-    plains: { fern: 140, tuft: 260, sedge: 120, flowers: 90, cycad: 3, rock: 3, termite: 1.5, bones: 0.3 },
-    fernprairie: { fern: 600, tuft: 140, flowers: 110, sedge: 60, cycad: 5 },
-    floodplain: { tuft: 360, sedge: 160, horsetails: 80, reeds: 30, fern: 100, flowers: 60, gallery: 1 },
-    savanna: { umbrella: 4, tuft: 360, sedge: 80, bush: 12, flowers: 25, termite: 3, bones: 0.4 },
-    scrubland: { bush: 70, tuft: 200, sedge: 40, cycad: 4, termite: 3 },
+    forest: { thicket: 35, giantConifer: 3, conifer: 52, araucaria: 10, ginkgo: 12, treeFern: 16, cycad: 22, bush: 40, bigFern: 70, fern: 420, sedge: 50, flowers: 15, log: 6, dead: 2, rock: 2 },
+    galleryforest: { thicket: 70, giantBroadleaf: 6, gallery: 26, canopyBroadleaf: 26, mossConifer: 16, ginkgo: 10, treeFern: 32, fernClump: 20, cycad: 18, bush: 50, bigFern: 160, fern: 380, horsetails: 60, sedge: 40, log: 5 },
+    denseforest: { thicket: 30, giantConifer: 4, mossConifer: 10, treeFern: 50, fernClump: 90, bigFern: 1100, fern: 420 },
+    jungle: { thicket: 60, giantBroadleaf: 3, canopyBroadleaf: 16, ginkgo: 10, treeFern: 160, fernClump: 40, cycad: 50, bigFern: 200, fern: 520, flowers: 30 },
+    openwoods: { thicket: 10, conifer: 14, canopyBroadleaf: 6, ginkgo: 6, cycad: 18, bush: 30, fern: 220, tuft: 100, sedge: 70, flowers: 70, termite: 1 },
+    deadfall: { log: 26, dead: 12, conifer: 6, mossConifer: 3, bush: 20, fern: 200, sedge: 40 },
+    plains: { fern: 140, tuft: 260, sedge: 140, flowers: 90, cycad: 3, rock: 3, termite: 1.5, bones: 0.3 },
+    fernprairie: { fern: 700, bigFern: 40, tuft: 140, flowers: 110, sedge: 60, cycad: 6, treeFern: 2 },
+    floodplain: { tuft: 360, sedge: 180, horsetails: 90, reeds: 30, fern: 100, flowers: 60, gallery: 2, canopyBroadleaf: 1 },
+    savanna: { umbrella: 5, tuft: 380, sedge: 120, bush: 14, flowers: 25, termite: 3, bones: 0.4 },
+    scrubland: { bush: 90, tuft: 200, sedge: 50, cycad: 6, termite: 3, rock: 3 },
     sauropodgrounds: { tuft: 120, sedge: 40, flowers: 25, cycad: 3, bones: 1.5, termite: 2 },
-    marsh: { horsetails: 380, reeds: 260, fern: 180, sedge: 120, cycad: 10, treeFern: 6 },
-    mangrove: { mangrove: 45, horsetails: 90, reeds: 40 },
-    riverbank: { horsetails: 40, reeds: 70, sedge: 80, tuft: 60, log: 2 },
+    marsh: { thicket: 8, horsetails: 420, reeds: 320, fern: 160, sedge: 140, cycad: 10, treeFern: 6, dead: 5 },
+    mangrove: { thicket: 20, mangrove: 85, horsetails: 90, reeds: 60, dead: 3 },
+    riverbank: { horsetails: 40, reeds: 70, sedge: 80, tuft: 60, log: 3 },
     stream: { horsetails: 60, reeds: 50, tuft: 120, sedge: 60, gallery: 2 },
-    river: { gallery: 6, giantBroadleaf: 1, horsetails: 70, reeds: 60, tuft: 150, sedge: 80, fern: 110, flowers: 30 },
-    waterhole: { cycad: 6, tuft: 200, sedge: 80, reeds: 60, horsetails: 30, bones: 1 },
-    beach: { log: 1, tuft: 30, sedge: 20 },
-    hills: { conifer: 4, bush: 22, tuft: 200, sedge: 40, flowers: 30, rock: 14 },
-    rocky: { rock: 45, bush: 8, tuft: 40 },
-    boulderfield: { rock: 70, bush: 6 },
+    river: { gallery: 6, canopyBroadleaf: 2, giantBroadleaf: 1, horsetails: 70, reeds: 60, tuft: 150, sedge: 80, fern: 110, flowers: 30 },
+    waterhole: { cycad: 6, tuft: 200, sedge: 80, reeds: 60, horsetails: 30, bones: 1, dead: 1 },
+    beach: { log: 2, tuft: 30, sedge: 20 },
+    hills: { conifer: 5, bush: 26, tuft: 200, sedge: 40, flowers: 30, rock: 16 },
+    rocky: { rock: 50, bush: 10, tuft: 40 },
+    boulderfield: { rock: 80, bush: 6 },
     desert: { rock: 4, bush: 2, bones: 0.6 },
-    badlands: { rock: 22, bush: 3, bones: 0.5 },
-    mesa: { rock: 20 },
-    mountains: { darkConifer: 10, rock: 40, bush: 10 },
+    badlands: { rock: 26, bush: 3, bones: 0.5, dead: 1 },
+    mesa: { rock: 22 },
+    mountains: { darkConifer: 12, rock: 44, bush: 10 },
     nest: { tuft: 60, fern: 30, flowers: 20 },
-    dryriverbed: { rock: 10, dead: 2, bones: 0.5 },
-    quicksand: { dead: 2 },
+    dryriverbed: { rock: 12, dead: 3, bones: 0.5 },
+    quicksand: { dead: 3 },
     lake: {}, sea: {}
 };
 const MAXD = {};
@@ -94,12 +122,19 @@ const C = (hex) => new THREE.Color(hex);
 const SAND = C('#e2c88a'), WET = C('#7a6e4e'), ROCK = C('#8a7e70'), DIRT = C('#8a5a36'), TRAIL = C('#b08e58'), DEEP = C('#4e6a5a'), MUD = C('#6e5a3e');
 const _hsl = {};
 
+const hash2 = (x, y) => {
+    const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+    return s - Math.floor(s);
+};
+
 export class Terrain {
     constructor(world, scene, mats) {
         this.world = world;
         this.scene = scene;
         this.mats = mats;
         this.ground = createGroundMaterial();
+        this.foliage = createFoliageMaterial(mats.terrain);
+        this.canopyMat = createCanopyMaterial(CANOPY_NEAR);
         this.chunks = new Map();
         this.trunks = new Map(); // chunk key -> [{ x, z, r }]
         this.dirty = false;
@@ -156,6 +191,7 @@ export class Terrain {
             }
         }
         const H = new Float32Array(n * n), R = new Float32Array(n * n), Cc = new Float32Array(n * n * 3);
+        const K = new Float32Array(n * n), CH = new Float32Array(n * n), T = [];
         for (let j = 0; j < n; j++) {
             for (let i = 0; i < n; i++) {
                 const k = j * n + i;
@@ -166,10 +202,15 @@ export class Terrain {
                 const c = this.groundColour(x0 + i * STEP, z0 + j * STEP, S[k], ny);
                 H[k] = h;
                 R[k] = S[k].relief;
+                const sk = S[k];
+                const t = sk.cell ? sk.cell.terrain : 'sea';
+                T.push(t);
+                K[k] = sk.pond || (sk.water !== null && sk.h > sk.water - 1 && sk.h < sk.water + 0.6 && !sk.river) ? 2 : sk.river && sk.river.edge < 4 ? 1 : KIND[t] || 0;
+                CH[k] = sk.water !== null || (sk.river && sk.river.edge < 6) ? 0 : CANOPY[t] || 0;
                 Cc.set([c.r, c.g, c.b], k * 3);
             }
         }
-        return { n, H, R, C: Cc };
+        return { n, H, R, C: Cc, K, CH, T };
     }
 
     // a mesh for a chunk at a given spacing, interpolating the samples and adding fine relief
@@ -188,6 +229,7 @@ export class Terrain {
         const verts = n * n + 4 * n; // plus a skirt round the edge
         const pos = new Float32Array(verts * 3);
         const col = new Float32Array(verts * 3);
+        const kind = new Float32Array(verts);
         for (let j = 0; j < n; j++) {
             for (let i = 0; i < n; i++) {
                 const x = x0 + i * step, z = z0 + j * step;
@@ -196,6 +238,7 @@ export class Terrain {
                 const h = at(data.H, u, v) + W.micro(x, z) * at(data.R, u, v);
                 pos.set([x, h, z], k * 3);
                 col.set([at(data.C, u, v, 3, 0), at(data.C, u, v, 3, 1), at(data.C, u, v, 3, 2)], k * 3);
+                kind[k] = data.K[Math.min(sn - 1, Math.round(v)) * sn + Math.min(sn - 1, Math.round(u))];
             }
         }
         const idx = [];
@@ -221,6 +264,7 @@ export class Terrain {
                 const src = e(t);
                 pos.set([pos[src * 3], pos[src * 3 + 1] - 3, pos[src * 3 + 2]], sk * 3);
                 col.set([col[src * 3] * 0.7, col[src * 3 + 1] * 0.7, col[src * 3 + 2] * 0.7], sk * 3);
+                kind[sk] = kind[src];
                 sk++;
             }
             for (let t = 0; t < n - 1; t++) {
@@ -232,6 +276,7 @@ export class Terrain {
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
         geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        geo.setAttribute('aKind', new THREE.BufferAttribute(kind, 1));
         geo.setIndex(idx);
         geo.computeVertexNormals();
         geo.computeBoundingSphere();
@@ -250,7 +295,67 @@ export class Terrain {
         const lod = this.lodFor(cx, cz, px, pz);
         const mesh = this.meshChunk(cx, cz, data, lod);
         this.scene.add(mesh);
-        return { mesh, data, lod, flora: this.scatter(cx, cz) };
+        const canopy = this.canopyChunk(cx, cz, data);
+        if (canopy) this.scene.add(canopy);
+        return { mesh, canopy, data, lod, flora: this.scatter(cx, cz) };
+    }
+
+    // the forest roof: lumpy crowns over every forest cell, drawn only beyond the trees
+    canopyChunk(cx, cz, data) {
+        if (!data.CH.some((v) => v > 0)) return null;
+        const W = this.world;
+        const n = CHUNK / CSTEP + 1, sn = data.n, k = CSTEP / STEP;
+        const x0 = cx * CHUNK, z0 = cz * CHUNK;
+        const pos = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3);
+        const on = new Uint8Array(n * n);
+        const c = new THREE.Color();
+        for (let j = 0; j < n; j++) {
+            for (let i = 0; i < n; i++) {
+                const si = (j * k) * sn + i * k;
+                const x = x0 + i * CSTEP, z = z0 + j * CSTEP;
+                const g = data.H[si];
+                const ch = data.CH[si];
+                const q = j * n + i;
+                if (ch <= 0) { pos.set([x, g - 4, z], q * 3); col.set([0.1, 0.12, 0.08], q * 3); continue; }
+                on[q] = 1;
+                // crowns: a Voronoi of domes about ten metres across
+                const cs = ch > 15 ? 11 : 6;
+                const gx = x / cs, gz = z / cs;
+                const xi = Math.floor(gx), zi = Math.floor(gz);
+                let d1 = 9, d2 = 9, id = 0;
+                for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) {
+                    const px = xi + a + hash2(xi + a, zi + b), pz = zi + b + hash2(zi + b + 17.3, xi + a - 3.1);
+                    const d = Math.hypot(px - gx, pz - gz);
+                    if (d < d1) { d2 = d1; d1 = d; id = hash2(xi + a + 0.5, zi + b + 0.25); } else if (d < d2) d2 = d;
+                }
+                const dome = Math.sqrt(Math.max(0, 1 - (d1 / 0.8) ** 2));
+                const edge = Math.min(1, (d2 - d1) / 0.25);
+                const h = g + ch * (0.82 + 0.12 * W.noise(x / 60, z / 60)) + dome * ch * 0.2 - (1 - edge) * ch * 0.06;
+                pos.set([x, h, z], q * 3);
+                const greens = CANOPY_GREENS[data.T[si]] || CANOPY_GREENS.forest;
+                c.set(greens[Math.floor(id * greens.length) % greens.length]);
+                if (id > 0.96) c.set('#a8a04a');
+                c.multiplyScalar(0.62 + 0.38 * edge * (0.7 + 0.3 * dome));
+                col.set([c.r, c.g, c.b], q * 3);
+            }
+        }
+        const idx = [];
+        for (let j = 0; j < n - 1; j++) {
+            for (let i = 0; i < n - 1; i++) {
+                const a = j * n + i, b = a + 1, d = a + n, e = d + 1;
+                if (!(on[a] || on[b] || on[d] || on[e])) continue;
+                idx.push(a, d, b, b, d, e);
+            }
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+        geo.computeBoundingSphere();
+        const mesh = new THREE.Mesh(geo, this.canopyMat);
+        mesh.receiveShadow = true;
+        return mesh;
     }
 
     // ---------- plants ----------
@@ -285,15 +390,19 @@ export class Terrain {
         const place = (kind, x, z, y, h, rot, v, terrain) => {
             const proto = PROTOS[kind];
             q.setFromAxisAngle(up, rot);
-            const w = kind === 'log' || kind === 'lily' || kind === 'bones' ? h : h * (0.85 + rand() * 0.3);
+            const w = kind === 'log' || kind === 'lily' || kind === 'bones' ? h : h * (0.85 + rand() * 0.3) * (proto.wide || 1);
             m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(w, h, w));
             const key = `${kind}:${v}`;
-            (out[key] || (out[key] = [])).push({ m: m.clone(), c: this.tint(kind, terrain, rand) });
+            const cov = (CANOPY[terrain] || 0) > 0;
+            const tint = this.tint(kind, terrain, rand);
+            // the understory lives in the canopy's shade
+            if (cov && !proto.far) for (let t = 0; t < 3; t++) tint[t] *= 0.78;
+            (out[key] || (out[key] = [])).push({ m: m.clone(), c: tint, cov });
             if (proto.trunk) trunks.push({ x, z, r: Math.max(0.5, proto.trunk * h * 1.3) });
             else if (proto.solid) trunks.push({ x, z, r: proto.solid * h });
         };
         for (const [kind, max] of Object.entries(MAXD)) {
-            const N = Math.round(max * ha);
+            const N = Math.round(max * ha * (LOW ? 0.5 : 1));
             const proto = PROTOS[kind];
             const nv = proto.variants || VARIANTS;
             for (let i = 0; i < N; i++) {
@@ -350,6 +459,8 @@ export class Terrain {
                 for (const it of items) {
                     const d = Math.hypot(it.m.elements[12] - px, it.m.elements[14] - pz);
                     if (proto.range && d > proto.range) continue;
+                    // far into a forest the canopy blanket stands in for the trees
+                    if (it.cov && proto.far && d > CANOPY_NEAR + 20) continue;
                     // close up the detailed model, further off a cheaper one
                     const use = proto.lo && d > proto.detail ? `${proto.lo}:${pk.split(':')[1]}` : pk;
                     const k = `${use}|${d < SHADOW_R ? 'n' : 'f'}`;
@@ -365,7 +476,7 @@ export class Terrain {
                 if (inst) { this.scene.remove(inst); inst.dispose(); }
                 const [pk, band] = k.split('|');
                 const [kind, v] = pk.split(':');
-                inst = new THREE.InstancedMesh(this.protos[kind][Number(v)], this.mats.terrain, Math.ceil(items.length * 1.4) + 32);
+                inst = new THREE.InstancedMesh(this.protos[kind][Number(v)], this.foliage, Math.ceil(items.length * 1.4) + 32);
                 inst.castShadow = band === 'n' && (PROTOS[kind].far || kind === 'cycad' || kind === 'bigFern');
                 inst.receiveShadow = true;
                 inst.frustumCulled = false;
@@ -419,6 +530,7 @@ export class Terrain {
             if (Math.hypot((cx + 0.5) * CHUNK - px, (cz + 0.5) * CHUNK - pz) > VIEW + CHUNK * 1.5) {
                 this.scene.remove(ch.mesh);
                 ch.mesh.geometry.dispose();
+                if (ch.canopy) { this.scene.remove(ch.canopy); ch.canopy.geometry.dispose(); }
                 this.chunks.delete(key);
                 this.trunks.delete(key);
                 this.dirty = true;

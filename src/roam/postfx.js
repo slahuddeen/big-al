@@ -22,7 +22,19 @@ const ComicShader = {
         uInk: { value: new THREE.Color('#1c130d') },
         uVignette: { value: 0.22 },
         uHurt: { value: 0 },
-        uUnder: { value: 0 }
+        uUnder: { value: 0 },
+        // atmosphere
+        uProjInv: { value: new THREE.Matrix4() },
+        uCamWorld: { value: new THREE.Matrix4() },
+        uCamPos: { value: new THREE.Vector3() },
+        uHaze: { value: new THREE.Color('#cfe6f2') },
+        uSunCol: { value: new THREE.Color('#fff0d8') },
+        uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+        uDensity: { value: 1 / 1400 },
+        uHDensity: { value: 0.004 },
+        uHBase: { value: 4 },
+        uHFall: { value: 0.12 },
+        uGlow: { value: 1 }
     },
     vertexShader: /* glsl */`
         varying vec2 vUv;
@@ -31,6 +43,9 @@ const ComicShader = {
         uniform sampler2D tDiffuse;
         uniform sampler2D tDepth;
         uniform float uNear, uFar, uPixelRatio, uSaturation, uContrast, uVignette, uHurt, uUnder, uVibrance;
+        uniform mat4 uProjInv, uCamWorld;
+        uniform vec3 uCamPos, uHaze, uSunCol, uSunDir;
+        uniform float uDensity, uHDensity, uHBase, uHFall, uGlow;
         uniform vec3 uInk;
         uniform vec2 uResolution;
         varying vec2 vUv;
@@ -59,6 +74,25 @@ const ComicShader = {
             float th = mix(0.05, 0.16, smoothstep(60.0, 500.0, z));
             float ink = step(th, jump) * (z > uFar * 0.9 ? 0.0 : 1.0) * (1.0 - step(650.0, z));
             float near = 1.0 - smoothstep(140.0, 700.0, z);
+
+            // ---- atmosphere: distance haze plus height fog that pools in the low ground ----
+            float sky = step(uFar * 0.9, z);
+            vec4 vp = uProjInv * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
+            vec3 vdir = normalize(vp.xyz / vp.w);
+            vec3 rd = normalize((uCamWorld * vec4(vdir, 0.0)).xyz);
+            float dist = z / max(1e-3, -vdir.z);
+            vec3 wp = uCamPos + rd * dist;
+            float dy = wp.y - uCamPos.y;
+            float kdy = uHFall * dy;
+            float hf = uHDensity * exp(-uHFall * (uCamPos.y - uHBase)) * dist * (abs(kdy) > 1e-3 ? (1.0 - exp(-kdy)) / kdy : 1.0);
+            float fogAmt = 1.0 - exp(-(dist * uDensity + max(hf, 0.0)));
+            // a few soft steps, like the paler planes of a printed landscape
+            float fb = fogAmt * 5.0;
+            fogAmt = mix(fogAmt, (floor(fb) + smoothstep(0.35, 0.65, fract(fb))) / 5.0, 0.45);
+            fogAmt *= 1.0 - sky;
+            vec3 haze = mix(uHaze, uSunCol, pow(max(dot(rd, uSunDir), 0.0), 6.0) * 0.55 * uGlow);
+            col = mix(col, haze, fogAmt);
+            ink *= 1.0 - smoothstep(0.35, 0.8, fogAmt);
 
             // flat tone bands
             float l = max(lumOf(col), 1e-4);
@@ -108,8 +142,24 @@ export class ComicFX {
         this.pass.uniforms.uPixelRatio.value = pr;
     }
 
+    // atmosphere: { haze, sunCol, sunDir, density, hDensity, hBase, glow }
+    setAtmosphere(a) {
+        const u = this.pass.uniforms;
+        u.uHaze.value.copy(a.haze);
+        u.uSunCol.value.copy(a.sunCol);
+        u.uSunDir.value.copy(a.sunDir);
+        u.uDensity.value = a.density;
+        u.uHDensity.value = a.hDensity;
+        u.uHBase.value = a.hBase;
+        u.uGlow.value = a.glow;
+    }
+
     render(dt, { hurt = 0, under = 0 } = {}) {
         const u = this.pass.uniforms;
+        this.camera.updateMatrixWorld();
+        u.uProjInv.value.copy(this.camera.projectionMatrixInverse);
+        u.uCamWorld.value.copy(this.camera.matrixWorld);
+        u.uCamPos.value.setFromMatrixPosition(this.camera.matrixWorld);
         u.tDepth.value = this.composer.readBuffer.depthTexture;
         u.uNear.value = this.camera.near;
         u.uFar.value = this.camera.far;

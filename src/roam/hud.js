@@ -33,6 +33,7 @@ export class Hud {
                     <li><b>Space</b> dash, <b>C</b> submerge in deep water: hunters lose you and a bite from below is an ambush</li>
                     <li><b>F</b> sniff out prey, <b>R</b> sail display, hold <b>E</b> to drink, hold <b>Z</b> to rest</li>
                     <li>Hunger and thirst fall all the time. Eat, drink and rest to heal.</li>
+                    <li><b>M</b> mutes the sound. Slow? Add <b>?q=low</b> to the address.</li>
                 </ul>
                 <button class="go">Loading the world…</button>
             </div>
