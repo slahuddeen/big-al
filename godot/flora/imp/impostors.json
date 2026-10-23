@@ -1,0 +1,170 @@
+{
+ "conifer_0": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "conifer_1": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "conifer_2": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "darkConifer_0": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "darkConifer_1": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "darkConifer_2": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "mossConifer_0": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "mossConifer_1": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "mossConifer_2": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "giantConifer_0": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "giantConifer_1": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "giantConifer_2": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "araucaria_0": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "araucaria_1": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "araucaria_2": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "umbrella_0": {
+  "size": 1.3576,
+  "frames": 8
+ },
+ "umbrella_1": {
+  "size": 1.1978,
+  "frames": 8
+ },
+ "umbrella_2": {
+  "size": 1.2013,
+  "frames": 8
+ },
+ "canopyBroadleaf_0": {
+  "size": 1.1847,
+  "frames": 8
+ },
+ "canopyBroadleaf_1": {
+  "size": 1.096,
+  "frames": 8
+ },
+ "canopyBroadleaf_2": {
+  "size": 1.146,
+  "frames": 8
+ },
+ "giantBroadleaf_0": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "giantBroadleaf_1": {
+  "size": 1.122,
+  "frames": 8
+ },
+ "giantBroadleaf_2": {
+  "size": 1.0544,
+  "frames": 8
+ },
+ "gallery_0": {
+  "size": 1.1896,
+  "frames": 8
+ },
+ "gallery_1": {
+  "size": 1.0111,
+  "frames": 8
+ },
+ "gallery_2": {
+  "size": 1.0071,
+  "frames": 8
+ },
+ "ginkgo_0": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "ginkgo_1": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "ginkgo_2": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "mangrove_0": {
+  "size": 1.194,
+  "frames": 8
+ },
+ "mangrove_1": {
+  "size": 1.2536,
+  "frames": 8
+ },
+ "mangrove_2": {
+  "size": 1.1736,
+  "frames": 8
+ },
+ "thicket_0": {
+  "size": 1.2771,
+  "frames": 8
+ },
+ "thicket_1": {
+  "size": 1.3926,
+  "frames": 8
+ },
+ "thicket_2": {
+  "size": 1.3124,
+  "frames": 8
+ },
+ "dead_0": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "dead_1": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "dead_2": {
+  "size": 1.0,
+  "frames": 8
+ },
+ "treeFern_0": {
+  "size": 1.4143,
+  "frames": 8
+ },
+ "treeFern_1": {
+  "size": 1.4058,
+  "frames": 8
+ },
+ "treeFern_2": {
+  "size": 1.2982,
+  "frames": 8
+ }
+}

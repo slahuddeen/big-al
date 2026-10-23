@@ -120,3 +120,9 @@ func _process(dt: float) -> void:
 	wheel = 0.0
 	grass.update(camera.position)
 	water.update(time, 1.0 - sky.night, sky.mist, sky.env.fog_light_color)
+	if shot and Engine.get_process_frames() % 10 == 9:
+		# what a frame costs, for checking the scene's budget on a machine without a real GPU
+		print("FRAME primitives=%d draws=%d objects=%d" % [
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME)])
