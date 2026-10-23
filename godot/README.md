@@ -21,7 +21,7 @@ Esc to release the mouse.
 | Ground | `scripts/ground.gd` | [Terrain3D](https://github.com/TokisanGames/Terrain3D) 1.0 (`addons/terrain_3d`) draws the baked height map. It uses 14 photo-scanned ground materials, picked and blended per metre by the control map. |
 | Grass | `scripts/grass.gd`, `shaders/grass.gdshader` | A GPU field of photographic tufts, sized and chosen per clump from the baked grass map. |
 | Ground clutter | Terrain3D instancer | Ferns, shrubs, nettles, weeds, mossy rocks, boulders, pebbles, stumps, logs and bark from Poly Haven scans, scattered by biome. |
-| Trees and plants | `scripts/flora.gd` | Sapling Tree Gen trees and bmesh plants, scattered per 128 m chunk with the browser's per-biome densities. A blanket of crowns stands in for distant forest. |
+| Trees and big plants | `scripts/flora.gd`, `shaders/bark_pbr.gdshader`, `foliage_pbr.gdshader`, `impostor.gdshader` | [Modular Tree](https://extensions.blender.org/add-ons/modular-tree/) skeletons with photo-scanned bark. They wear twig, branchlet and frond cards composed from CC0 leaf scans; tree ferns, cycads, ferns and horsetails are built from fronds and stems. Scattered per 128 m chunk with the browser's per-biome densities. Each plant draws at full detail up to about 85 m, then a reduced model up to about 420 m, then an impostor out to 3 km. The impostor is one card showing the nearest of eight views baked round the tree, and every species shares one texture array. |
 | Creatures | `scripts/creature_model.gd` | Sculpted, baked and rigged models (20k triangles or fewer), animated procedurally. |
 | Sky, water | `scripts/sky.gd`, `scripts/water.gd` | The browser's day cycle and light keys, with volumetric fog, SSAO and SSIL; water with depth, refraction and ripples. |
 | World queries | `scripts/world.gd` (autoload `World`) | Ground height, water, biome and river distance for gameplay. Nothing in gameplay asks Terrain3D. |
@@ -39,7 +39,8 @@ Esc to release the mouse.
 ## Rebuilding the assets
 
 Run these from the repository root. You need Node, Python 3 (numpy, scipy, Pillow, numba and
-scikit-image for the sculpts), and Blender 4.2 with the Sapling Tree Gen extension.
+scikit-image for the sculpts), Blender 4.2 for the creatures and small plants, and Blender 4.5 with the
+Modular Tree extension (`blender --command extension install modular_tree`) for the trees.
 
 ```sh
 node tools/bake_world.mjs 1234             # world from the browser generator -> godot/data/world_1234
@@ -47,8 +48,12 @@ node tools/export_data.mjs                 # species, biomes, densities -> godot
 python3 tools/fetch_polyhaven.py           # CC0 ground materials and plant/rock scans
 blender -b -P tools/blender/prep_polyhaven.py   # scans -> godot/flora_ph, grass cards
 python3 tools/bake_ground.py 1234          # terrain warp, control/colour maps, grass map, clutter
-python3 tools/textures.py                  # painted bark, skin, water and foliage atlas
-blender -b -P tools/blender/build_flora.py # trees and plants -> godot/flora
+python3 tools/textures.py                  # painted skin, water and the small plants' atlas
+blender -b -P tools/blender/build_flora.py # reeds, lilies, bones, logs, termite mounds -> godot/flora
+python3 tools/fetch_flora.py               # CC0 leaf, twig and bark scans
+python3 tools/compose_cards.py             # twig, branchlet and frond cards from the scans
+blender-4.5 -b -P tools/blender/build_trees.py   # trees, ferns, cycads: full + reduced models, impostors
+python3 tools/pack_flora.py                # cards, barks and impostors -> godot/flora (WebP)
 node tools/export_creatures.mjs            # creature specs from creatures3d.js
 python3 tools/sculpt/sculpt.py             # anatomical SDF sculpts
 blender -b -P tools/blender/bake_creatures.py   # retopology, bakes, rig -> godot/creatures
@@ -57,6 +62,8 @@ python3 tools/godot_imports.py             # import settings (mipmaps, VRAM comp
 
 ## Credits
 
-Ground materials, plant and rock scans: [Poly Haven](https://polyhaven.com), CC0.
+Ground materials, plant, rock, twig, leaf and bark scans: [Poly Haven](https://polyhaven.com), CC0.
+Leaf sets: [ambientCG](https://ambientcg.com), CC0.
+Tree skeletons: the [Modular Tree](https://github.com/GoodPie/modular_tree) Blender extension (GPL-3.0).
 Terrain: [Terrain3D](https://github.com/TokisanGames/Terrain3D) by Tokisan Games, MIT
 (`addons/terrain_3d/LICENSE.txt`).

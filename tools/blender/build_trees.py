@@ -415,7 +415,7 @@ SPECIES = {
              'foliage': [dict(atlas='broadleaf_twig', n=420, size=0.6, max_radius=0.025, droop=0.2, outward=0.5)]},
     'dead': {'trunk': dict(length=14, start_radius=0.45, end_radius=0.05, shape=0.8, up_attraction=0.6, resolution=4,
                            randomness=0.3),
-             'branches': conifer_branches(0.6, 6, 0.8, 0.25, 0.35), 'bark': 'moss_wood', 'radial': 8},
+             'branches': conifer_branches(0.6, 6, 1.3, 0.25, 0.3), 'bark': 'pine_bark', 'radial': 8},
 }
 # what draws far off as an impostor
 FAR = ['conifer', 'darkConifer', 'mossConifer', 'giantConifer', 'araucaria', 'umbrella', 'canopyBroadleaf', 'giantBroadleaf',
@@ -520,11 +520,11 @@ def tree_fern(v, rng, lod):
     # a flared root mantle, a thick fibrous stem, swelling a little under the crown
     radii = [0.42 if i == 0 else 0.32 if i == 1 else 0.24 + 0.03 * (i / 13) ** 3 for i in range(14)]
     obs = [tube(f'treeFern_{v}', np.vstack([pts, pts[-1] + UP * 0.12]), radii + [0.05], 12 if lod == 0 else 6,
-                bark_material('palm_bark'), 0.45, H)]
+                bark_material('japanese_cedar_bark'), 0.45, H)]
     top = pts[-1]
     cs = cells('frond4')
     fr = Strips()
-    rosette(fr, top, 18 if lod == 0 else 11, H * 0.5, 58, 0.75, cs, rng, width_k=0.34, rise=0.08)
+    rosette(fr, top, 18 if lod == 0 else 11, H * 0.62, 55, 0.8, cs, rng, width_k=0.34, rise=0.08)
     rosette(fr, top, 5 if lod == 0 else 3, H * 0.3, 80, 0.3, cs, rng, width_k=0.3, rise=0.1)
     obs.append(fr.build(f'treeFern_{v}_fronds', leaf_material('fern_frond')))
     dead = Strips()
@@ -539,14 +539,14 @@ def tree_fern(v, rng, lod):
 
 def cycad(v, rng, lod):
     H = 3.5
-    th = H * rng.uniform(0.3, 0.42)
+    th = H * rng.uniform(0.28, 0.4)
     pts = np.array([[0, 0, z] for z in np.linspace(0, th, 8)])
-    radii = [0.36 - 0.1 * (z / th) ** 2 for z in np.linspace(0, th, 8)]
+    radii = [0.24 - 0.06 * (z / th) ** 2 for z in np.linspace(0, th, 8)]
     obs = [tube(f'cycad_{v}', pts, radii, 12 if lod == 0 else 6, bark_material('palm_bark'), 0.6, H)]
     fr = Strips()
     cs = cells('frond4')
-    rosette(fr, pts[-1], 26 if lod == 0 else 14, H * 0.55, 42, 0.25, cs, rng, width_k=0.22, fold=0.35)
-    rosette(fr, pts[-1] - UP * 0.15, 8 if lod == 0 else 4, H * 0.5, 5, 0.45, cs, rng, width_k=0.22, fold=0.35)
+    rosette(fr, pts[-1], 26 if lod == 0 else 14, H * 0.7, 50, 0.3, cs, rng, width_k=0.22, fold=0.35)
+    rosette(fr, pts[-1] - UP * 0.15, 8 if lod == 0 else 4, H * 0.62, 12, 0.5, cs, rng, width_k=0.22, fold=0.35)
     obs.append(fr.build(f'cycad_{v}_leaves', leaf_material('cycad_leaf')))
     return obs
 
