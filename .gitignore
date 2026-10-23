@@ -44,3 +44,8 @@ out/
 # Local experiments and extra build output
 dist-lab/
 scratch/
+
+# Godot port: the editor's import cache, and the asset tools' downloads and intermediates
+godot/.godot/
+tools/.gen/
+__pycache__/

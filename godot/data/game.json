@@ -1,0 +1,2220 @@
+{
+ "species": {
+  "Dragonfly": {
+   "weight": 0.002,
+   "nutrition": 0.15,
+   "danger": 0,
+   "aggression": 0,
+   "difficulty": 0.6,
+   "behaviorType": "passive",
+   "description": "Darting over the water: a hatchling's first meals",
+   "injury": "buzzes away angrily",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Cricket": {
+   "weight": 0.003,
+   "nutrition": 0.1,
+   "danger": 0,
+   "aggression": 0,
+   "difficulty": 0.4,
+   "behaviorType": "skittish",
+   "description": "Chirping in the ferns at night",
+   "injury": "hops away frantically",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Centipede": {
+   "weight": 0.008,
+   "nutrition": 0.4,
+   "danger": 0,
+   "aggression": 0,
+   "difficulty": 0.25,
+   "behaviorType": "passive",
+   "description": "Hunts the leaf litter of the woods",
+   "injury": "tickles you harmlessly",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Scorpion": {
+   "weight": 0.03,
+   "nutrition": 0.8,
+   "danger": 8,
+   "aggression": 0.25,
+   "difficulty": 0.35,
+   "behaviorType": "defensive",
+   "description": "Desert-edge arachnid with a painful sting",
+   "injury": "stings you with its tail",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Frog": {
+   "weight": 0.06,
+   "nutrition": 0.8,
+   "danger": 0,
+   "aggression": 0,
+   "difficulty": 0.45,
+   "behaviorType": "skittish",
+   "description": "Oumtkoutia, a little frog of the pools and shallows",
+   "injury": "croaks loudly",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Lizard": {
+   "weight": 0.12,
+   "nutrition": 2.5,
+   "danger": 0.5,
+   "aggression": 0.1,
+   "difficulty": 0.45,
+   "behaviorType": "skittish",
+   "description": "Quick lizard basking on the sandbars",
+   "injury": "bites your toe",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Fish": {
+   "weight": 0.25,
+   "nutrition": 2,
+   "danger": 0,
+   "aggression": 0,
+   "difficulty": 0.35,
+   "behaviorType": "passive",
+   "description": "Small river fish in shining shoals",
+   "injury": "flops around desperately",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Lapparentophis": {
+   "weight": 0.8,
+   "nutrition": 1.8,
+   "danger": 3,
+   "aggression": 0.3,
+   "difficulty": 0.6,
+   "behaviorType": "territorial",
+   "description": "One of the oldest known land snakes",
+   "injury": "strikes with a fanged bite",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Hamadachelys": {
+   "weight": 3,
+   "nutrition": 3,
+   "danger": 2,
+   "aggression": 0.05,
+   "difficulty": 0.2,
+   "behaviorType": "defensive",
+   "description": "Side-necked river turtle: hard to crack",
+   "injury": "retreats into its shell",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "semiAquatic": true
+  },
+  "Leptostomia": {
+   "weight": 1,
+   "nutrition": 4,
+   "danger": 1,
+   "aggression": 0.05,
+   "difficulty": 0.6,
+   "behaviorType": "skittish",
+   "description": "Small pterosaur that probes the mud with a long thin beak",
+   "injury": "pecks at your eye",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Araripesuchus": {
+   "weight": 8,
+   "nutrition": 9,
+   "danger": 12,
+   "aggression": 0.6,
+   "difficulty": 0.55,
+   "behaviorType": "pack_predator",
+   "description": "Small long-legged land crocodile. Raids nests in gangs",
+   "injury": "snaps with a mouth full of fangs",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Noasaurid": {
+   "weight": 15,
+   "nutrition": 14,
+   "danger": 16,
+   "aggression": 0.65,
+   "difficulty": 0.6,
+   "behaviorType": "pack_predator",
+   "description": "Small, fast theropod that hunts hatchlings along the banks",
+   "injury": "slashes with hooked claws",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Lungfish": {
+   "weight": 15,
+   "nutrition": 14,
+   "danger": 2,
+   "aggression": 0,
+   "difficulty": 0.3,
+   "behaviorType": "passive",
+   "description": "Neoceratodus: survives the drought buried in the mud of drying pools",
+   "injury": "thrashes in your jaws",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Calamopleurus": {
+   "weight": 12,
+   "nutrition": 12,
+   "danger": 3,
+   "aggression": 0.1,
+   "difficulty": 0.45,
+   "behaviorType": "passive",
+   "description": "Long, toothy bowfin of the channels",
+   "injury": "bites back",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Bawitius": {
+   "weight": 60,
+   "nutrition": 40,
+   "danger": 12,
+   "aggression": 0.15,
+   "difficulty": 0.4,
+   "behaviorType": "defensive",
+   "description": "Giant armoured bichir, three metres of scales and teeth",
+   "injury": "rakes you with armoured scales",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Tribodus": {
+   "weight": 40,
+   "nutrition": 30,
+   "danger": 20,
+   "aggression": 0.35,
+   "difficulty": 0.5,
+   "behaviorType": "territorial",
+   "description": "River shark with crushing teeth and a spined fin",
+   "injury": "bites and twists away",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Afrotapejara": {
+   "weight": 3,
+   "nutrition": 6,
+   "danger": 2,
+   "aggression": 0.05,
+   "difficulty": 0.7,
+   "behaviorType": "skittish",
+   "description": "Crested fruit-eating pterosaur",
+   "injury": "flaps its crest at you",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Siroccopteryx": {
+   "weight": 8,
+   "nutrition": 10,
+   "danger": 8,
+   "aggression": 0.35,
+   "difficulty": 0.65,
+   "behaviorType": "aerial_predator",
+   "description": "Fish-catching pterosaur that skims the river",
+   "injury": "jabs with a toothy beak",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Injured Pterosaur": {
+   "weight": 20,
+   "nutrition": 25,
+   "danger": 0.1,
+   "aggression": 0,
+   "difficulty": 0.05,
+   "behaviorType": "passive",
+   "description": "A wounded pterosaur that can no longer fly",
+   "injury": "flaps weakly",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Iguanodont": {
+   "weight": 400,
+   "nutrition": 90,
+   "danger": 60,
+   "aggression": 0.05,
+   "difficulty": 0.2,
+   "behaviorType": "herbivore",
+   "description": "One of the few plant-eaters here, a heavy-bodied iguanodont",
+   "injury": "kicks you with powerful legs",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Alanqa": {
+   "weight": 40,
+   "nutrition": 30,
+   "danger": 30,
+   "aggression": 0.7,
+   "difficulty": 0.4,
+   "behaviorType": "aerial_predator",
+   "description": "Tall azhdarchid pterosaur that stalks the mudflats like a stork and swallows hatchlings whole",
+   "injury": "stabs with its spear of a beak",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Young Spinosaurus": {
+   "weight": 250,
+   "nutrition": 50,
+   "danger": 120,
+   "aggression": 0.25,
+   "difficulty": 0.5,
+   "behaviorType": "rival_predator",
+   "description": "A spinosaur of your own age: a clutch-mate you could fish with",
+   "injury": "snaps at you",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "River Plesiosaur": {
+   "weight": 150,
+   "nutrition": 60,
+   "danger": 120,
+   "aggression": 0.4,
+   "difficulty": 0.45,
+   "behaviorType": "territorial",
+   "description": "Small long-necked plesiosaur that swims up the rivers from the sea",
+   "injury": "snaps with interlocking teeth",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Mawsonia": {
+   "weight": 350,
+   "nutrition": 160,
+   "danger": 60,
+   "aggression": 0.05,
+   "difficulty": 0.35,
+   "behaviorType": "defensive",
+   "description": "Coelacanth the size of a crocodile, slow and heavy",
+   "injury": "slaps you with a lobed fin",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Laganosuchus": {
+   "weight": 400,
+   "nutrition": 70,
+   "danger": 450,
+   "aggression": 0.6,
+   "difficulty": 0.35,
+   "behaviorType": "ambush_predator",
+   "description": "Pancake-headed crocodile that lies still with its jaws open",
+   "injury": "snaps its flat jaws shut on you",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "semiAquatic": true
+  },
+  "Elosuchus": {
+   "weight": 900,
+   "nutrition": 140,
+   "danger": 800,
+   "aggression": 0.55,
+   "difficulty": 0.35,
+   "behaviorType": "ambush_predator",
+   "description": "Long-snouted river crocodile, eight metres of fish-catcher",
+   "injury": "drags you under in a death roll",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "semiAquatic": true
+  },
+  "Rugops": {
+   "weight": 750,
+   "nutrition": 160,
+   "danger": 700,
+   "aggression": 0.6,
+   "difficulty": 0.4,
+   "behaviorType": "rival_predator",
+   "description": "Short-faced abelisaur with a wrinkled, horned head. Often steals kills",
+   "injury": "bites with a short, deep snout",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Deltadromeus": {
+   "weight": 1000,
+   "nutrition": 200,
+   "danger": 900,
+   "aggression": 0.75,
+   "difficulty": 0.5,
+   "behaviorType": "rival_predator",
+   "description": "Lanky, long-legged hunter of the floodplain: fast and relentless",
+   "injury": "slashes with long claws",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Onchopristis": {
+   "weight": 1200,
+   "nutrition": 240,
+   "danger": 900,
+   "aggression": 0.3,
+   "difficulty": 0.3,
+   "behaviorType": "territorial",
+   "description": "Giant sawfish relative with a barbed saw longer than you",
+   "injury": "slashes you with its toothed saw",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Aegisuchus": {
+   "weight": 3000,
+   "nutrition": 400,
+   "danger": 2600,
+   "aggression": 0.55,
+   "difficulty": 0.3,
+   "behaviorType": "ambush_predator",
+   "description": "Shieldcroc: a gigantic flat-headed crocodile of the deep channels",
+   "injury": "crushes you in enormous jaws",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "semiAquatic": true
+  },
+  "Sauroniops": {
+   "weight": 2500,
+   "nutrition": 420,
+   "danger": 2400,
+   "aggression": 0.8,
+   "difficulty": 0.6,
+   "behaviorType": "rival_predator",
+   "description": "Carcharodontosaurid with a domed brow, hunting the edges of the floodplain",
+   "injury": "tears at you with blade-like teeth",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Bahariasaurus": {
+   "weight": 4000,
+   "nutrition": 560,
+   "danger": 3600,
+   "aggression": 0.8,
+   "difficulty": 0.55,
+   "behaviorType": "rival_predator",
+   "description": "Huge, long-legged predator of the delta",
+   "injury": "rakes you with serrated teeth",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Carcharodontosaurus": {
+   "weight": 6500,
+   "nutrition": 800,
+   "danger": 6500,
+   "aggression": 0.9,
+   "difficulty": 0.7,
+   "behaviorType": "apex_predator",
+   "description": "The shark-toothed lizard: master of the land, and the spinosaur's great rival",
+   "injury": "slices you open with shark-like teeth",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Spinosaurus": {
+   "weight": 7000,
+   "nutrition": 750,
+   "danger": 6000,
+   "aggression": 0.6,
+   "difficulty": 0.6,
+   "behaviorType": "rival_predator",
+   "description": "A grown rival spinosaur defending its stretch of river",
+   "injury": "clamps its crocodile jaws on you",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "semiAquatic": true
+  },
+  "Rebbachisaurus": {
+   "weight": 7000,
+   "nutrition": 1100,
+   "danger": 2500,
+   "aggression": 0.12,
+   "difficulty": 0.15,
+   "behaviorType": "giant_herbivore",
+   "description": "Sail-backed sauropod that crops low plants along the trails",
+   "injury": "swings its tail like a whip",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Aegyptosaurus": {
+   "weight": 15000,
+   "nutrition": 1400,
+   "danger": 4500,
+   "aggression": 0.1,
+   "difficulty": 0.12,
+   "behaviorType": "giant_herbivore",
+   "description": "Titanosaur that roams the delta in small herds",
+   "injury": "tramples you",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Paralititan": {
+   "weight": 50000,
+   "nutrition": 2000,
+   "danger": 9000,
+   "aggression": 0.08,
+   "difficulty": 0.08,
+   "behaviorType": "giant_herbivore",
+   "description": "One of the largest animals that ever lived, browsing the mangrove edge",
+   "injury": "crushes you underfoot",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Enantiornithine": {
+   "weight": 0.08,
+   "nutrition": 0.6,
+   "danger": 0,
+   "aggression": 0,
+   "difficulty": 0.75,
+   "behaviorType": "skittish",
+   "description": "A small toothed bird with clawed wings",
+   "injury": "pecks at you",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Pachyrhachis": {
+   "weight": 1.5,
+   "nutrition": 2.5,
+   "danger": 2,
+   "aggression": 0.15,
+   "difficulty": 0.5,
+   "behaviorType": "skittish",
+   "description": "A sea snake that still has a pair of tiny hind legs",
+   "injury": "bites and wriggles free",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Simoliophis": {
+   "weight": 2,
+   "nutrition": 3,
+   "danger": 2,
+   "aggression": 0.15,
+   "difficulty": 0.5,
+   "behaviorType": "skittish",
+   "description": "A heavy-boned sea snake of the mangrove channels",
+   "injury": "bites and slips away",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Dromaeosaur": {
+   "weight": 15,
+   "nutrition": 15,
+   "danger": 18,
+   "aggression": 0.7,
+   "difficulty": 0.65,
+   "behaviorType": "pack_predator",
+   "description": "A feathered raptor with a sickle claw on each foot, hunting in small groups",
+   "injury": "slashes you with a sickle claw",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  },
+  "Obaichthys": {
+   "weight": 20,
+   "nutrition": 16,
+   "danger": 6,
+   "aggression": 0.2,
+   "difficulty": 0.45,
+   "behaviorType": "passive",
+   "description": "An armoured gar that hangs still among the reeds, then strikes sideways",
+   "injury": "rasps you with its armoured scales",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": "",
+   "aquatic": true
+  },
+  "Kaprosuchus": {
+   "weight": 450,
+   "nutrition": 80,
+   "danger": 400,
+   "aggression": 0.7,
+   "difficulty": 0.4,
+   "behaviorType": "rival_predator",
+   "description": "BoarCroc: a long-legged land crocodile with tusks",
+   "injury": "gores you with its tusks",
+   "size": 1,
+   "minimumAge": 0.05,
+   "emoji": ""
+  }
+ },
+ "habitat": {
+  "river": {
+   "Obaichthys": 0.12,
+   "Fish": 0.35,
+   "Calamopleurus": 0.2,
+   "Lungfish": 0.12,
+   "Bawitius": 0.12,
+   "Tribodus": 0.1,
+   "Mawsonia": 0.12,
+   "Onchopristis": 0.08,
+   "River Plesiosaur": 0.06,
+   "Elosuchus": 0.12,
+   "Laganosuchus": 0.08,
+   "Aegisuchus": 0.05,
+   "Hamadachelys": 0.12,
+   "Dragonfly": 0.15,
+   "Siroccopteryx": 0.15,
+   "Spinosaurus": 0.05,
+   "Young Spinosaurus": 0.05
+  },
+  "stream": {
+   "Obaichthys": 0.08,
+   "Fish": 0.35,
+   "Calamopleurus": 0.15,
+   "Lungfish": 0.15,
+   "Bawitius": 0.08,
+   "Frog": 0.2,
+   "Dragonfly": 0.25,
+   "Hamadachelys": 0.15,
+   "Laganosuchus": 0.06,
+   "Araripesuchus": 0.1,
+   "Leptostomia": 0.12,
+   "Siroccopteryx": 0.1,
+   "Alanqa": 0.05,
+   "Young Spinosaurus": 0.06,
+   "Iguanodont": 0.05
+  },
+  "lake": {
+   "Obaichthys": 0.12,
+   "Fish": 0.35,
+   "Calamopleurus": 0.18,
+   "Lungfish": 0.15,
+   "Bawitius": 0.12,
+   "Mawsonia": 0.15,
+   "Tribodus": 0.06,
+   "Elosuchus": 0.1,
+   "Laganosuchus": 0.1,
+   "Hamadachelys": 0.15,
+   "Dragonfly": 0.15,
+   "Frog": 0.12,
+   "Siroccopteryx": 0.15,
+   "Spinosaurus": 0.04
+  },
+  "waterhole": {
+   "Fish": 0.25,
+   "Lungfish": 0.25,
+   "Frog": 0.2,
+   "Dragonfly": 0.15,
+   "Hamadachelys": 0.12,
+   "Laganosuchus": 0.08,
+   "Leptostomia": 0.12,
+   "Alanqa": 0.08,
+   "Iguanodont": 0.1,
+   "Rugops": 0.05,
+   "Deltadromeus": 0.04
+  },
+  "marsh": {
+   "Obaichthys": 0.08,
+   "Enantiornithine": 0.1,
+   "Frog": 0.3,
+   "Dragonfly": 0.25,
+   "Fish": 0.2,
+   "Lungfish": 0.2,
+   "Centipede": 0.1,
+   "Hamadachelys": 0.15,
+   "Lapparentophis": 0.08,
+   "Laganosuchus": 0.12,
+   "Araripesuchus": 0.1,
+   "Leptostomia": 0.12,
+   "Afrotapejara": 0.08,
+   "Iguanodont": 0.06
+  },
+  "mangrove": {
+   "Simoliophis": 0.12,
+   "Pachyrhachis": 0.08,
+   "Enantiornithine": 0.12,
+   "Fish": 0.3,
+   "Tribodus": 0.12,
+   "Onchopristis": 0.1,
+   "River Plesiosaur": 0.1,
+   "Mawsonia": 0.08,
+   "Hamadachelys": 0.12,
+   "Elosuchus": 0.1,
+   "Aegisuchus": 0.05,
+   "Siroccopteryx": 0.15,
+   "Afrotapejara": 0.1,
+   "Dragonfly": 0.15,
+   "Frog": 0.08,
+   "Paralititan": 0.08,
+   "Aegyptosaurus": 0.06,
+   "Bahariasaurus": 0.05
+  },
+  "beach": {
+   "Simoliophis": 0.1,
+   "Pachyrhachis": 0.08,
+   "Leptostomia": 0.2,
+   "Alanqa": 0.15,
+   "Siroccopteryx": 0.15,
+   "Injured Pterosaur": 0.06,
+   "Hamadachelys": 0.15,
+   "Fish": 0.15,
+   "Araripesuchus": 0.08,
+   "Lizard": 0.1,
+   "Bahariasaurus": 0.04,
+   "Elosuchus": 0.06
+  },
+  "riverbank": {
+   "Kaprosuchus": 0.05,
+   "Enantiornithine": 0.1,
+   "Lizard": 0.15,
+   "Dragonfly": 0.15,
+   "Frog": 0.12,
+   "Hamadachelys": 0.15,
+   "Araripesuchus": 0.12,
+   "Leptostomia": 0.15,
+   "Alanqa": 0.08,
+   "Elosuchus": 0.1,
+   "Laganosuchus": 0.08,
+   "Noasaurid": 0.08,
+   "Iguanodont": 0.06,
+   "Young Spinosaurus": 0.06,
+   "Spinosaurus": 0.04,
+   "Rugops": 0.04,
+   "Carcharodontosaurus": 0.03
+  },
+  "dryriverbed": {
+   "Lizard": 0.15,
+   "Scorpion": 0.15,
+   "Cricket": 0.12,
+   "Lapparentophis": 0.1,
+   "Noasaurid": 0.08,
+   "Araripesuchus": 0.08,
+   "Rugops": 0.04
+  },
+  "floodplain": {
+   "Kaprosuchus": 0.05,
+   "Dragonfly": 0.2,
+   "Frog": 0.15,
+   "Cricket": 0.15,
+   "Lizard": 0.1,
+   "Lungfish": 0.08,
+   "Leptostomia": 0.12,
+   "Alanqa": 0.12,
+   "Iguanodont": 0.12,
+   "Noasaurid": 0.08,
+   "Deltadromeus": 0.06,
+   "Rugops": 0.05,
+   "Sauroniops": 0.03,
+   "Carcharodontosaurus": 0.03,
+   "Aegyptosaurus": 0.05
+  },
+  "nest": {
+   "Dromaeosaur": 0.06,
+   "Dragonfly": 0.25,
+   "Cricket": 0.2,
+   "Centipede": 0.15,
+   "Lizard": 0.12,
+   "Frog": 0.12,
+   "Araripesuchus": 0.15,
+   "Noasaurid": 0.08
+  },
+  "galleryforest": {
+   "Kaprosuchus": 0.05,
+   "Dromaeosaur": 0.06,
+   "Enantiornithine": 0.15,
+   "Dragonfly": 0.2,
+   "Centipede": 0.15,
+   "Frog": 0.15,
+   "Lizard": 0.12,
+   "Lapparentophis": 0.08,
+   "Hamadachelys": 0.08,
+   "Afrotapejara": 0.15,
+   "Noasaurid": 0.08,
+   "Araripesuchus": 0.08,
+   "Iguanodont": 0.1,
+   "Rugops": 0.04,
+   "Carcharodontosaurus": 0.03
+  },
+  "forest": {
+   "Kaprosuchus": 0.05,
+   "Dromaeosaur": 0.08,
+   "Enantiornithine": 0.12,
+   "Centipede": 0.2,
+   "Cricket": 0.15,
+   "Scorpion": 0.08,
+   "Lizard": 0.12,
+   "Lapparentophis": 0.1,
+   "Afrotapejara": 0.12,
+   "Noasaurid": 0.1,
+   "Iguanodont": 0.1,
+   "Rugops": 0.05,
+   "Sauroniops": 0.03,
+   "Carcharodontosaurus": 0.03
+  },
+  "denseforest": {
+   "Dromaeosaur": 0.08,
+   "Centipede": 0.2,
+   "Cricket": 0.2,
+   "Frog": 0.12,
+   "Lizard": 0.12,
+   "Lapparentophis": 0.1,
+   "Noasaurid": 0.06,
+   "Iguanodont": 0.06,
+   "Afrotapejara": 0.08
+  },
+  "jungle": {
+   "Dromaeosaur": 0.08,
+   "Enantiornithine": 0.1,
+   "Dragonfly": 0.18,
+   "Centipede": 0.2,
+   "Frog": 0.18,
+   "Lapparentophis": 0.1,
+   "Afrotapejara": 0.15,
+   "Noasaurid": 0.06,
+   "Iguanodont": 0.08
+  },
+  "openwoods": {
+   "Kaprosuchus": 0.05,
+   "Dromaeosaur": 0.06,
+   "Enantiornithine": 0.12,
+   "Cricket": 0.15,
+   "Lizard": 0.12,
+   "Scorpion": 0.06,
+   "Afrotapejara": 0.12,
+   "Noasaurid": 0.08,
+   "Iguanodont": 0.12,
+   "Rugops": 0.05,
+   "Deltadromeus": 0.05,
+   "Rebbachisaurus": 0.06
+  },
+  "deadfall": {
+   "Centipede": 0.3,
+   "Scorpion": 0.12,
+   "Lizard": 0.18,
+   "Lapparentophis": 0.12,
+   "Frog": 0.12,
+   "Araripesuchus": 0.08
+  },
+  "plains": {
+   "Kaprosuchus": 0.04,
+   "Cricket": 0.15,
+   "Lizard": 0.12,
+   "Scorpion": 0.08,
+   "Leptostomia": 0.08,
+   "Alanqa": 0.12,
+   "Iguanodont": 0.12,
+   "Noasaurid": 0.08,
+   "Deltadromeus": 0.08,
+   "Rugops": 0.05,
+   "Sauroniops": 0.04,
+   "Carcharodontosaurus": 0.05,
+   "Rebbachisaurus": 0.06
+  },
+  "fernprairie": {
+   "Dromaeosaur": 0.05,
+   "Cricket": 0.18,
+   "Dragonfly": 0.1,
+   "Lizard": 0.12,
+   "Afrotapejara": 0.1,
+   "Alanqa": 0.1,
+   "Iguanodont": 0.15,
+   "Noasaurid": 0.08,
+   "Deltadromeus": 0.06,
+   "Carcharodontosaurus": 0.04,
+   "Rebbachisaurus": 0.06
+  },
+  "savanna": {
+   "Cricket": 0.12,
+   "Lizard": 0.15,
+   "Scorpion": 0.1,
+   "Alanqa": 0.1,
+   "Iguanodont": 0.1,
+   "Deltadromeus": 0.06,
+   "Bahariasaurus": 0.04,
+   "Carcharodontosaurus": 0.05,
+   "Rebbachisaurus": 0.08
+  },
+  "scrubland": {
+   "Cricket": 0.12,
+   "Lizard": 0.15,
+   "Scorpion": 0.12,
+   "Lapparentophis": 0.1,
+   "Noasaurid": 0.1,
+   "Rugops": 0.05,
+   "Alanqa": 0.06
+  },
+  "sauropodgrounds": {
+   "Rebbachisaurus": 0.4,
+   "Aegyptosaurus": 0.35,
+   "Paralititan": 0.25,
+   "Iguanodont": 0.1,
+   "Alanqa": 0.08,
+   "Rugops": 0.06,
+   "Deltadromeus": 0.06,
+   "Sauroniops": 0.05,
+   "Bahariasaurus": 0.05,
+   "Carcharodontosaurus": 0.08
+  },
+  "desert": {
+   "Scorpion": 0.15,
+   "Lizard": 0.12,
+   "Cricket": 0.08,
+   "Lapparentophis": 0.1,
+   "Injured Pterosaur": 0.06,
+   "Noasaurid": 0.04
+  },
+  "badlands": {
+   "Scorpion": 0.15,
+   "Lizard": 0.12,
+   "Lapparentophis": 0.08,
+   "Injured Pterosaur": 0.08,
+   "Alanqa": 0.06
+  },
+  "mesa": {
+   "Alanqa": 0.12,
+   "Afrotapejara": 0.1,
+   "Siroccopteryx": 0.08,
+   "Lizard": 0.08,
+   "Scorpion": 0.08
+  },
+  "rocky": {
+   "Lizard": 0.12,
+   "Scorpion": 0.12,
+   "Lapparentophis": 0.08,
+   "Noasaurid": 0.06,
+   "Alanqa": 0.08
+  },
+  "boulderfield": {
+   "Lizard": 0.15,
+   "Scorpion": 0.12,
+   "Lapparentophis": 0.1,
+   "Afrotapejara": 0.1,
+   "Noasaurid": 0.06
+  },
+  "hills": {
+   "Lizard": 0.12,
+   "Cricket": 0.1,
+   "Scorpion": 0.08,
+   "Afrotapejara": 0.12,
+   "Alanqa": 0.08,
+   "Iguanodont": 0.08,
+   "Noasaurid": 0.06
+  },
+  "mountains": {
+   "Afrotapejara": 0.12,
+   "Alanqa": 0.08,
+   "Lizard": 0.06
+  },
+  "quicksand": {
+   "Cricket": 0.005,
+   "Scorpion": 0.003
+  },
+  "sea": {}
+ },
+ "groupSize": {
+  "Dragonfly": [
+   1,
+   3
+  ],
+  "Frog": [
+   1,
+   2
+  ],
+  "Fish": [
+   2,
+   4
+  ],
+  "Cricket": [
+   1,
+   2
+  ],
+  "Calamopleurus": [
+   1,
+   2
+  ],
+  "Lungfish": [
+   1,
+   2
+  ],
+  "Araripesuchus": [
+   2,
+   4
+  ],
+  "Noasaurid": [
+   2,
+   3
+  ],
+  "Leptostomia": [
+   1,
+   3
+  ],
+  "Afrotapejara": [
+   1,
+   2
+  ],
+  "Siroccopteryx": [
+   1,
+   2
+  ],
+  "Iguanodont": [
+   2,
+   5
+  ],
+  "Rebbachisaurus": [
+   2,
+   4
+  ],
+  "Aegyptosaurus": [
+   2,
+   4
+  ],
+  "Paralititan": [
+   1,
+   3
+  ],
+  "Tribodus": [
+   1,
+   2
+  ],
+  "Dromaeosaur": [
+   2,
+   3
+  ],
+  "Enantiornithine": [
+   1,
+   3
+  ]
+ },
+ "flyers": [
+  "Leptostomia",
+  "Afrotapejara",
+  "Siroccopteryx",
+  "Alanqa",
+  "Enantiornithine"
+ ],
+ "aquatic": [
+  "Fish",
+  "Lungfish",
+  "Calamopleurus",
+  "Bawitius",
+  "Tribodus",
+  "River Plesiosaur",
+  "Mawsonia",
+  "Onchopristis",
+  "Pachyrhachis",
+  "Simoliophis",
+  "Obaichthys"
+ ],
+ "semiAquatic": [
+  "Hamadachelys",
+  "Laganosuchus",
+  "Elosuchus",
+  "Aegisuchus",
+  "Spinosaurus"
+ ],
+ "crocodiles": [
+  "Laganosuchus",
+  "Elosuchus",
+  "Aegisuchus"
+ ],
+ "toughness": {
+  "Hamadachelys": 2.5,
+  "Bawitius": 1.6,
+  "Obaichthys": 1.5,
+  "Kaprosuchus": 1.4,
+  "Mawsonia": 1.3,
+  "Onchopristis": 1.3,
+  "Laganosuchus": 1.5,
+  "Elosuchus": 1.6,
+  "Aegisuchus": 1.8,
+  "Rebbachisaurus": 2,
+  "Aegyptosaurus": 2.3,
+  "Paralititan": 2.6,
+  "Carcharodontosaurus": 1.2,
+  "Spinosaurus": 1.2,
+  "Bahariasaurus": 1.1
+ },
+ "bodyLength": {
+  "Rebbachisaurus": 15,
+  "Aegyptosaurus": 16,
+  "Paralititan": 26
+ },
+ "activity": {
+  "Scorpion": "night",
+  "Centipede": "night",
+  "Frog": "night",
+  "Cricket": "night",
+  "Araripesuchus": "night",
+  "Lapparentophis": "twilight",
+  "Laganosuchus": "night",
+  "Elosuchus": "twilight",
+  "Aegisuchus": "night",
+  "Noasaurid": "twilight",
+  "Deltadromeus": "twilight",
+  "Carcharodontosaurus": "twilight",
+  "Sauroniops": "twilight",
+  "Bahariasaurus": "twilight",
+  "Rugops": "night",
+  "Dragonfly": "day",
+  "Lizard": "day",
+  "Leptostomia": "day",
+  "Afrotapejara": "day",
+  "Siroccopteryx": "day",
+  "Alanqa": "day",
+  "Iguanodont": "day",
+  "Rebbachisaurus": "day",
+  "Aegyptosaurus": "day",
+  "Paralititan": "day",
+  "Hamadachelys": "day",
+  "Dromaeosaur": "twilight",
+  "Kaprosuchus": "night",
+  "Enantiornithine": "day",
+  "Obaichthys": "twilight"
+ },
+ "terrain": {
+  "sea": {
+   "name": "Tethys Sea",
+   "category": "water",
+   "description": "The open Tethys: too rough and salty even for a spinosaur"
+  },
+  "river": {
+   "name": "Great River",
+   "category": "water",
+   "description": "Deep main channel. The current sweeps tiny hatchlings away; once you are bigger it is your home"
+  },
+  "stream": {
+   "name": "Braided Shallows",
+   "category": "water",
+   "description": "Shallow channels braiding between sandbars, full of small fish"
+  },
+  "lake": {
+   "name": "Oxbow Lake",
+   "category": "water",
+   "description": "A loop of old river cut off by a flood: still, deep and full of fish"
+  },
+  "waterhole": {
+   "name": "Pool",
+   "category": "terrain",
+   "description": "A pool left by the last flood. In the dry season it shrinks and traps its fish"
+  },
+  "marsh": {
+   "name": "Fern Swamp",
+   "category": "water",
+   "description": "Warm swamp of ferns and horsetails, alive with frogs"
+  },
+  "mangrove": {
+   "name": "Mangrove Delta",
+   "category": "water",
+   "description": "Tidal channels among stilt-rooted trees where the rivers meet the sea"
+  },
+  "beach": {
+   "name": "Tidal Flats",
+   "category": "terrain",
+   "description": "Glistening mud the tide leaves behind: stranded fish and stalking pterosaurs"
+  },
+  "riverbank": {
+   "name": "Sandbar",
+   "category": "water",
+   "description": "Sandbars and banks where crocodiles bask and turtles lay their eggs"
+  },
+  "dryriverbed": {
+   "name": "Dry Channel",
+   "category": "desert",
+   "description": "An old channel the river has abandoned"
+  },
+  "floodplain": {
+   "name": "Floodplain",
+   "category": "plains",
+   "description": "Open mud and fern flats that the river covers every wet season"
+  },
+  "galleryforest": {
+   "name": "Conifer Gallery",
+   "category": "forest",
+   "description": "A strip of tall conifers along the banks"
+  },
+  "forest": {
+   "name": "Conifer Woods",
+   "category": "forest",
+   "description": "Dry conifer woods away from the water"
+  },
+  "denseforest": {
+   "name": "Fern Brake",
+   "category": "forest",
+   "description": "Head-high thicket of Weichselia ferns"
+  },
+  "jungle": {
+   "name": "Tree-Fern Thicket",
+   "category": "forest",
+   "description": "Steamy thicket of tree ferns and cycads"
+  },
+  "openwoods": {
+   "name": "Open Woods",
+   "category": "forest",
+   "description": "Scattered conifers and early flowering shrubs"
+  },
+  "deadfall": {
+   "name": "Log Jam",
+   "category": "forest",
+   "description": "Trees piled up by the last great flood: hiding place for small things"
+  },
+  "plains": {
+   "name": "Fern Flats",
+   "category": "plains",
+   "description": "Open low fern cover"
+  },
+  "fernprairie": {
+   "name": "Fern Meadow",
+   "category": "plains",
+   "description": "Rolling green ferns where iguanodonts graze"
+  },
+  "savanna": {
+   "name": "Dry Savanna",
+   "category": "plains",
+   "description": "Sun-baked open land dotted with umbrella conifers"
+  },
+  "scrubland": {
+   "name": "Scrub",
+   "category": "plains",
+   "description": "Low thorny shrubs"
+  },
+  "sauropodgrounds": {
+   "name": "Titan Trail",
+   "category": "plains",
+   "description": "A path trampled by titanosaur herds on the move"
+  },
+  "mountains": {
+   "name": "Highlands",
+   "category": "mountain",
+   "description": "Impassable highlands at the edge of the basin"
+  },
+  "hills": {
+   "name": "Red Hills",
+   "category": "mountain",
+   "description": "Rolling red hills"
+  },
+  "rocky": {
+   "name": "Hamada",
+   "category": "mountain",
+   "description": "Stony desert plateau"
+  },
+  "boulderfield": {
+   "name": "Boulder Field",
+   "category": "mountain",
+   "description": "Jumble of sun-cracked boulders"
+  },
+  "desert": {
+   "name": "Dunes",
+   "category": "desert",
+   "description": "Red sand dunes beyond the reach of the river"
+  },
+  "badlands": {
+   "name": "Red Badlands",
+   "category": "desert",
+   "description": "Eroded red and cream banded slopes"
+  },
+  "mesa": {
+   "name": "Mesa",
+   "category": "desert",
+   "description": "Flat-topped sandstone butte"
+  },
+  "quicksand": {
+   "name": "Sinking Mud",
+   "category": "desert",
+   "description": "Treacherous sucking mud - instant death!"
+  },
+  "nest": {
+   "name": "Nesting Sandbank",
+   "category": "special",
+   "description": "Warm sand above the flood line where spinosaurs lay their eggs"
+  }
+ },
+ "density": {
+  "forest": {
+   "thicket": 35,
+   "giantConifer": 3,
+   "conifer": 52,
+   "araucaria": 10,
+   "ginkgo": 12,
+   "treeFern": 16,
+   "cycad": 22,
+   "bush": 40,
+   "bigFern": 70,
+   "fern": 420,
+   "sedge": 50,
+   "flowers": 15,
+   "log": 6,
+   "dead": 2,
+   "rock": 2
+  },
+  "galleryforest": {
+   "thicket": 70,
+   "giantBroadleaf": 6,
+   "gallery": 26,
+   "canopyBroadleaf": 26,
+   "mossConifer": 16,
+   "ginkgo": 10,
+   "treeFern": 32,
+   "fernClump": 20,
+   "cycad": 18,
+   "bush": 50,
+   "bigFern": 160,
+   "fern": 380,
+   "horsetails": 60,
+   "sedge": 40,
+   "log": 5
+  },
+  "denseforest": {
+   "thicket": 30,
+   "giantConifer": 4,
+   "mossConifer": 10,
+   "treeFern": 50,
+   "fernClump": 90,
+   "bigFern": 1100,
+   "fern": 420
+  },
+  "jungle": {
+   "thicket": 60,
+   "giantBroadleaf": 3,
+   "canopyBroadleaf": 16,
+   "ginkgo": 10,
+   "treeFern": 160,
+   "fernClump": 40,
+   "cycad": 50,
+   "bigFern": 200,
+   "fern": 520,
+   "flowers": 30
+  },
+  "openwoods": {
+   "thicket": 10,
+   "conifer": 14,
+   "canopyBroadleaf": 6,
+   "ginkgo": 6,
+   "cycad": 18,
+   "bush": 30,
+   "fern": 220,
+   "tuft": 100,
+   "sedge": 70,
+   "flowers": 70,
+   "termite": 1
+  },
+  "deadfall": {
+   "log": 26,
+   "dead": 12,
+   "conifer": 6,
+   "mossConifer": 3,
+   "bush": 20,
+   "fern": 200,
+   "sedge": 40
+  },
+  "plains": {
+   "fern": 140,
+   "tuft": 260,
+   "sedge": 140,
+   "flowers": 90,
+   "cycad": 3,
+   "rock": 3,
+   "termite": 1.5,
+   "bones": 0.3
+  },
+  "fernprairie": {
+   "fern": 700,
+   "bigFern": 40,
+   "tuft": 140,
+   "flowers": 110,
+   "sedge": 60,
+   "cycad": 6,
+   "treeFern": 2
+  },
+  "floodplain": {
+   "tuft": 360,
+   "sedge": 180,
+   "horsetails": 90,
+   "reeds": 30,
+   "fern": 100,
+   "flowers": 60,
+   "gallery": 2,
+   "canopyBroadleaf": 1
+  },
+  "savanna": {
+   "umbrella": 5,
+   "tuft": 380,
+   "sedge": 120,
+   "bush": 14,
+   "flowers": 25,
+   "termite": 3,
+   "bones": 0.4
+  },
+  "scrubland": {
+   "bush": 90,
+   "tuft": 200,
+   "sedge": 50,
+   "cycad": 6,
+   "termite": 3,
+   "rock": 3
+  },
+  "sauropodgrounds": {
+   "tuft": 120,
+   "sedge": 40,
+   "flowers": 25,
+   "cycad": 3,
+   "bones": 1.5,
+   "termite": 2
+  },
+  "marsh": {
+   "thicket": 8,
+   "horsetails": 420,
+   "reeds": 320,
+   "fern": 160,
+   "sedge": 140,
+   "cycad": 10,
+   "treeFern": 6,
+   "dead": 5
+  },
+  "mangrove": {
+   "thicket": 20,
+   "mangrove": 85,
+   "horsetails": 90,
+   "reeds": 60,
+   "dead": 3
+  },
+  "riverbank": {
+   "horsetails": 40,
+   "reeds": 70,
+   "sedge": 80,
+   "tuft": 60,
+   "log": 3
+  },
+  "stream": {
+   "horsetails": 60,
+   "reeds": 50,
+   "tuft": 120,
+   "sedge": 60,
+   "gallery": 2
+  },
+  "river": {
+   "gallery": 6,
+   "canopyBroadleaf": 2,
+   "giantBroadleaf": 1,
+   "horsetails": 70,
+   "reeds": 60,
+   "tuft": 150,
+   "sedge": 80,
+   "fern": 110,
+   "flowers": 30
+  },
+  "waterhole": {
+   "cycad": 6,
+   "tuft": 200,
+   "sedge": 80,
+   "reeds": 60,
+   "horsetails": 30,
+   "bones": 1,
+   "dead": 1
+  },
+  "beach": {
+   "log": 2,
+   "tuft": 30,
+   "sedge": 20
+  },
+  "hills": {
+   "conifer": 5,
+   "bush": 26,
+   "tuft": 200,
+   "sedge": 40,
+   "flowers": 30,
+   "rock": 16
+  },
+  "rocky": {
+   "rock": 50,
+   "bush": 10,
+   "tuft": 40
+  },
+  "boulderfield": {
+   "rock": 80,
+   "bush": 6
+  },
+  "desert": {
+   "rock": 4,
+   "bush": 2,
+   "bones": 0.6
+  },
+  "badlands": {
+   "rock": 26,
+   "bush": 3,
+   "bones": 0.5,
+   "dead": 1
+  },
+  "mesa": {
+   "rock": 22
+  },
+  "mountains": {
+   "darkConifer": 12,
+   "rock": 44,
+   "bush": 10
+  },
+  "nest": {
+   "tuft": 60,
+   "fern": 30,
+   "flowers": 20
+  },
+  "dryriverbed": {
+   "rock": 12,
+   "dead": 3,
+   "bones": 0.5
+  },
+  "quicksand": {
+   "dead": 3
+  },
+  "lake": {},
+  "sea": {}
+ },
+ "protos": {
+  "conifer": {
+   "h": [
+    22,
+    34
+   ],
+   "trunk": 0.028,
+   "far": true,
+   "water": false
+  },
+  "darkConifer": {
+   "h": [
+    24,
+    36
+   ],
+   "trunk": 0.028,
+   "far": true,
+   "water": false
+  },
+  "araucaria": {
+   "h": [
+    26,
+    38
+   ],
+   "trunk": 0.022,
+   "far": true,
+   "water": false
+  },
+  "giantConifer": {
+   "h": [
+    44,
+    60
+   ],
+   "trunk": 0.03,
+   "far": true,
+   "water": false
+  },
+  "giantBroadleaf": {
+   "h": [
+    26,
+    38
+   ],
+   "trunk": 0.045,
+   "wide": 1.3,
+   "far": true,
+   "water": false
+  },
+  "mossConifer": {
+   "h": [
+    24,
+    36
+   ],
+   "trunk": 0.026,
+   "far": true,
+   "water": false
+  },
+  "canopyBroadleaf": {
+   "h": [
+    18,
+    28
+   ],
+   "trunk": 0.05,
+   "wide": 1.35,
+   "far": true,
+   "water": false
+  },
+  "fernClump": {
+   "h": [
+    4,
+    7
+   ],
+   "range": 200,
+   "far": false,
+   "water": false
+  },
+  "thicket": {
+   "h": [
+    4,
+    8
+   ],
+   "far": true,
+   "water": false
+  },
+  "ginkgo": {
+   "h": [
+    12,
+    20
+   ],
+   "trunk": 0.04,
+   "far": true,
+   "water": false
+  },
+  "gallery": {
+   "h": [
+    20,
+    30
+   ],
+   "trunk": 0.05,
+   "wide": 1.3,
+   "far": true,
+   "water": false
+  },
+  "umbrella": {
+   "h": [
+    9,
+    14
+   ],
+   "trunk": 0.04,
+   "far": true,
+   "water": false
+  },
+  "mangrove": {
+   "h": [
+    8,
+    12
+   ],
+   "trunk": 0.03,
+   "far": true,
+   "water": false
+  },
+  "dead": {
+   "h": [
+    10,
+    16
+   ],
+   "trunk": 0.04,
+   "far": true,
+   "water": false
+  },
+  "treeFern": {
+   "h": [
+    5,
+    9
+   ],
+   "trunk": 0.03,
+   "far": true,
+   "water": false
+  },
+  "cycad": {
+   "h": [
+    2.5,
+    4.5
+   ],
+   "trunk": 0.11,
+   "far": false,
+   "water": false
+  },
+  "fern": {
+   "h": [
+    1,
+    2.2
+   ],
+   "far": false,
+   "water": false
+  },
+  "bigFern": {
+   "h": [
+    2.4,
+    3.8
+   ],
+   "far": false,
+   "water": false
+  },
+  "fernLo": {
+   "h": [
+    1,
+    2
+   ],
+   "far": false,
+   "water": false
+  },
+  "bigFernLo": {
+   "h": [
+    2,
+    3
+   ],
+   "far": false,
+   "water": false
+  },
+  "tuft": {
+   "h": [
+    0.6,
+    1.1
+   ],
+   "far": false,
+   "water": false
+  },
+  "sedge": {
+   "h": [
+    0.7,
+    1.4
+   ],
+   "far": false,
+   "water": false
+  },
+  "flowers": {
+   "h": [
+    0.5,
+    0.9
+   ],
+   "range": 110,
+   "variants": 6,
+   "far": false,
+   "water": false
+  },
+  "reeds": {
+   "h": [
+    1.8,
+    3
+   ],
+   "range": 150,
+   "far": false,
+   "water": false
+  },
+  "lily": {
+   "h": [
+    3,
+    6
+   ],
+   "far": false,
+   "water": true
+  },
+  "horsetails": {
+   "h": [
+    2,
+    3.5
+   ],
+   "far": false,
+   "water": false
+  },
+  "bush": {
+   "h": [
+    2,
+    3.2
+   ],
+   "far": false,
+   "water": false
+  },
+  "termite": {
+   "h": [
+    1.6,
+    3.2
+   ],
+   "solid": 0.3,
+   "far": true,
+   "water": false
+  },
+  "bones": {
+   "h": [
+    5,
+    8
+   ],
+   "far": false,
+   "water": false
+  },
+  "rock": {
+   "h": [
+    1.5,
+    5
+   ],
+   "solid": 0.35,
+   "far": true,
+   "water": false
+  },
+  "log": {
+   "h": [
+    9,
+    15
+   ],
+   "far": true,
+   "water": false
+  }
+ },
+ "canopy": {
+  "forest": 27,
+  "galleryforest": 29,
+  "denseforest": 6,
+  "jungle": 11,
+  "mangrove": 9
+ },
+ "canopyGreens": {
+  "forest": [
+   "#2c5a2a",
+   "#346632",
+   "#3c7236",
+   "#2a5230",
+   "#46783a"
+  ],
+  "galleryforest": [
+   "#356e30",
+   "#3f7c36",
+   "#4a8a3c",
+   "#2e6030",
+   "#5a8e40"
+  ],
+  "denseforest": [
+   "#3c7a30",
+   "#468a36",
+   "#52963c",
+   "#386e2e",
+   "#5c9a44"
+  ],
+  "jungle": [
+   "#3a7a34",
+   "#44883a",
+   "#4e9440",
+   "#346a30",
+   "#62a048"
+  ],
+  "mangrove": [
+   "#3e6a3a",
+   "#48743e",
+   "#526e40",
+   "#3a5e36",
+   "#5e7a46"
+  ]
+ },
+ "cover": {
+  "plains": [
+   0.75,
+   [
+    "sedge",
+    3
+   ],
+   [
+    "tuft",
+    4
+   ],
+   [
+    "flowers",
+    0.6
+   ]
+  ],
+  "savanna": [
+   0.8,
+   [
+    "sedge",
+    5
+   ],
+   [
+    "tuft",
+    4
+   ]
+  ],
+  "floodplain": [
+   0.85,
+   [
+    "sedge",
+    4
+   ],
+   [
+    "tuft",
+    3
+   ],
+   [
+    "horsetails",
+    0.6
+   ],
+   [
+    "flowers",
+    0.5
+   ]
+  ],
+  "fernprairie": [
+   0.85,
+   [
+    "fernLo",
+    5
+   ],
+   [
+    "tuft",
+    2
+   ],
+   [
+    "flowers",
+    0.6
+   ]
+  ],
+  "openwoods": [
+   0.7,
+   [
+    "fernLo",
+    3
+   ],
+   [
+    "sedge",
+    2
+   ],
+   [
+    "tuft",
+    2
+   ]
+  ],
+  "scrubland": [
+   0.55,
+   [
+    "tuft",
+    4
+   ],
+   [
+    "sedge",
+    2
+   ],
+   [
+    "rock",
+    0.4
+   ]
+  ],
+  "sauropodgrounds": [
+   0.45,
+   [
+    "tuft",
+    4
+   ],
+   [
+    "sedge",
+    1
+   ]
+  ],
+  "hills": [
+   0.55,
+   [
+    "tuft",
+    4
+   ],
+   [
+    "sedge",
+    2
+   ],
+   [
+    "rock",
+    0.6
+   ]
+  ],
+  "forest": [
+   0.7,
+   [
+    "fernLo",
+    4
+   ],
+   [
+    "sedge",
+    1
+   ]
+  ],
+  "galleryforest": [
+   0.8,
+   [
+    "fernLo",
+    4
+   ],
+   [
+    "horsetails",
+    1
+   ],
+   [
+    "sedge",
+    1
+   ]
+  ],
+  "denseforest": [
+   0.9,
+   [
+    "fernLo",
+    3
+   ],
+   [
+    "bigFernLo",
+    2
+   ]
+  ],
+  "jungle": [
+   0.85,
+   [
+    "fernLo",
+    4
+   ],
+   [
+    "bigFernLo",
+    1
+   ]
+  ],
+  "deadfall": [
+   0.6,
+   [
+    "fernLo",
+    3
+   ],
+   [
+    "sedge",
+    1
+   ]
+  ],
+  "marsh": [
+   0.9,
+   [
+    "horsetails",
+    3
+   ],
+   [
+    "reeds",
+    2
+   ],
+   [
+    "sedge",
+    2
+   ]
+  ],
+  "mangrove": [
+   0.5,
+   [
+    "horsetails",
+    2
+   ],
+   [
+    "reeds",
+    1
+   ]
+  ],
+  "riverbank": [
+   0.5,
+   [
+    "sedge",
+    3
+   ],
+   [
+    "tuft",
+    2
+   ],
+   [
+    "reeds",
+    1
+   ]
+  ],
+  "river": [
+   0.7,
+   [
+    "sedge",
+    3
+   ],
+   [
+    "tuft",
+    3
+   ],
+   [
+    "fernLo",
+    1
+   ]
+  ],
+  "stream": [
+   0.6,
+   [
+    "sedge",
+    3
+   ],
+   [
+    "tuft",
+    2
+   ]
+  ],
+  "waterhole": [
+   0.5,
+   [
+    "sedge",
+    2
+   ],
+   [
+    "tuft",
+    3
+   ]
+  ],
+  "nest": [
+   0.25,
+   [
+    "tuft",
+    3
+   ]
+  ],
+  "beach": [
+   0.15,
+   [
+    "sedge",
+    1
+   ]
+  ],
+  "rocky": [
+   0.4,
+   [
+    "rock",
+    2
+   ],
+   [
+    "tuft",
+    1
+   ]
+  ],
+  "boulderfield": [
+   0.35,
+   [
+    "rock",
+    2
+   ]
+  ],
+  "badlands": [
+   0.2,
+   [
+    "rock",
+    1
+   ]
+  ],
+  "desert": [
+   0.08,
+   [
+    "rock",
+    1
+   ]
+  ],
+  "mountains": [
+   0.35,
+   [
+    "rock",
+    2
+   ],
+   [
+    "tuft",
+    1
+   ]
+  ]
+ },
+ "coverSize": {
+  "sedge": [
+   0.5,
+   1.1
+  ],
+  "tuft": [
+   0.5,
+   1
+  ],
+  "flowers": [
+   0.4,
+   0.8
+  ],
+  "fernLo": [
+   0.6,
+   1.2
+  ],
+  "bigFernLo": [
+   1.3,
+   2.2
+  ],
+  "horsetails": [
+   1,
+   1.8
+  ],
+  "reeds": [
+   1.2,
+   2
+  ],
+  "rock": [
+   0.3,
+   0.8
+  ]
+ },
+ "abilities": [
+  {
+   "id": "bite",
+   "key": "Click",
+   "name": "Bite",
+   "cd": 0.75,
+   "desc": "Bite whatever is in front of your snout. In the water, snap up fish. Bite a kill to feed."
+  },
+  {
+   "id": "claw",
+   "key": "Q",
+   "name": "Thumb Claw",
+   "cd": 3,
+   "desc": "Rake with the huge thumb claws. A lighter wound, but it keeps bleeding: follow the trail."
+  },
+  {
+   "id": "dash",
+   "key": "Space",
+   "name": "Dash",
+   "cd": 5,
+   "stamina": 18,
+   "desc": "A lunge on land or a surge of the tail in the water. Nothing can hurt you as you go."
+  },
+  {
+   "id": "submerge",
+   "key": "C",
+   "name": "Submerge",
+   "desc": "In deep water, sink until only your eyes and sail show. Land hunters lose you; a bite from below is an ambush."
+  },
+  {
+   "id": "sniff",
+   "key": "F",
+   "name": "Sniff",
+   "cd": 10,
+   "desc": "Smell the wind: shows animals, kills and blood nearby for a few seconds."
+  },
+  {
+   "id": "display",
+   "key": "R",
+   "name": "Sail Display",
+   "cd": 12,
+   "stamina": 12,
+   "desc": "Turn side-on and flush your sail. Smaller animals scatter. A big hunter may take it as a challenge."
+  },
+  {
+   "id": "drink",
+   "key": "E",
+   "name": "Drink",
+   "desc": "Hold at the water's edge or in the shallows to drink."
+  },
+  {
+   "id": "rest",
+   "key": "Z",
+   "name": "Rest",
+   "desc": "Hold to lie down and heal while time passes quickly. Not with hunters about."
+  }
+ ]
+}

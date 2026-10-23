@@ -1,0 +1,53 @@
+{
+ "fern_02": {
+  "cutout": true
+ },
+ "rock_moss_set_01": {
+  "cutout": false
+ },
+ "rock_moss_set_02": {
+  "cutout": false
+ },
+ "shrub_02": {
+  "cutout": true
+ },
+ "shrub_03": {
+  "cutout": true
+ },
+ "shrub_04": {
+  "cutout": true
+ },
+ "weed_plant_02": {
+  "cutout": true
+ },
+ "nettle_plant": {
+  "cutout": true
+ },
+ "boulder_01": {
+  "cutout": false
+ },
+ "stone_01": {
+  "cutout": false
+ },
+ "rock_07": {
+  "cutout": false
+ },
+ "rock_09": {
+  "cutout": false
+ },
+ "tree_stump_01": {
+  "cutout": false
+ },
+ "dead_tree_trunk": {
+  "cutout": false
+ },
+ "bark_debris_01": {
+  "cutout": false
+ },
+ "pine_roots_a": {
+  "cutout": false
+ },
+ "pine_roots_b": {
+  "cutout": false
+ }
+}

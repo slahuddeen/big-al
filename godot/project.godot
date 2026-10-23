@@ -1,0 +1,32 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/name="Spino: Kem Kem"
+config/description="A Spinosaurus in the Kem Kem river world, 95 million years ago. A Godot port of Spino: Roam."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/stretch/mode="disabled"
+
+
+[rendering]
+
+lights_and_shadows/directional_shadow/size=4096
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+anti_aliasing/quality/msaa_3d=0
+anti_aliasing/quality/screen_space_aa=1
+anti_aliasing/quality/use_taa=true
+environment/defaults/default_clear_color=Color(0.55, 0.7, 0.85, 1)
+textures/vram_compression/import_etc2_astc=false
+textures/default_filters/anisotropic_filtering_level=3
+
+[autoload]
+
+World="*res://scripts/world.gd"
