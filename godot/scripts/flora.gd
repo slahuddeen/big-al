@@ -5,7 +5,7 @@
 # ferns, cycads and thickets, ferns on the floor), and sedges, flowers, horsetails, reeds,
 # lilies, termite mounds, bones, photo-scanned rocks and logs where they belong. Each 128 m chunk keeps one
 # MultiMesh per plant, so Godot picks a mesh LOD per chunk; small plants are only drawn close.
-# Past ~260 m a forest is drawn as a blanket of lumpy crowns at the canopy's height instead of
+# Past ~420 m a forest is drawn as a blanket of lumpy crowns at the canopy's height instead of
 # its trees, so distant woods read as solid walls. Trunks and boulders are remembered for
 # collisions.
 extends Node3D
@@ -13,7 +13,7 @@ extends Node3D
 const CHUNK := 128.0
 const VIEW := 900.0
 const NEAR_KINDS := 200.0
-const CANOPY_NEAR := 260.0
+const CANOPY_NEAR := 420.0
 const VARIANTS := 3
 const DRY := ["savanna", "scrubland", "plains", "desert", "badlands", "sauropodgrounds", "rocky", "hills"]
 const LUSH := ["jungle", "denseforest", "galleryforest", "marsh"]
@@ -286,8 +286,9 @@ func _canopy(cx: int, cz: int) -> MeshInstance3D:
 			var g := World.height(x, z)
 			var k := j * n + i
 			if ch <= 0.0 or World.has_water(World.water_at(x, z)) or World.river_edge(x, z) < 6.0:
-				verts[k] = Vector3(x, g - 4.0, z)
-				cols[k] = Color(0.1, 0.12, 0.08)
+				# the forest's edge falls to the ground; the canopy shader darkens its flanks like the shade under trees
+				verts[k] = Vector3(x, g - 1.0, z)
+				cols[k] = Color(0.16, 0.2, 0.12)
 				continue
 			on[k] = 1
 			any = true
