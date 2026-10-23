@@ -3,7 +3,8 @@
 # headless import leaves every texture without mipmaps and uncompressed. This writes the import
 # settings each texture of the port needs and forces a re-import:
 #   * everything drawn in 3D: VRAM-compressed (BC1/BC3) with mipmaps
-#   * normal maps: compressed as normal maps (RGTC), except Terrain3D's, which carry roughness in alpha
+#   * normal maps: compressed as normal maps (RGTC), except Terrain3D's, which carry roughness in alpha,
+#     and the tree impostors', whose normals are read whole
 #   * the world's data images (biome colour, splat): lossless, with mipmaps, never compressed
 #   * the plant and clutter meshes: no automatic LODs (Godot 4.3's LOD generator crashes on some of
 #     the scans and tears others into shards; the scatter and Terrain3D cull them by distance)
@@ -26,6 +27,8 @@ def settings(rel):
     name = os.path.basename(rel)
     if rel.startswith('data/'):
         s['compress/mode'] = 0
+    elif rel.startswith('flora/imp/'):
+        pass  # impostor normals are read whole (x, y and z) and stack into a texture array with the albedos' settings
     elif re.search(r'(_n|_normal|_n2)\.(png|jpg|webp)$', name):
         s['compress/normal_map'] = 1
     return s
@@ -61,7 +64,7 @@ def main():
     n = 0
     for p in sorted(glob.glob(os.path.join(GODOT, 'flora_ph', '*.glb')) + glob.glob(os.path.join(GODOT, 'flora', '*.glb'))):
         n += write_scene(p)
-    for pat in ('textures/*.png', 'textures/ground/*.webp', 'flora_ph/tex/*.webp', 'creatures/*.jpg', 'creatures/*.png', 'creatures/*.webp',
+    for pat in ('textures/*.png', 'textures/ground/*.webp', 'flora_ph/tex/*.webp', 'flora/tex/*.webp', 'flora/imp/*.webp', 'creatures/*.jpg', 'creatures/*.png', 'creatures/*.webp',
                 'data/world_*/*.png'):
         for p in sorted(glob.glob(os.path.join(GODOT, pat))):
             n += write(p, settings(os.path.relpath(p, GODOT).replace(os.sep, '/')))
